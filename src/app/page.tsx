@@ -36,7 +36,7 @@ export default function Home() {
   const { status } = useSession();
   const [students, setStudents] = useState<Student[] | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedGrade, setSelectedGrade] = useState("");
   const [selectedDate] = useState("2025-06-08");
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [isSunday, setIsSunday] = useState(false);
@@ -48,16 +48,10 @@ export default function Home() {
       setIsSunday(new Date(selectedDate).getDay() === 0);
       fetch("/api/students")
         .then((res) => res.json())
-        .then((data) => {
-          console.log('Fetched students:', data); // Debugging
-          setStudents(data);
-        })
-        .catch((error) => {
-          console.error('Fetch students error:', error); // Debugging
-          setStudents([]);
-        });
+        .then((data) => setStudents(data))
+        .catch(() => setStudents([]));
     }
-  }, [status]);
+  }, [status, selectedDate]);
 
   const toggleAttendance = (studentId: string) => {
     if (!isSunday) return alert("Attendance can only be marked on Sundays");
@@ -154,16 +148,16 @@ export default function Home() {
   const filteredStudents =
     students?.filter(
       (student) =>
-        (selectedClass === "" || student.Class === selectedClass) &&
+        (selectedGrade === "" || student.Grade === selectedGrade) &&
         (
           (student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
           (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
           (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (student.Class || "").toLowerCase().includes(searchTerm.toLowerCase())
+          (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase())
         )
     ) || [];
 
-  const classOptions = [...new Set(students?.map((s) => s.Class) || [])];
+  const gradeOptions = [...new Set(students?.map((s) => s.Grade) || [])];
 
   if (status === "loading") {
     return <div>Loading...</div>;
@@ -210,18 +204,18 @@ export default function Home() {
             htmlFor="classFilter"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Filter by Class
+            Filter by Grade
           </label>
           <select
             id="classFilter"
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="p-3 w-full border-gray-300 rounded-lg"
+            value={selectedGrade}
+            onChange={(e) => setSelectedGrade(e.target.value)}
+            className="w-full p-3 border rounded-lg"
           >
-            <option value="">All Classes</option>
-            {classOptions.map((className) => (
-              <option key={className} value={className}>
-                {className}
+            <option value="">All Grades</option>
+            {gradeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
               </option>
             ))}
           </select>

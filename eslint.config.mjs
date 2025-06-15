@@ -13,6 +13,10 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
+    rules: {
+      // Add any custom rules here
+      'no-console': 'warn', // Example rule
+    },
     ignores: ['scripts/'],
   },
 ];

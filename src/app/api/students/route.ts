@@ -1,48 +1,68 @@
 // src/app/api/students/route.ts
 import { getDb } from '../../../lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
+import { ObjectId } from 'mongodb';
+
+interface Student {
+  _id?: ObjectId;
+  Unique_ID: string;
+  First_Name: string;
+  Father_Name: string;
+  Grandfather_Name: string;
+  Mothers_Name: string;
+  Christian_Name: string;
+  DOB_Date: string;
+  DOB_Month: string;
+  DOB_Year: string;
+  Age: number;
+  Sex: string;
+  Phone_Number: string;
+  Class: string;
+  Occupation: string;
+  School?: string;
+  School_Other?: string;
+  Educational_Background?: string;
+  Place_of_Work?: string;
+  Address: string;
+  Address_Other?: string;
+  Academic_Year: string;
+  Grade: string;
+}
 
 export async function GET() {
-  console.log('GET request received at /api/students'); // Debugging
   try {
     const db = await getDb();
-    const students = await db.collection('students').find({}).toArray();
-    console.log('Fetched students count:', students.length); // Debugging
+    const students = await db.collection<Student>('students').find({}).toArray();
     return NextResponse.json(students, { status: 200 });
   } catch (error) {
-    console.error('GET /api/students error:', error); // Debugging
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  console.log('POST request received at /api/students'); // Debugging
   try {
-    const data = await req.json();
-    console.log('Data received:', data); // Debugging
     const db = await getDb();
-    const studentsCollection = db.collection('students');
-
-    // Handle duplicate check
-    if (data.checkDuplicate) {
-      const { First_Name, Father_Name, Grandfather_Name, Mothers_Name, Sex } = data;
-      const existingStudent = await studentsCollection.findOne({
-        First_Name,
-        Father_Name,
-        Grandfather_Name,
-        Mothers_Name,
-        Sex,
-      });
-      console.log('Duplicate check result:', !!existingStudent); // Debugging
-      return NextResponse.json({ exists: !!existingStudent }, { status: 200 });
-    }
-
-    // Insert new student
-    const result = await studentsCollection.insertOne(data);
-    console.log('Insert result:', result); // Debugging
-    return NextResponse.json({ success: true, insertedId: result.insertedId }, { status: 200 });
+    const body: Student = await req.json();
+    const result = await db.collection<Student>('students').insertOne(body);
+    return NextResponse.json({ _id: result.insertedId }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/students error:', error); // Debugging
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const db = await getDb();
+    const { id } = await req.json();
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    }
+    const result = await db.collection<Student>('students').deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
+    return NextResponse.json({ message: 'Student deleted' }, { status: 200 });
+  } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }
