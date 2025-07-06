@@ -44,7 +44,7 @@ async function insertOrUpdateUser() {
     const usersCollection = db.collection("users");
 
     const email = "bingut@gmail.com";
-    const plainPassword = "Bin_ym";
+    const plainPassword = "binym12";
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
     const existingUser = await usersCollection.findOne({ email });

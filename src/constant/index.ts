@@ -1,44 +1,18 @@
 // src/constant/index.ts
-import { getDb } from '../lib/mongodb';
-import { Student } from '../lib/imports';
+export const schools = [
+  "ሀና", "ሀፒ ቪሌጄ", "ሂልሳይድ", "ህዳሴ", "ሆም ላንድ", "ሊዜም", "መሪ", "ሚሽን", "ማርቭል", "ሜሪኦን",
+  "ምስራቅ", "ሰላም", "ሳንፎርድ", "ሳፋሪ", "ስኩል ኦፍ ቱምሮ", "ሮፋም", "ሽቡአጆርሳ", "ቅኔ", "ቅዱስ ሚካኤል",
+  "ቅድስት ሬዛ", "በሻሌ", "ቤስት", "ቦሌ አዲስ", "ነዋይ", "ኒሺኒ ሆፕ", "ኒው ሰንላይት", "ናዝሬት",
+  "አቡነ ጎርጎርዮስ", "አንድነት", "ኢትዮ ፓረንት", "እርግብ", "ኦዞን", "ኪዳነ ምሕረት", "ኪፓስ", "ካራሎ",
+  "ወንድይራድ", "ውለታ", "የኒፎርም", "ያንግሩት", "ዳይመንድ", "ዴሊቨራንስ", "ጂባ", "ጊብሰን", "ግሎሪ",
+  "ጽዮን ማርያም", "ፋውንቴን", "ፌርዌይ", "ፓንቶ ኮርቶር", "ፓንቶክራቶን", "ቪዥን", "ኤልቤተል", "ስላሴ ካቴድራል",
+  "ሚሸን", "አንድነት", "72", "ራዕይ", "ቤ ዘ", "ቡርቃ ቦሬ", "ሚካኤል", "ኤደን", "ፊውቸር የዝ", "Other"
+];
 
-export async function getStudents(): Promise<Student[]> {
-  try {
-    const db = await getDb();
-    return await db.collection<Student>('students').find().toArray();
-  } catch {
-    return [];
-  }
-}
-
-export async function addStudent(student: Omit<Student, 'id' | 'ID_Number'>): Promise<Student> {
-  if (!student.Academic_Year.match(/^\d{4}$/)) {
-    throw new Error('Invalid Academic Year');
-  }
-  const db = await getDb();
-  const yearLastTwoDigits = student.Academic_Year.slice(-2);
-  const counterResult = await db.collection<{ _id: string; seq: number }>('counters').findOneAndUpdate(
-    { _id: `student_${student.Academic_Year}` },
-    { $inc: { seq: 1 } },
-    { upsert: true, returnDocument: 'after' }
-  );
-  const seq = counterResult && counterResult.seq ? counterResult.seq : 1;
-  const ID_Number = `${yearLastTwoDigits}${seq.toString().padStart(4, '0')}`;
-  const id = Math.random().toString(36).substr(2, 9);
-  const newStudent = { ...student, id, ID_Number };
-  await db.collection<Student>('students').insertOne(newStudent);
-  return newStudent;
-}
-
-export async function updateStudent(id: string, updatedData: Partial<Student>): Promise<void> {
-  const db = await getDb();
-  await db.collection<Student>('students').updateOne(
-    { id },
-    { $set: updatedData }
-  );
-}
-
-export async function getStudentById(id: string): Promise<Student | null> {
-  const db = await getDb();
-  return await db.collection<Student>('students').findOne({ id });
-}
+export const addresses = [
+  "ጥቁር አባይ/ሚካኤል ጀርባ አካባቢ", "ሲቪል ሰርቪስ አካባቢ", "ወንድይራድ ት/ቤት አካባቢ",
+  "ታቦት ማደሪያ/ኮተቤ ኮሌጅ አካባቢ", "ወሰን/አቅም ግንባታ አካባቢ", "አልታድ (ፊጋ) አካባቢ",
+  "ሴፍ የመኖሪያ ቤቶች አካባቢ", "የተባበሩት አካባቢ", "ሰሚት አካባቢ", "ሲኤምሲ", "መሪ", "ላምበረት",
+  "02", "ሰባ ሁለት", "ኢትዮ ዋልስ", "ሎቄ", "ኢትዮ ዊልስ", "አቤም", "ጣፎ", "ሰአሊተ ምሕረት", "አያት",
+  "ካራ", "አባዶ", "Other"
+];

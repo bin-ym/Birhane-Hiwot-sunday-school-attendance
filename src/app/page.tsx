@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import { gregorianToEthiopianDate } from '@/lib/utils';
 import AttendanceTable from '../components/AttendanceTable';
 
 interface Student {
@@ -37,21 +38,28 @@ export default function Home() {
   const [students, setStudents] = useState<Student[] | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
-  const [selectedDate] = useState("2025-06-08");
+  const currentDate = new Date('2025-07-06T12:21:00+03:00'); // Current date: July 6, 2025, 12:21 PM EAT
+  const selectedDate = gregorianToEthiopianDate(currentDate); // e.g., "Sene 29, 2017"
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [isSunday, setIsSunday] = useState(false);
+
+  // Helper function to check if a date is Sunday
+  function checkIsSunday(date: Date) {
+    return date.getDay() === 0;
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") {
       window.location.href = "/api/auth/signin";
     } else if (status === "authenticated") {
-      setIsSunday(new Date(selectedDate).getDay() === 0);
+      setIsSunday(checkIsSunday(currentDate));
+      console.log('Current date:', selectedDate, 'Is Sunday:', checkIsSunday(currentDate));
       fetch("/api/students")
         .then((res) => res.json())
         .then((data) => setStudents(data))
         .catch(() => setStudents([]));
     }
-  }, [status, selectedDate]);
+  }, [status]);
 
   const toggleAttendance = (studentId: string) => {
     if (!isSunday) return alert("Attendance can only be marked on Sundays");
@@ -125,7 +133,7 @@ export default function Home() {
     const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(
       new Blob([buffer], { type: "application/octet-stream" }),
-      `Attendance_${selectedDate}.xlsx`
+      `Attendance_${selectedDate.replace(/[\s,]+/g, '_')}.xlsx`
     );
   };
 
@@ -174,7 +182,7 @@ export default function Home() {
             Date
           </label>
           <p className="p-3 border border-gray-300 rounded-lg bg-gray-50">
-            June 8, 2025
+            {selectedDate}
           </p>
           {!isSunday && (
             <p className="text-red-500 text-sm mt-1">
