@@ -5,41 +5,16 @@ import { useSession } from 'next-auth/react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { gregorianToEthiopianDate } from '@/lib/utils';
+import { Student, Attendance } from '@/lib/models';
 import AttendanceTable from '../components/AttendanceTable';
-
-interface Student {
-  _id: string;
-  Unique_ID: string;
-  First_Name: string;
-  Father_Name: string;
-  Grandfather_Name: string;
-  Mothers_Name: string;
-  Christian_Name: string;
-  Phone_Number: string;
-  Age: number;
-  Sex: string;
-  Class: string;
-  Occupation: string;
-  Educational_Background?: string;
-  Address: string;
-  Academic_Year: string;
-  Grade: string;
-}
-
-interface Attendance {
-  studentId: string;
-  date: string;
-  present: boolean;
-  hasPermission: boolean;
-}
 
 export default function Home() {
   const { status } = useSession();
   const [students, setStudents] = useState<Student[] | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
-  const currentDate = new Date('2025-07-06T12:21:00+03:00'); // Current date: July 6, 2025, 12:21 PM EAT
-  const selectedDate = gregorianToEthiopianDate(currentDate); // e.g., "Sene 29, 2017"
+  const currentDate = new Date('2025-07-07T10:07:00+03:00'); // Current date: July 7, 2025, 10:07 AM EAT
+  const selectedDate = gregorianToEthiopianDate(currentDate); // e.g., "Sene 30, 2017"
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [isSunday, setIsSunday] = useState(false);
 
@@ -156,6 +131,7 @@ export default function Home() {
   const filteredStudents =
     students?.filter(
       (student) =>
+        student._id && // Ensure _id exists
         (selectedGrade === "" || student.Grade === selectedGrade) &&
         (
           (student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -164,12 +140,6 @@ export default function Home() {
           (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase())
         )
     ) || [];
-
-  const gradeOptions = [...new Set(students?.map((s) => s.Grade) || [])];
-
-  if (status === "loading") {
-    return <div>Loading...</div>;
-  }
 
   return (
     <div className="bg-white shadow-lg rounded-lg p-6">
@@ -221,7 +191,7 @@ export default function Home() {
             className="w-full p-3 border rounded-lg"
           >
             <option value="">All Grades</option>
-            {gradeOptions.map((option) => (
+            {[...new Set(students?.map((s) => s.Grade) || [])].map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
@@ -242,6 +212,7 @@ export default function Home() {
         isSunday={isSunday}
         toggleAttendance={toggleAttendance}
         togglePermission={togglePermission}
+        setAttendance={setAttendance}
       />
     </div>
   );

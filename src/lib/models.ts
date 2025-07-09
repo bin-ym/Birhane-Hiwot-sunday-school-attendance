@@ -30,4 +30,7 @@ export interface Attendance {
   date: string;
   present: boolean;
   hasPermission: boolean;
+  reason?: string;
+  markedBy?: string;
+  timestamp?: string;
 }

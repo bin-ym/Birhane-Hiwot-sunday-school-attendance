@@ -31,8 +31,10 @@ interface Student {
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const { id } = await params;  // Await the params
     const db = await getDb();
-    const student = await db.collection<Student>('students').findOne({ _id: new ObjectId(params.id) });
+    const student = await db.collection<Student>('students').findOne({ _id: new ObjectId(id) });
+    
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }

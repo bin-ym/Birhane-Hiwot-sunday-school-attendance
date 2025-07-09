@@ -1,5 +1,6 @@
 // src/components/AttendanceTable.tsx
-import { Student, Attendance } from "../lib/imports";
+import { Student, Attendance } from '@/lib/models';
+import React from 'react';
 
 interface AttendanceTableProps {
   students: Student[] | null;
@@ -8,37 +9,7 @@ interface AttendanceTableProps {
   isSunday: boolean;
   toggleAttendance: (studentId: string) => void;
   togglePermission: (studentId: string) => void;
-}
-
-interface Student {
-  _id: string;
-  Unique_ID: string;
-  First_Name: string;
-  Father_Name: string;
-  Grandfather_Name: string;
-  Mothers_Name: string;
-  Christian_Name: string;
-  DOB_Date: string;
-  DOB_Month: string;
-  DOB_Year: string;
-  Age: number;
-  Sex: string;
-  Phone_Number: string;
-  Class: string;
-  Occupation: string;
-  School?: string;
-  Educational_Background?: string;
-  Place_of_Work?: string;
-  Address: string;
-  Academic_Year: string;
-  Grade: string;
-}
-
-interface Attendance {
-  studentId: string;
-  date: string;
-  present: boolean;
-  hasPermission: boolean;
+  setAttendance: React.Dispatch<React.SetStateAction<Attendance[]>>;
 }
 
 export default function AttendanceTable({
@@ -48,6 +19,7 @@ export default function AttendanceTable({
   isSunday,
   toggleAttendance,
   togglePermission,
+  setAttendance,
 }: AttendanceTableProps) {
   if (!students || students.length === 0) {
     return <p>No students available</p>;
@@ -60,8 +32,19 @@ export default function AttendanceTable({
     );
     if (record) {
       // Clear both present and hasPermission to mark as absent
-      toggleAttendance(studentId); // Uncheck present
+      if (record.present) toggleAttendance(studentId); // Uncheck present
       if (record.hasPermission) togglePermission(studentId); // Uncheck permission
+    } else {
+      // Create new record for absent
+      setAttendance([
+        ...attendance,
+        {
+          studentId,
+          date: selectedDate,
+          present: false,
+          hasPermission: false,
+        },
+      ]);
     }
   };
 
@@ -80,6 +63,10 @@ export default function AttendanceTable({
         </thead>
         <tbody>
           {students.map((student) => {
+            if (!student._id) {
+              console.error(`Student with Unique_ID ${student.Unique_ID} has no _id`);
+              return null; // Skip students without _id
+            }
             const record = attendance.find(
               (r) => r.studentId === student._id && r.date === selectedDate
             );
@@ -93,7 +80,7 @@ export default function AttendanceTable({
                   <input
                     type="checkbox"
                     checked={record?.present || false}
-                    onChange={() => toggleAttendance(student._id)}
+                    onChange={() => toggleAttendance(student._id!)}
                     disabled={!isSunday}
                     className="h-5 w-5 rounded border-gray-300 focus:ring-blue-500"
                   />
@@ -102,7 +89,7 @@ export default function AttendanceTable({
                   <input
                     type="checkbox"
                     checked={record?.hasPermission || false}
-                    onChange={() => togglePermission(student._id)}
+                    onChange={() => togglePermission(student._id!)}
                     disabled={!isSunday}
                     className="h-5 w-5 rounded border-gray-300 focus:ring-blue-500"
                   />
@@ -111,7 +98,7 @@ export default function AttendanceTable({
                   <input
                     type="checkbox"
                     checked={isAbsent}
-                    onChange={() => toggleAbsent(student._id)}
+                    onChange={() => toggleAbsent(student._id!)}
                     disabled={!isSunday}
                     className="h-5 w-5 rounded border-gray-300 focus:ring-blue-500"
                   />
