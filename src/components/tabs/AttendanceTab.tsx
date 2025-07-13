@@ -1,5 +1,6 @@
+"use client";
 import { useState } from "react";
-// import { jsPDF } from "jspdf";
+import { jsPDF } from "jspdf";
 import { Student, Attendance } from "@/lib/models";
 import {
   getSundaysInEthiopianYear,
@@ -32,20 +33,22 @@ export default function AttendanceTab({
     return acc;
   }, {} as Record<string, string[]>);
 
+  const attendanceMap = Object.fromEntries(
+    attendanceRecords.map((r) => [r.date, r])
+  );
+
   const total = sundays.length;
-  const present = sundays.filter((date) => {
-    const r = attendanceRecords.find((r) => r.date === date);
-    return r?.present;
-  }).length;
-  const permission = sundays.filter((date) => {
-    const r = attendanceRecords.find((r) => r.date === date);
-    return !r?.present && r?.hasPermission;
-  }).length;
+  const present = sundays.filter((d) => attendanceMap[d]?.present).length;
+  const permission = sundays.filter(
+    (d) => !attendanceMap[d]?.present && attendanceMap[d]?.hasPermission
+  ).length;
   const absent = total - present - permission;
+
+  const escapeCSV = (val: string) => `"${val?.replace(/"/g, '""') || ""}"`;
 
   const exportToCSV = () => {
     const rows = sundays.map((date) => {
-      const r = attendanceRecords.find((a) => a.date === date);
+      const r = attendanceMap[date];
       return {
         Student: `${student.First_Name} ${student.Father_Name}`,
         Date: date,
@@ -59,7 +62,11 @@ export default function AttendanceTab({
 
     const csv = [
       Object.keys(rows[0]).join(","),
-      ...rows.map((row) => Object.values(row).join(",")),
+      ...rows.map((row) =>
+        Object.values(row)
+          .map((val) => escapeCSV(String(val)))
+          .join(",")
+      ),
     ].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -71,13 +78,14 @@ export default function AttendanceTab({
   };
 
   const generatePDF = () => {
-    // const doc = new jsPDF();
-    // doc.setFontSize(12);
-    // const title = `Attendance Report for ${student.First_Name}`;
-    // doc.text(title, 10, 10);
+    const doc = new jsPDF();
+    doc.setFontSize(12);
+    const title = `Attendance Report for ${student.First_Name}`;
+    doc.text(title, 10, 10);
 
-    sundays.forEach((date, index) => {
-      const record = attendanceRecords.find((r) => r.date === date);
+    let y = 20;
+    sundays.forEach((date) => {
+      const record = attendanceMap[date];
       const status = record
         ? record.present
           ? "Present"
@@ -85,8 +93,14 @@ export default function AttendanceTab({
           ? "Permission"
           : "Absent"
         : "Absent";
-      const reason = record?.reason ? ` (${record.reason})` : '';
-      doc.text(`${date}: ${status}${reason}`, 10, 20 + (10 * index));
+      const reason = record?.reason ? ` (${record.reason})` : "";
+      doc.text(`${date}: ${status}${reason}`, 10, y);
+
+      y += 10;
+      if (y > 280) {
+        doc.addPage();
+        y = 10;
+      }
     });
 
     doc.save(`${student.First_Name}_Attendance_Report.pdf`);
@@ -130,8 +144,14 @@ export default function AttendanceTab({
 
       {/* Modal for Report Options */}
       {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="bg-white p-6 rounded shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-semibold mb-4">Choose Report Format</h3>
             <div className="flex justify-around">
               <button
@@ -176,7 +196,7 @@ export default function AttendanceTab({
                 <div className="grid grid-cols-1 gap-3">
                   {dates.map((date) => {
                     const gregorianDate = ethiopianDateToGregorian(date);
-                    const record = attendanceRecords.find((r) => r.date === date);
+                    const record = attendanceMap[date];
                     let status = "";
                     let statusStyles = "";
                     let statusIcon = null;
@@ -210,14 +230,22 @@ export default function AttendanceTab({
                       statusStyles = "bg-red-500 text-white";
                     }
 
-                    const tooltip = `Marked by: ${record?.markedBy || "Birhaun Hiwot"}\nTime: ${record?.timestamp ? new Date(record.timestamp).toLocaleString() : new Date().toLocaleString()}\nReason: ${status === "Permission" ? record?.reason || "—" : "N/A"}`;
+                    const tooltip = `Marked by: ${record?.markedBy || "Birhaun Hiwot"}\nTime: ${
+                      record?.timestamp
+                        ? new Date(record.timestamp).toLocaleString()
+                        : new Date().toLocaleString()
+                    }\nReason: ${
+                      status === "Permission" ? record?.reason || "—" : "N/A"
+                    }`;
 
                     return (
                       <div
                         key={date}
                         className="border border-gray-200 rounded-lg p-3 bg-white hover:bg-gray-50 transition duration-150 ease-in-out"
                       >
-                        <p className="text-sm font-medium text-gray-800">{date}</p>
+                        <p className="text-sm font-medium text-gray-800">
+                          {date}
+                        </p>
                         {status ? (
                           <p
                             className={`text-sm font-semibold ${statusStyles} inline-flex items-center px-2 py-1 rounded-full`}
