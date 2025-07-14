@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Student, Attendance } from "@/lib/models";
 import {
   getSundaysInEthiopianYear,
@@ -77,34 +78,45 @@ export default function AttendanceTab({
     a.click();
   };
 
-  const generatePDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(12);
-    const title = `Attendance Report for ${student.First_Name}`;
-    doc.text(title, 10, 10);
+const generatePDF = () => {
+  const doc = new jsPDF();
+  doc.setFontSize(14);
+  const title = `Attendance Report for ${student.First_Name} ${student.Father_Name}`;
+  doc.text(title, 14, 20);
 
-    let y = 20;
-    sundays.forEach((date) => {
-      const record = attendanceMap[date];
-      const status = record
-        ? record.present
-          ? "Present"
-          : record.hasPermission
-          ? "Permission"
-          : "Absent"
-        : "Absent";
-      const reason = record?.reason ? ` (${record.reason})` : "";
-      doc.text(`${date}: ${status}${reason}`, 10, y);
+  const tableData = sundays.map((date) => {
+    const record = attendanceMap[date];
+    const status = record
+      ? record.present
+        ? "Present"
+        : record.hasPermission
+        ? "Permission"
+        : "Absent"
+      : "Absent";
 
-      y += 10;
-      if (y > 280) {
-        doc.addPage();
-        y = 10;
-      }
-    });
+    return [
+      date,
+      status,
+      record?.reason || (status === "Permission" ? "—" : "N/A"),
+      record?.markedBy || "Birhaun Hiwot",
+      record?.timestamp
+        ? new Date(record.timestamp).toLocaleString()
+        : new Date().toLocaleString(),
+    ];
+  });
 
-    doc.save(`${student.First_Name}_Attendance_Report.pdf`);
-  };
+  autoTable(doc, {
+    head: [["Date", "Status", "Reason", "Marked By", "Timestamp"]],
+    body: tableData,
+    startY: 30,
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [33, 37, 41] }, // dark gray
+    alternateRowStyles: { fillColor: [245, 245, 245] }, // light gray
+  });
+
+  doc.save(`${student.First_Name}_Attendance_Report.pdf`);
+};
+
 
   const handleGenerateReport = (format: string) => {
     if (format === "CSV") {
