@@ -9,8 +9,8 @@ export default function NavBar() {
         <h1 className="text-xl font-bold">Sunday School SIS</h1>
         <div className="flex gap-4">
           <Link href="/" className="hover:underline">Home</Link>
-          <Link href="/students" className="hover:underline">Students</Link>
-          <Link href="/register" className="hover:underline">Register</Link>
+          <Link href="/register/old" className="hover:underline">Students</Link>
+          <Link href="/register/new" className="hover:underline">Register</Link>
           <button onClick={() => signOut()} className="hover:underline">Sign Out</button>
         </div>
       </div>

@@ -96,7 +96,7 @@ export default function OldStudent() {
 
   return (
     <div className="bg-white shadow-lg rounded-lg p-6">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Old Student Registration</h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">Student Records</h1>
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div>
           <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">

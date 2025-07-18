@@ -34,3 +34,13 @@ export interface Attendance {
   markedBy?: string;
   timestamp?: string;
 }
+
+export type UserRole = 'admin' | 'facilitator1' | 'facilitator2';
+
+export interface User {
+  _id?: string;
+  email: string;
+  password: string;
+  name?: string;
+  role: UserRole;
+}
