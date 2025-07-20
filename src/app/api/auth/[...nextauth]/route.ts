@@ -34,7 +34,8 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
           console.log(`User authenticated: ${credentials.email}`);
-          return { id: user._id.toString(), email: user.email };
+          // Include role in the returned user object
+          return { id: user._id.toString(), email: user.email, role: user.role, name: user.name };
         } catch (error) {
           if (error instanceof Error) {
             console.error("Authentication error:", error.message);
@@ -46,6 +47,22 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+        token.name = user.name;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (token) {
+        session.user.role = token.role;
+        session.user.name = token.name;
+      }
+      return session;
+    },
+  },
 };
 
 const handler = NextAuth(authOptions);
