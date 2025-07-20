@@ -20,7 +20,7 @@ export default function StudentDetails() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      window.location.href = "/api/auth/signin";
+      window.location.href = "/login";
     } else if (status === "authenticated") {
       // Fetch student data
       fetch(`/api/students/${id}`)
@@ -60,7 +60,7 @@ export default function StudentDetails() {
 
   if (!student) {
     return (
-      <div className="bg-white shadow-lg rounded-lg p-6 mx-auto my-6 max-w-4xl">
+      <section className="bg-white shadow-lg rounded-lg p-6 mx-auto my-6 max-w-4xl">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">
           Student Not Found
         </h1>
@@ -71,12 +71,12 @@ export default function StudentDetails() {
         >
           Back to Students
         </Link>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6 mx-auto my-6 max-w-4xl">
+    <section className="bg-white shadow-lg rounded-lg p-6 mx-auto my-6 max-w-4xl">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Student Details</h1>
 
       {/* Sub Navigation */}
@@ -127,6 +127,6 @@ export default function StudentDetails() {
       >
         Back to Students
       </Link>
-    </div>
+    </section>
   );
 }

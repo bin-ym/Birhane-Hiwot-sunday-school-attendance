@@ -18,7 +18,7 @@ export default function RootLayout({
       <body>
         <ClientSessionProvider>
           <NavBar />
-          <main className="container mx-auto p-6">{children}</main>
+          <section className="container mx-auto p-6">{children}</section>
         </ClientSessionProvider>
       </body>
     </html>

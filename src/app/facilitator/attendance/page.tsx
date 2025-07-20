@@ -3,6 +3,7 @@ import { useState } from "react";
 import RegisterNew from "../../register/new/page";
 import StudentList from "./StudentList";
 import AttendanceSection from "./AttendanceSection";
+import { signOut } from "next-auth/react";
 
 const SECTIONS = [
   { key: "register", label: "Register New Student" },
@@ -26,6 +27,12 @@ export default function AttendanceFacilitatorDashboard() {
               {s.label}
             </button>
           ))}
+          <button
+            className="text-left px-4 py-2 rounded-lg hover:bg-blue-700"
+            onClick={() => signOut({ callbackUrl: '/login' })}
+          >
+            Logout
+          </button>
         </nav>
       </aside>
       <main className="flex-1 p-8 bg-gray-50">

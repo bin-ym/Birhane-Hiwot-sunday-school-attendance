@@ -25,7 +25,7 @@ export default function Home() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      window.location.href = "/api/auth/signin";
+      window.location.href = "/login";
     } else if (status === "authenticated") {
       setIsSunday(checkIsSunday(currentDate));
       console.log('Current date:', selectedDate, 'Is Sunday:', checkIsSunday(currentDate));
@@ -142,7 +142,7 @@ export default function Home() {
     ) || [];
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6">
+    <section className="bg-white shadow-lg rounded-lg p-6">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
         Attendance Management
       </h1>
@@ -214,6 +214,6 @@ export default function Home() {
         togglePermission={togglePermission}
         setAttendance={setAttendance}
       />
-    </div>
+    </section>
   );
 }

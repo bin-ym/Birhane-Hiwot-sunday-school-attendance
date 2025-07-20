@@ -35,7 +35,7 @@ export default function OldStudent() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      window.location.href = "/api/auth/signin";
+      window.location.href = "/login";
     } else if (status === "authenticated") {
       fetch("/api/students")
         .then((res) => res.json())
@@ -95,7 +95,7 @@ export default function OldStudent() {
   }
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6">
+    <section className="bg-white shadow-lg rounded-lg p-6">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Student Records</h1>
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div>
@@ -231,6 +231,6 @@ export default function OldStudent() {
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
