@@ -2,7 +2,14 @@ import { getDb } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (req.nextUrl.pathname.endsWith('/roles')) {
+    // Return available facilitator roles
+    return NextResponse.json([
+      { value: 'facilitator1', label: 'Attendance Facilitator' },
+      { value: 'facilitator2', label: 'Education Facilitator' }
+    ]);
+  }
   try {
     const db = await getDb();
     const facilitators = await db

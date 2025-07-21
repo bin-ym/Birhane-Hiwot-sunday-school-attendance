@@ -1,5 +1,7 @@
 "use client";
 
+import { signOut } from "next-auth/react";
+
 export default function AdminHome() {
   return (
     <section className="min-h-screen flex flex-col gap-8">
@@ -47,6 +49,7 @@ export default function AdminHome() {
         <a href="/admin/facilitators" className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold">Go to Facilitators</a>
         <a href="/admin/reports" className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-semibold">Go to Reports</a>
         <a href="/admin/settings" className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 font-semibold">Go to Settings</a>
+        <button onClick={() => signOut({ callbackUrl: '/login' })} className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-semibold">Logout</button>
       </div>
     </section>
   );

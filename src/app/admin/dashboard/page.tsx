@@ -1,10 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const FACILITATOR_ROLES = [
-  { value: "facilitator1", label: "Attendance Facilitator" },
-  { value: "facilitator2", label: "Result Facilitator" },
-];
 const PAGE_SIZE = 10;
 
 function exportToCSV(data: any[], filename: string) {
@@ -39,9 +35,11 @@ export default function AdminDashboard() {
   const [facForm, setFacForm] = useState({ name: "", email: "", password: "", role: "facilitator1" });
   const [facFormError, setFacFormError] = useState<string | null>(null);
   const [facFormLoading, setFacFormLoading] = useState(false);
+  const [roles, setRoles] = useState([]);
 
   useEffect(() => {
     fetchData();
+    fetch("/api/facilitators/roles").then(res => res.json()).then(setRoles);
   }, []);
 
   function fetchData() {
@@ -344,7 +342,7 @@ export default function AdminDashboard() {
                   onChange={(e) => setFacForm({ ...facForm, role: e.target.value })}
                   required
                 >
-                  {FACILITATOR_ROLES.map((r) => (
+                  {roles.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
                 </select>

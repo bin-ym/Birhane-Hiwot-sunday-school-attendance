@@ -1,9 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 const PAGE_SIZE = 10;
-const FACILITATOR_ROLES = [
-  { value: "facilitator1", label: "Attendance Facilitator" },
-  { value: "facilitator2", label: "Result Facilitator" },
+const ROLE_LABELS: { [key: string]: string } = {
+  'facilitator1': 'Attendance Facilitator',
+  'facilitator2': 'Education Facilitator',
+  'Attendance Facilitator': 'Attendance Facilitator',
+  'Education Facilitator': 'Education Facilitator',
+};
+const ROLE_VALUES = [
+  { value: 'Attendance Facilitator', label: 'Attendance Facilitator' },
+  { value: 'Education Facilitator', label: 'Education Facilitator' },
 ];
 function exportToCSV(data: any[], filename: string) {
   const csv = [
@@ -27,7 +33,7 @@ export default function AdminFacilitators() {
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editFac, setEditFac] = useState<any | null>(null);
-  const [facForm, setFacForm] = useState({ name: "", email: "", password: "", role: "facilitator1" });
+  const [facForm, setFacForm] = useState({ name: "", email: "", password: "", role: "Attendance Facilitator" });
   const [facFormError, setFacFormError] = useState<string | null>(null);
   const [facFormLoading, setFacFormLoading] = useState(false);
   useEffect(() => {
@@ -48,14 +54,14 @@ export default function AdminFacilitators() {
   }
   function openModal(fac: any = null) {
     setEditFac(fac);
-    setFacForm(fac ? { name: fac.name || "", email: fac.email, password: "", role: fac.role } : { name: "", email: "", password: "", role: "facilitator1" });
+    setFacForm(fac ? { name: fac.name || "", email: fac.email, password: "", role: fac.role } : { name: "", email: "", password: "", role: "Attendance Facilitator" });
     setFacFormError(null);
     setShowModal(true);
   }
   function closeModal() {
     setShowModal(false);
     setEditFac(null);
-    setFacForm({ name: "", email: "", password: "", role: "facilitator1" });
+    setFacForm({ name: "", email: "", password: "", role: "Attendance Facilitator" });
     setFacFormError(null);
   }
   async function handleFacFormSubmit(e: any) {
@@ -139,7 +145,7 @@ export default function AdminFacilitators() {
                 <tr key={fac._id} className="hover:bg-gray-50">
                   <td className="border p-3">{fac.name || "-"}</td>
                   <td className="border p-3">{fac.email}</td>
-                  <td className="border p-3 capitalize">{fac.role}</td>
+                  <td className="border p-3 capitalize">{ROLE_LABELS[String(fac.role)] || fac.role}</td>
                   <td className="border p-3 flex gap-2">
                     <button
                       className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
@@ -223,7 +229,7 @@ export default function AdminFacilitators() {
                 onChange={(e) => setFacForm({ ...facForm, role: e.target.value })}
                 required
               >
-                {FACILITATOR_ROLES.map((r) => (
+                {ROLE_VALUES.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>

@@ -2,17 +2,19 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Student, Attendance } from '@/lib/models';
 import DetailsTab from '@/components/tabs/DetailsTab';
 import AttendanceTab from '@/components/tabs/AttendanceTab';
 import PaymentStatusTab from '@/components/tabs/PaymentStatusTab';
 import ResultsTab from '@/components/tabs/ResultsTab';
+import AdminLayout from '../../admin/layout';
 
 export default function StudentDetails() {
   const { status } = useSession();
   const { id } = useParams<{ id: string }>();
+  const pathname = usePathname();
   const [student, setStudent] = useState<Student | null>(null);
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
   const [activeTab, setActiveTab] = useState<'details' | 'attendance' | 'payment' | 'results'>('details');
@@ -75,7 +77,9 @@ export default function StudentDetails() {
     );
   }
 
-  return (
+  const isAdmin = pathname.startsWith('/admin/students');
+
+  const detailsContent = (
     <section className="bg-white shadow-lg rounded-lg p-6 mx-auto my-6 max-w-4xl">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Student Details</h1>
 
@@ -122,11 +126,12 @@ export default function StudentDetails() {
       {activeTab === 'results' && <ResultsTab />}
 
       <Link
-        href="/register/old"
-        className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700"
+        href={isAdmin ? "/admin/students" : "/register/old"}
+        className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 mt-6 inline-block"
       >
         Back to Students
       </Link>
     </section>
   );
+  return isAdmin ? <AdminLayout>{detailsContent}</AdminLayout> : detailsContent;
 }

@@ -13,7 +13,7 @@ export default function LoginPage() {
 
   // If already logged in, redirect based on role
   if (status === "authenticated" && session?.user?.role) {
-    if (session.user.role === "Admin") router.replace("/");
+    if (session.user.role === "Admin") router.replace("/admin/dashboard");
     else if (session.user.role === "Attendance Facilitator") router.replace("/facilitator/attendance");
     else if (session.user.role === "Education Facilitator") router.replace("/facilitator/results");
   }
