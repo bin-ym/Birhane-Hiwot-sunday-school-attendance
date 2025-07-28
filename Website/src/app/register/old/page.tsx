@@ -1,8 +1,8 @@
 // src/app/register/old/page.tsx
 "use client";
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import Link from 'next/link';
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 interface Student {
   _id: string;
@@ -49,9 +49,7 @@ export default function OldStudent() {
   const gradeOptionsByYear = yearOptions.reduce((acc, year) => {
     const grades = [
       ...new Set(
-        students
-          .filter((s) => s.Academic_Year === year)
-          .map((s) => s.Grade)
+        students.filter((s) => s.Academic_Year === year).map((s) => s.Grade)
       ),
     ].sort();
     acc[year] = grades;
@@ -61,9 +59,7 @@ export default function OldStudent() {
   // Toggle year expansion
   const toggleYear = (year: string) => {
     setExpandedYears((prev) =>
-      prev.includes(year)
-        ? prev.filter((y) => y !== year)
-        : [...prev, year]
+      prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
     );
   };
 
@@ -74,17 +70,22 @@ export default function OldStudent() {
   };
 
   // Filter students based on all criteria
-  const filteredStudents = students.filter((student) =>
-    (!selectedYear || student.Academic_Year === selectedYear) &&
-    (!selectedTableGrade || student.Grade === selectedTableGrade) &&
-    (selectedGrade === "" || student.Grade === selectedGrade) &&
-    (selectedSex === "" || student.Sex === selectedSex) &&
-    (
-      (student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase())
-    )
+  const filteredStudents = students.filter(
+    (student) =>
+      (!selectedYear || student.Academic_Year === selectedYear) &&
+      (!selectedTableGrade || student.Grade === selectedTableGrade) &&
+      (selectedGrade === "" || student.Grade === selectedGrade) &&
+      (selectedSex === "" || student.Sex === selectedSex) &&
+      ((student.Unique_ID || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+        (student.First_Name || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (student.Father_Name || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const gradeOptions = [...new Set(students.map((s) => s.Grade))].sort();
@@ -99,7 +100,10 @@ export default function OldStudent() {
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Student Records</h1>
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div>
-          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="search"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Search
           </label>
           <input
@@ -112,7 +116,10 @@ export default function OldStudent() {
           />
         </div>
         <div>
-          <label htmlFor="gradeFilter" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="gradeFilter"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Filter by Grade
           </label>
           <select
@@ -130,7 +137,10 @@ export default function OldStudent() {
           </select>
         </div>
         <div>
-          <label htmlFor="sexFilter" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="sexFilter"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Filter by Sex
           </label>
           <select
@@ -139,7 +149,7 @@ export default function OldStudent() {
             onChange={(e) => setSelectedSex(e.target.value)}
             className="w-full p-3 border rounded-lg"
           >
-            <option value="">All Sexes</option>
+            <option value="">Both</option>
             {sexOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -149,7 +159,9 @@ export default function OldStudent() {
         </div>
       </div>
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-gray-700 mb-4">Students by Academic Year</h2>
+        <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+          Students by Academic Year
+        </h2>
         {yearOptions.length === 0 ? (
           <p className="text-gray-600">No students found.</p>
         ) : (
@@ -161,7 +173,7 @@ export default function OldStudent() {
                 aria-expanded={expandedYears.includes(year)}
               >
                 <span className="font-medium">Academic Year: {year}</span>
-                <span>{expandedYears.includes(year) ? '▲' : '▼'}</span>
+                <span>{expandedYears.includes(year) ? "▲" : "▼"}</span>
               </button>
               {expandedYears.includes(year) && (
                 <div className="pl-4 pt-2">
@@ -174,9 +186,10 @@ export default function OldStudent() {
                           <button
                             onClick={() => handleGradeSelect(year, grade)}
                             className={`w-full text-left p-2 rounded-lg ${
-                              selectedYear === year && selectedTableGrade === grade
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 hover:bg-gray-200'
+                              selectedYear === year &&
+                              selectedTableGrade === grade
+                                ? "bg-blue-600 text-white"
+                                : "bg-gray-100 hover:bg-gray-200"
                             }`}
                           >
                             {grade}
@@ -197,7 +210,9 @@ export default function OldStudent() {
             Students in {selectedTableGrade} for Academic Year {selectedYear}
           </h3>
           {filteredStudents.length === 0 ? (
-            <p className="text-gray-600">No students found for {selectedTableGrade} in {selectedYear}.</p>
+            <p className="text-gray-600">
+              No students found for {selectedTableGrade} in {selectedYear}.
+            </p>
           ) : (
             <table className="min-w-full border-collapse border">
               <thead className="bg-gray-100">
