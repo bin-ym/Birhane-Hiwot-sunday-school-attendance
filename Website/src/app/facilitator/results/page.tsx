@@ -3,14 +3,16 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import TeachersAttendance from "./TeachersAttendance";
 import Subjects from "./Subjects";
+import StudentsByGrade from "./StudentsByGrade";
 
 const SECTIONS = [
   { key: "teachers", label: "Teachers Attendance" },
-  { key: "subjects", label: "Subjects" },
+  { key: "subjects", label: "Subject Management" },
+  { key: "students", label: "Student Records" },
 ];
 
 export default function EducationDepartment() {
-  const [section, setSection] = useState("teachers");
+  const [section, setSection] = useState("subjects");
 
   return (
     <div className="flex min-h-screen">
@@ -37,6 +39,7 @@ export default function EducationDepartment() {
       <main className="flex-1 p-8 bg-gray-50">
         {section === "teachers" && <TeachersAttendance />}
         {section === "subjects" && <Subjects />}
+        {section === "students" && <StudentsByGrade />}
       </main>
     </div>
   );
