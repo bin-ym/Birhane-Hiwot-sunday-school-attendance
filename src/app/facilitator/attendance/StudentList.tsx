@@ -17,26 +17,44 @@ export default function StudentList() {
       .catch(() => setStudents([]));
   }, []);
   // Only show current academic year
-  const currentYear = Math.max(...students.map((s) => parseInt(s.Academic_Year)).filter(Boolean));
-  const currentYearStudents = students.filter((s) => s.Academic_Year === String(currentYear));
+  const currentYear = Math.max(
+    ...students.map((s) => parseInt(s.Academic_Year)).filter(Boolean)
+  );
+  const currentYearStudents = students.filter(
+    (s) => s.Academic_Year === String(currentYear)
+  );
   // Group students by Grade
-  const gradeOptions = [...new Set(currentYearStudents.map((s) => s.Grade))].sort();
+  const gradeOptions = [
+    ...new Set(currentYearStudents.map((s) => s.Grade)),
+  ].sort();
   const sexOptions = [...new Set(currentYearStudents.map((s) => s.Sex))].sort();
   // Filter students
-  const filteredStudents = currentYearStudents.filter((student) =>
-    (selectedGrade === "" || student.Grade === selectedGrade) &&
-    (selectedSex === "" || student.Sex === selectedSex) &&
-    ((student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredStudents = currentYearStudents.filter(
+    (student) =>
+      (selectedGrade === "" || student.Grade === selectedGrade) &&
+      (selectedSex === "" || student.Sex === selectedSex) &&
+      ((student.Unique_ID || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+        (student.First_Name || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (student.Father_Name || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
   );
   return (
     <div className="bg-white shadow-lg rounded-lg p-6">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Current Year Student List</h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">
+        Current Year Student List
+      </h1>
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div>
-          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="search"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Search
           </label>
           <input
@@ -49,7 +67,10 @@ export default function StudentList() {
           />
         </div>
         <div>
-          <label htmlFor="gradeFilter" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="gradeFilter"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Filter by Grade
           </label>
           <select
@@ -67,7 +88,10 @@ export default function StudentList() {
           </select>
         </div>
         <div>
-          <label htmlFor="sexFilter" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="sexFilter"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Filter by Sex
           </label>
           <select
@@ -76,7 +100,7 @@ export default function StudentList() {
             onChange={(e) => setSelectedSex(e.target.value)}
             className="w-full p-3 border rounded-lg"
           >
-            <option value="">All Sexes</option>
+            <option value="">Both</option>
             {sexOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -118,4 +142,4 @@ export default function StudentList() {
       </div>
     </div>
   );
-} 
+}

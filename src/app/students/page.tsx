@@ -136,7 +136,7 @@ export default function Students() {
             onChange={(e) => setSelectedSex(e.target.value)}
             className="w-full p-3 border rounded-lg"
           >
-            <option value="">All Sexes</option>
+            <option value="">Both</option>
             {sexOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
