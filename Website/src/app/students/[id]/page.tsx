@@ -31,11 +31,9 @@ export default function StudentDetails() {
           return res.json();
         })
         .then((data) => {
-          console.log('Fetched student:', data);
           setStudent(data);
         })
         .catch((error) => {
-          console.error('Fetch student error:', error);
           setStudent(null);
         });
 
@@ -46,11 +44,9 @@ export default function StudentDetails() {
           return res.json();
         })
         .then((data) => {
-          console.log('Fetched attendance:', data);
           setAttendanceRecords(data);
         })
         .catch((error) => {
-          console.error('Fetch attendance error:', error);
           setAttendanceRecords([]);
         });
     }

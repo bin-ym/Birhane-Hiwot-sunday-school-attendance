@@ -3,14 +3,22 @@ import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { gregorianToEthiopianDate } from '@/lib/utils';
+import { Student, Attendance } from '@/lib/models';
+
+interface AttendanceRecord {
+  studentId: string;
+  date: string;
+  present: boolean;
+  hasPermission: boolean;
+}
 
 export default function AttendanceSection() {
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
   const currentDate = new Date();
   const selectedDate = gregorianToEthiopianDate(currentDate);
-  const [attendance, setAttendance] = useState<any[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [isSunday, setIsSunday] = useState(false);
 
   useEffect(() => {
@@ -23,17 +31,17 @@ export default function AttendanceSection() {
   }, []);
 
   // Only show current academic year
-  const currentYear = Math.max(...students.map((s: any) => parseInt(s.Academic_Year)).filter(Boolean));
-  const currentYearStudents = students.filter((s: any) => s.Academic_Year === String(currentYear));
+  const currentYear = Math.max(...students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean));
+  const currentYearStudents = students.filter((s: Student) => s.Academic_Year === String(currentYear));
 
   const toggleAttendance = (studentId: string) => {
     if (!isSunday) return alert("Attendance can only be marked on Sundays");
     const record = attendance.find(
-      (r: any) => r.studentId === studentId && r.date === selectedDate
+      (r: AttendanceRecord) => r.studentId === studentId && r.date === selectedDate
     );
     setAttendance(
       record
-        ? attendance.map((r: any) =>
+        ? attendance.map((r: AttendanceRecord) =>
             r.studentId === studentId && r.date === selectedDate
               ? { ...r, present: !r.present, hasPermission: false }
               : r
@@ -53,11 +61,11 @@ export default function AttendanceSection() {
   const togglePermission = (studentId: string) => {
     if (!isSunday) return alert("Permission can only be marked on Sundays");
     const record = attendance.find(
-      (r: any) => r.studentId === studentId && r.date === selectedDate
+      (r: AttendanceRecord) => r.studentId === studentId && r.date === selectedDate
     );
     setAttendance(
       record
-        ? attendance.map((r: any) =>
+        ? attendance.map((r: AttendanceRecord) =>
             r.studentId === studentId && r.date === selectedDate
               ? { ...r, hasPermission: !r.hasPermission, present: false }
               : r
@@ -76,17 +84,17 @@ export default function AttendanceSection() {
 
   const generateExcel = () => {
     if (!students) return;
-    const data = currentYearStudents.map((student: any) => ({
+    const data = currentYearStudents.map((student: Student) => ({
       Unique_ID: student.Unique_ID,
       First_Name: student.First_Name,
       Father_Name: student.Father_Name,
       Class: student.Class,
       Status: attendance.find(
-        (r: any) => r.studentId === student._id && r.date === selectedDate
+        (r: AttendanceRecord) => r.studentId === student._id && r.date === selectedDate
       )?.present
         ? "Present"
         : attendance.find(
-            (r: any) => r.studentId === student._id && r.date === selectedDate
+            (r: AttendanceRecord) => r.studentId === student._id && r.date === selectedDate
           )?.hasPermission
         ? "Permission"
         : "Absent",
@@ -107,7 +115,7 @@ export default function AttendanceSection() {
     if (!isSunday) return alert("Attendance can only be submitted on Sundays");
     if (
       !attendance.some(
-        (r: any) => r.date === selectedDate && (r.present || r.hasPermission)
+        (r: AttendanceRecord) => r.date === selectedDate && (r.present || r.hasPermission)
       )
     )
       return alert(
@@ -120,7 +128,7 @@ export default function AttendanceSection() {
 
   const filteredStudents =
     currentYearStudents?.filter(
-      (student: any) =>
+      (student: Student) =>
         student._id &&
         (selectedGrade === "" || student.Grade === selectedGrade) &&
         ((student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -179,7 +187,7 @@ export default function AttendanceSection() {
             className="w-full p-3 border rounded-lg"
           >
             <option value="">All Grades</option>
-            {[...new Set(currentYearStudents?.map((s: any) => s.Grade) || [])].map((option) => (
+            {[...new Set(currentYearStudents?.map((s: Student) => s.Grade) || [])].map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
@@ -205,9 +213,9 @@ export default function AttendanceSection() {
             </tr>
           </thead>
           <tbody>
-            {filteredStudents.map((student: any) => {
+            {filteredStudents.map((student: Student) => {
               const record = attendance.find(
-                (r: any) => r.studentId === student._id && r.date === selectedDate
+                (r: AttendanceRecord) => r.studentId === student._id && r.date === selectedDate
               );
               return (
                 <tr key={student._id} className="hover:bg-gray-50">
@@ -218,7 +226,7 @@ export default function AttendanceSection() {
                     <input
                       type="checkbox"
                       checked={!!record?.present}
-                      onChange={() => toggleAttendance(student._id)}
+                      onChange={() => student._id && toggleAttendance(student._id)}
                       disabled={!isSunday}
                     />
                   </td>
@@ -226,7 +234,7 @@ export default function AttendanceSection() {
                     <input
                       type="checkbox"
                       checked={!!record?.hasPermission}
-                      onChange={() => togglePermission(student._id)}
+                      onChange={() => student._id && togglePermission(student._id)}
                       disabled={!isSunday}
                     />
                   </td>
