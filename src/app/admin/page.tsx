@@ -1,6 +1,7 @@
 "use client";
 
 import { signOut } from "next-auth/react";
+import Link from "next/link";
 
 export default function AdminHome() {
   return (
@@ -45,10 +46,10 @@ export default function AdminHome() {
         </div>
       </div>
       <div className="flex flex-wrap gap-4 justify-center">
-        <a href="/admin/students" className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold">Go to Students</a>
-        <a href="/admin/facilitators" className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold">Go to Facilitators</a>
-        <a href="/admin/reports" className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-semibold">Go to Reports</a>
-        <a href="/admin/settings" className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 font-semibold">Go to Settings</a>
+        <Link href="/admin/students" className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold">Go to Students</Link>
+        <Link href="/admin/facilitators" className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold">Go to Facilitators</Link>
+        <Link href="/admin/reports" className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-semibold">Go to Reports</Link>
+        <Link href="/admin/settings" className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 font-semibold">Go to Settings</Link>
         <button onClick={() => signOut({ callbackUrl: '/login' })} className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-semibold">Logout</button>
       </div>
     </section>

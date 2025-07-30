@@ -1,7 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Student, User, Attendance } from "@/lib/models";
 
 const PAGE_SIZE = 10;
+
+interface DashboardData {
+  students: Student[];
+  facilitators: User[];
+  attendance: Attendance[];
+}
 
 function exportToCSV(data: any[], filename: string) {
   const csv = [
@@ -18,9 +25,9 @@ function exportToCSV(data: any[], filename: string) {
 }
 
 export default function AdminDashboard() {
-  const [students, setStudents] = useState<any[]>([]);
-  const [facilitators, setFacilitators] = useState<any[]>([]);
-  const [attendance, setAttendance] = useState<any[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [facilitators, setFacilitators] = useState<User[]>([]);
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [studentSearch, setStudentSearch] = useState("");
@@ -31,11 +38,11 @@ export default function AdminDashboard() {
 
   // Modal state
   const [showFacModal, setShowFacModal] = useState(false);
-  const [editFac, setEditFac] = useState<any | null>(null);
+  const [editFac, setEditFac] = useState<User | null>(null);
   const [facForm, setFacForm] = useState({ name: "", email: "", password: "", role: "facilitator1" });
   const [facFormError, setFacFormError] = useState<string | null>(null);
   const [facFormLoading, setFacFormLoading] = useState(false);
-  const [roles, setRoles] = useState([]);
+  const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -62,7 +69,7 @@ export default function AdminDashboard() {
   }
 
   // Facilitator CRUD
-  function openFacModal(fac: any = null) {
+  function openFacModal(fac: User | null = null) {
     setEditFac(fac);
     setFacForm(fac ? { name: fac.name || "", email: fac.email, password: "", role: fac.role } : { name: "", email: "", password: "", role: "facilitator1" });
     setFacFormError(null);
@@ -74,7 +81,7 @@ export default function AdminDashboard() {
     setFacForm({ name: "", email: "", password: "", role: "facilitator1" });
     setFacFormError(null);
   }
-  async function handleFacFormSubmit(e: any) {
+  async function handleFacFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFacFormLoading(true);
     setFacFormError(null);
@@ -254,7 +261,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {pagedFacilitators.map((fac: any) => (
+                {pagedFacilitators.map((fac: User) => (
                   <tr key={fac._id} className="hover:bg-gray-50">
                     <td className="border p-3">{fac.name || "-"}</td>
                     <td className="border p-3">{fac.email}</td>
@@ -268,7 +275,7 @@ export default function AdminDashboard() {
                       </button>
                       <button
                         className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                        onClick={() => handleDeleteFac(fac._id)}
+                        onClick={() => handleDeleteFac(fac._id!)}
                         disabled={facFormLoading}
                       >
                         Delete

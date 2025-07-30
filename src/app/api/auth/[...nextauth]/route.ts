@@ -1,9 +1,16 @@
-import NextAuth, { NextAuthOptions } from "next-auth";
+import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { getDb } from '@/lib/mongodb';
 
-export const authOptions: NextAuthOptions = {
+interface CustomUser {
+  id: string;
+  email: string;
+  role: string;
+  name?: string;
+}
+
+const handler = NextAuth({
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -11,9 +18,8 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials): Promise<CustomUser | null> {
         if (!credentials?.email || !credentials?.password) {
-          console.log("Missing credentials");
           return null;
         }
         try {
@@ -22,7 +28,6 @@ export const authOptions: NextAuthOptions = {
             .collection("users")
             .findOne({ email: credentials.email });
           if (!user) {
-            console.log(`User not found: ${credentials.email}`);
             return null;
           }
           const passwordMatch = await bcrypt.compare(
@@ -30,18 +35,11 @@ export const authOptions: NextAuthOptions = {
             user.password
           );
           if (!passwordMatch) {
-            console.log(`Password mismatch for user: ${credentials.email}`);
             return null;
           }
-          console.log(`User authenticated: ${credentials.email}`);
           // Include role in the returned user object
           return { id: user._id.toString(), email: user.email, role: user.role, name: user.name };
         } catch (error) {
-          if (error instanceof Error) {
-            console.error("Authentication error:", error.message);
-          } else {
-            console.error("Authentication error:", error);
-          }
           return null;
         }
       },
@@ -50,20 +48,19 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role;
-        token.name = user.name;
+        token.role = (user as CustomUser).role;
+        token.name = (user as CustomUser).name;
       }
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.role = token.role;
-        session.user.name = token.name;
+      if (token && session.user) {
+        session.user.role = token.role as string;
+        session.user.name = token.name as string;
       }
       return session;
     },
   },
-};
+});
 
-const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
