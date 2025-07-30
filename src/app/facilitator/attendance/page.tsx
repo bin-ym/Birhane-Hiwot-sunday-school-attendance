@@ -6,13 +6,13 @@ import AttendanceSection from "./AttendanceSection";
 import { signOut } from "next-auth/react";
 
 const SECTIONS = [
+  { key: "attendance", label: "Attendance Management" },
   { key: "register", label: "Register New Student" },
   { key: "list", label: "Student List" },
-  { key: "attendance", label: "Attendance Management" },
 ];
 
 export default function AttendanceFacilitatorDashboard() {
-  const [section, setSection] = useState("register");
+  const [section, setSection] = useState("attendance");
   return (
     <div className="flex min-h-screen">
       <aside className="w-64 bg-green-900 text-white shadow-lg flex flex-col p-6">
