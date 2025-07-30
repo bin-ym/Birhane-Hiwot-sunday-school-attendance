@@ -125,14 +125,11 @@ export default function AdminStudents() {
     setLoading(true);
     try {
       const res = await fetch("/api/students");
-      console.log("API Response Status:", res.status);
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       const data = await res.json();
-      console.log("API Response Data:", data);
       setStudents(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err) {
-      console.error("Fetch Error:", err);
       setError("Failed to load students");
     } finally {
       setLoading(false);
@@ -140,7 +137,6 @@ export default function AdminStudents() {
   }, []);
 
   useEffect(() => {
-    console.log("Fetching students...");
     fetchData();
   }, [fetchData]);
 
@@ -220,7 +216,6 @@ export default function AdminStudents() {
       try {
         const method = editStudent ? "PUT" : "POST";
         const body = editStudent ? { ...studentForm, id: editStudent._id } : studentForm;
-        console.log("Submitting student form:", body, "Method:", method);
         const res = await fetch("/api/students", {
           method,
           headers: { "Content-Type": "application/json" },
@@ -233,13 +228,12 @@ export default function AdminStudents() {
         closeModal();
         fetchData();
       } catch (err) {
-        console.error("Form Submit Error:", err);
         setStudentFormError((err as Error).message);
       } finally {
         setStudentFormLoading(false);
       }
     },
-    [editStudent, fetchData]
+    [editStudent, studentForm, fetchData]
   );
 
   const handleDeleteStudent = useCallback(
@@ -247,7 +241,6 @@ export default function AdminStudents() {
       if (!confirm("Are you sure you want to delete this student?")) return;
       setStudentFormLoading(true);
       try {
-        console.log("Deleting student:", id);
         const res = await fetch("/api/students", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
@@ -256,7 +249,6 @@ export default function AdminStudents() {
         if (!res.ok) throw new Error("Failed to delete student");
         fetchData();
       } catch (err) {
-        console.error("Delete Error:", err);
         setError("Failed to delete student");
       } finally {
         setStudentFormLoading(false);
@@ -266,20 +258,16 @@ export default function AdminStudents() {
   );
 
   const filtered = useMemo(() => {
-    const result = students.filter((s) =>
+    return students.filter((s) =>
       [s.Unique_ID, s.First_Name, s.Father_Name, s.Grade]
         .join(" ")
         .toLowerCase()
         .includes(search.toLowerCase())
     );
-    console.log("Filtered Students:", result);
-    return result;
   }, [students, search]);
 
   const paged = useMemo(() => {
-    const result = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-    console.log("Paged Students:", result);
-    return result;
+    return filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   }, [filtered, page]);
 
   const pages = Math.ceil(filtered.length / PAGE_SIZE);

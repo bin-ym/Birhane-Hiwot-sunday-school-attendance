@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-function exportToCSV(data: any[], filename: string) {
+import { Student, User, Attendance } from "@/lib/models";
+
+function exportToCSV(data: (Student | User | Attendance)[], filename: string) {
   const csv = [
     Object.keys(data[0] || {}).join(","),
     ...data.map((row) => Object.values(row).map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")),
@@ -13,11 +15,13 @@ function exportToCSV(data: any[], filename: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
 export default function AdminReports() {
-  const [students, setStudents] = useState<any[]>([]);
-  const [facilitators, setFacilitators] = useState<any[]>([]);
-  const [attendance, setAttendance] = useState<any[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [facilitators, setFacilitators] = useState<User[]>([]);
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
     setLoading(true);
     Promise.all([
@@ -31,7 +35,9 @@ export default function AdminReports() {
       setLoading(false);
     });
   }, []);
+  
   const attendanceRate = attendance.length > 0 ? Math.round(attendance.filter((a) => a.present).length / attendance.length * 100) : 0;
+  
   return (
     <div className="min-h-screen flex flex-col gap-8">
       <h1 className="text-3xl font-extrabold text-blue-900 mb-4">Reports & Export</h1>

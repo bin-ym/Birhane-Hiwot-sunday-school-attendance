@@ -53,14 +53,11 @@ export default function AdminFacilitators() {
     setLoading(true);
     try {
       const res = await fetch("/api/facilitators");
-      console.log("API Response Status:", res.status);
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       const data = await res.json();
-      console.log("API Response Data:", data);
       setFacilitators(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err) {
-      console.error("Fetch Error:", err);
       setError("Failed to load facilitators");
     } finally {
       setLoading(false);
@@ -68,7 +65,6 @@ export default function AdminFacilitators() {
   }, []);
 
   useEffect(() => {
-    console.log("Fetching facilitators...");
     fetchData();
   }, [fetchData]);
 
@@ -102,7 +98,6 @@ export default function AdminFacilitators() {
       try {
         const method = editFac ? "PUT" : "POST";
         const body = editFac ? { ...facForm, id: editFac._id } : facForm;
-        console.log("Submitting form:", body, "Method:", method);
         const res = await fetch("/api/facilitators", {
           method,
           headers: { "Content-Type": "application/json" },
@@ -115,13 +110,12 @@ export default function AdminFacilitators() {
         closeModal();
         fetchData();
       } catch (err) {
-        console.error("Form Submit Error:", err);
         setFacFormError((err as Error).message);
       } finally {
         setFacFormLoading(false);
       }
     },
-    [editFac, fetchData]
+    [editFac, facForm, fetchData]
   );
 
   const handleDeleteFac = useCallback(
@@ -129,7 +123,6 @@ export default function AdminFacilitators() {
       if (!confirm("Are you sure you want to delete this facilitator?")) return;
       setFacFormLoading(true);
       try {
-        console.log("Deleting facilitator:", id);
         const res = await fetch("/api/facilitators", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
@@ -138,7 +131,6 @@ export default function AdminFacilitators() {
         if (!res.ok) throw new Error("Failed to delete facilitator");
         fetchData();
       } catch (err) {
-        console.error("Delete Error:", err);
         setError("Failed to delete facilitator");
       } finally {
         setFacFormLoading(false);
@@ -148,17 +140,13 @@ export default function AdminFacilitators() {
   );
 
   const filtered = useMemo(() => {
-    const result = facilitators.filter((f) =>
+    return facilitators.filter((f) =>
       [f.name, f.email, f.role].join(" ").toLowerCase().includes(search.toLowerCase())
     );
-    console.log("Filtered Facilitators:", result);
-    return result;
   }, [facilitators, search]);
 
   const paged = useMemo(() => {
-    const result = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-    console.log("Paged Facilitators:", result);
-    return result;
+    return filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   }, [filtered, page]);
 
   const pages = Math.ceil(filtered.length / PAGE_SIZE);

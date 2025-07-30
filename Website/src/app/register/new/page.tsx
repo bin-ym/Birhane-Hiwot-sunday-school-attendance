@@ -90,13 +90,19 @@ export default function NewStudent() {
     }
   }, [status, formData.Academic_Year, formData.Grade]);
 
+  const calculateAge = (day: number, month: number, year: number): number => {
+    const currentYear = 2017; // Ethiopian Calendar year
+    return currentYear - year;
+  };
+
   // Calculate age from Ethiopian Calendar DOB
   useEffect(() => {
-    const { DOB_Date, DOB_Month, DOB_Year } = formData;
-    if (DOB_Date && DOB_Month && DOB_Year) {
-      const dob = parseInt(DOB_Year);
-      const currentYear = 2017; // Ethiopian Calendar year (July 2, 2025 = ~2017 EC)
-      const age = currentYear - dob;
+    if (formData.DOB_Date && formData.DOB_Month && formData.DOB_Year) {
+      const age = calculateAge(
+        parseInt(formData.DOB_Date),
+        parseInt(formData.DOB_Month),
+        parseInt(formData.DOB_Year)
+      );
       if (age >= 0) {
         setFormData((prev) => ({ ...prev, Age: age }));
       }
@@ -236,7 +242,6 @@ export default function NewStudent() {
             ? formData.Address_Other
             : formData.Address,
       };
-      console.log("Submitting:", dataToSubmit);
       const res = await fetch("/api/students", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -246,7 +251,6 @@ export default function NewStudent() {
       alert("Student registered successfully!");
       router.push("/register/old");
     } catch (error) {
-      console.error("Submission error:", error);
       alert(`Registration failed: ${(error as Error).message}`);
     }
   };
@@ -302,9 +306,9 @@ export default function NewStudent() {
           <input type="text" id="Grandfather_Name" name="Grandfather_Name" value={formData.Grandfather_Name} onChange={handleChange} className="p-3 border rounded-lg w-full focus:ring-2 focus:ring-blue-300" placeholder="e.g., ዳዊት" required />
           {errors.Grandfather_Name && (<p className="text-red-500 text-xs mt-1">{errors.Grandfather_Name}</p>)}
         </div>
-        {/* Mother's Name */}
+        {/* Mother&apos;s Name */}
         <div>
-          <label htmlFor="Mothers_Name" className="block text-sm font-medium text-gray-700 mb-1">Mother's Name</label>
+          <label htmlFor="Mothers_Name" className="block text-sm font-medium text-gray-700 mb-1">Mother&apos;s Name</label>
           <input type="text" id="Mothers_Name" name="Mothers_Name" value={formData.Mothers_Name} onChange={handleChange} className="p-3 border rounded-lg w-full focus:ring-2 focus:ring-blue-300" placeholder="e.g., ማርያም" required />
           {errors.Mothers_Name && (<p className="text-red-500 text-xs mt-1">{errors.Mothers_Name}</p>)}
         </div>

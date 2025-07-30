@@ -76,7 +76,7 @@ export default function TeachersAttendance() {
       // Fetch grades from students
       const studentsRes = await fetch("/api/students");
       const studentsData = await studentsRes.json();
-      const uniqueGrades = [...new Set(studentsData.map((s: any) => s.Grade))].sort();
+      const uniqueGrades = [...new Set(studentsData.map((s: any) => s.Grade))].sort() as string[];
       setGrades(uniqueGrades);
 
       // Sample subjects data
