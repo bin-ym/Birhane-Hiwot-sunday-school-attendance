@@ -3,6 +3,13 @@ import { useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+interface CustomUser {
+  role?: string;
+  name?: string;
+  email?: string;
+  image?: string;
+}
+
 export default function LoginPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -12,10 +19,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   // If already logged in, redirect based on role
-  if (status === "authenticated" && session?.user?.role) {
-    if (session.user.role === "Admin") router.replace("/admin/dashboard");
-    else if (session.user.role === "Attendance Facilitator") router.replace("/facilitator/attendance");
-    else if (session.user.role === "Education Facilitator") router.replace("/facilitator/results");
+  if (status === "authenticated" && (session?.user as CustomUser)?.role) {
+    const userRole = (session?.user as CustomUser)?.role;
+    if (userRole === "Admin") router.replace("/admin/dashboard");
+    else if (userRole === "Attendance Facilitator") router.replace("/facilitator/attendance");
+    else if (userRole === "Education Facilitator") router.replace("/facilitator/results");
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
