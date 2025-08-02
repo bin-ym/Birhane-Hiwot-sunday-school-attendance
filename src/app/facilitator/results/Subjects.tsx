@@ -22,7 +22,16 @@ export default function Subjects() {
   const [error, setError] = useState<string | null>(null);
 
   // Sample grades - in a real app, these would come from an API
-  const gradeOptions = ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8"];
+  const gradeOptions = [
+    "Grade 1",
+    "Grade 2",
+    "Grade 3",
+    "Grade 4",
+    "Grade 5",
+    "Grade 6",
+    "Grade 7",
+    "Grade 8",
+  ];
   const academicYearOptions = ["2024-2025", "2025-2026", "2026-2027"];
 
   useEffect(() => {
@@ -33,32 +42,30 @@ export default function Subjects() {
   const loadSubjects = async () => {
     setLoading(true);
     try {
-      // In a real app, fetch from API
-      // const response = await fetch('/api/subjects');
-      // const data = await response.json();
-      
-      // For now, using sample data
-      const sampleGrades: Grade[] = [
-        {
-          name: "Grade 1",
-          subjects: [
-            { name: "Amharic", grade: "Grade 1", academicYear: "2024-2025" },
-            { name: "English", grade: "Grade 1", academicYear: "2024-2025" },
-            { name: "Mathematics", grade: "Grade 1", academicYear: "2024-2025" }
-          ]
-        },
-        {
-          name: "Grade 2",
-          subjects: [
-            { name: "Amharic", grade: "Grade 2", academicYear: "2024-2025" },
-            { name: "English", grade: "Grade 2", academicYear: "2024-2025" },
-            { name: "Mathematics", grade: "Grade 2", academicYear: "2024-2025" },
-            { name: "Science", grade: "Grade 2", academicYear: "2024-2025" }
-          ]
+      const response = await fetch("/api/subjects");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load subjects");
+      }
+
+      // Group subjects by grade
+      const gradeMap = new Map<string, Subject[]>();
+      data.forEach((subject: Subject) => {
+        if (!gradeMap.has(subject.grade)) {
+          gradeMap.set(subject.grade, []);
         }
-      ];
-      
-      setGrades(sampleGrades);
+        gradeMap.get(subject.grade)!.push(subject);
+      });
+
+      const gradesData: Grade[] = Array.from(gradeMap.entries()).map(
+        ([gradeName, subjects]) => ({
+          name: gradeName,
+          subjects: subjects,
+        })
+      );
+
+      setGrades(gradesData);
       setError(null);
     } catch (err) {
       setError("Failed to load subjects");
@@ -77,51 +84,55 @@ export default function Subjects() {
       const subject: Subject = {
         name: newSubject.trim(),
         grade: selectedGrade,
-        academicYear: academicYear
+        academicYear: academicYear,
       };
 
-      // In a real app, save to API
-      // const response = await fetch('/api/subjects', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(subject)
-      // });
-
-      // For now, update local state
-      setGrades(prev => {
-        const existingGrade = prev.find(g => g.name === selectedGrade);
-        if (existingGrade) {
-          return prev.map(g => 
-            g.name === selectedGrade 
-              ? { ...g, subjects: [...g.subjects, subject] }
-              : g
-          );
-        } else {
-          return [...prev, { name: selectedGrade, subjects: [subject] }];
-        }
+      const response = await fetch("/api/subjects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(subject),
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to add subject");
+      }
+
+      // Reload subjects to get the updated list
+      await loadSubjects();
 
       setNewSubject("");
       setError(null);
     } catch (err) {
-      setError("Failed to add subject");
+      setError(err instanceof Error ? err.message : "Failed to add subject");
     }
   };
 
   const removeSubject = async (gradeName: string, subjectName: string) => {
     try {
-      // In a real app, delete from API
-      // await fetch(`/api/subjects/${subjectId}`, { method: 'DELETE' });
+      // Find the subject to get its ID
+      const grade = grades.find((g) => g.name === gradeName);
+      const subject = grade?.subjects.find((s) => s.name === subjectName);
 
-      setGrades(prev => 
-        prev.map(g => 
-          g.name === gradeName 
-            ? { ...g, subjects: g.subjects.filter(s => s.name !== subjectName) }
-            : g
-        )
-      );
+      if (!subject?._id) {
+        setError("Subject not found");
+        return;
+      }
+
+      const response = await fetch(`/api/subjects/${subject._id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to remove subject");
+      }
+
+      // Reload subjects to get the updated list
+      await loadSubjects();
     } catch (err) {
-      setError("Failed to remove subject");
+      setError(err instanceof Error ? err.message : "Failed to remove subject");
     }
   };
 
@@ -131,7 +142,7 @@ export default function Subjects() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800">Subject Management</h2>
-      
+
       {/* Add New Subject */}
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-semibold mb-4">Add New Subject</h3>
@@ -146,8 +157,10 @@ export default function Subjects() {
               className="w-full p-3 border rounded-lg"
             >
               <option value="">Select Grade</option>
-              {gradeOptions.map(grade => (
-                <option key={grade} value={grade}>{grade}</option>
+              {gradeOptions.map((grade) => (
+                <option key={grade} value={grade}>
+                  {grade}
+                </option>
               ))}
             </select>
           </div>
@@ -161,8 +174,10 @@ export default function Subjects() {
               className="w-full p-3 border rounded-lg"
             >
               <option value="">Select Year</option>
-              {academicYearOptions.map(year => (
-                <option key={year} value={year}>{year}</option>
+              {academicYearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
               ))}
             </select>
           </div>
@@ -191,18 +206,25 @@ export default function Subjects() {
 
       {/* Display Subjects by Grade */}
       <div className="space-y-4">
-        {grades.map(grade => (
+        {grades.map((grade) => (
           <div key={grade.name} className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-lg font-semibold mb-4">{grade.name}</h3>
             {grade.subjects.length === 0 ? (
-              <p className="text-gray-500">No subjects assigned to this grade.</p>
+              <p className="text-gray-500">
+                No subjects assigned to this grade.
+              </p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {grade.subjects.map(subject => (
-                  <div key={subject.name} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                {grade.subjects.map((subject) => (
+                  <div
+                    key={subject.name}
+                    className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                  >
                     <div>
                       <span className="font-medium">{subject.name}</span>
-                      <div className="text-sm text-gray-500">{subject.academicYear}</div>
+                      <div className="text-sm text-gray-500">
+                        {subject.academicYear}
+                      </div>
                     </div>
                     <button
                       onClick={() => removeSubject(grade.name, subject.name)}
@@ -219,4 +241,4 @@ export default function Subjects() {
       </div>
     </div>
   );
-} 
+}
