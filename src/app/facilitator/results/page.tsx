@@ -12,7 +12,7 @@ const SECTIONS = [
 ];
 
 export default function EducationDepartment() {
-  const [section, setSection] = useState("subjects");
+  const [section, setSection] = useState("teachers");
 
   return (
     <div className="flex min-h-screen">
