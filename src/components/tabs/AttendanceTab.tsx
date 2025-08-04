@@ -5,7 +5,7 @@ import autoTable from "jspdf-autotable";
 import { Student, Attendance } from "@/lib/models";
 import {
   getSundaysInEthiopianYear,
-  ethiopianDateToGregorian,
+  ethiopianToGregorianDate,
 } from "@/lib/utils";
 import {
   CheckCircleIcon,
@@ -57,7 +57,9 @@ export default function AttendanceTab({
         Permission: r?.hasPermission ? "Yes" : "No",
         Reason: r?.reason || "",
         MarkedBy: r?.markedBy || "Birhaun Hiwot",
-        Timestamp: r?.timestamp || new Date().toISOString(),
+        Timestamp:
+          r?.timestamp ||
+          formatDateForDisplay(new Date(), { includeTime: true }),
       };
     });
 
@@ -78,45 +80,44 @@ export default function AttendanceTab({
     a.click();
   };
 
-const generatePDF = () => {
-  const doc = new jsPDF();
-  doc.setFontSize(14);
-  const title = `Attendance Report for ${student.First_Name} ${student.Father_Name}`;
-  doc.text(title, 14, 20);
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    const title = `Attendance Report for ${student.First_Name} ${student.Father_Name}`;
+    doc.text(title, 14, 20);
 
-  const tableData = sundays.map((date) => {
-    const record = attendanceMap[date];
-    const status = record
-      ? record.present
-        ? "Present"
-        : record.hasPermission
-        ? "Permission"
-        : "Absent"
-      : "Absent";
+    const tableData = sundays.map((date) => {
+      const record = attendanceMap[date];
+      const status = record
+        ? record.present
+          ? "Present"
+          : record.hasPermission
+          ? "Permission"
+          : "Absent"
+        : "Absent";
 
-    return [
-      date,
-      status,
-      record?.reason || (status === "Permission" ? "—" : "N/A"),
-      record?.markedBy || "Birhaun Hiwot",
-      record?.timestamp
-        ? new Date(record.timestamp).toLocaleString()
-        : new Date().toLocaleString(),
-    ];
-  });
+      return [
+        date,
+        status,
+        record?.reason || (status === "Permission" ? "—" : "N/A"),
+        record?.markedBy || "Birhaun Hiwot",
+        record?.timestamp
+          ? formatDateForDisplay(record.timestamp, { includeTime: true })
+          : formatDateForDisplay(new Date(), { includeTime: true }),
+      ];
+    });
 
-  autoTable(doc, {
-    head: [["Date", "Status", "Reason", "Marked By", "Timestamp"]],
-    body: tableData,
-    startY: 30,
-    styles: { fontSize: 10 },
-    headStyles: { fillColor: [33, 37, 41] }, // dark gray
-    alternateRowStyles: { fillColor: [245, 245, 245] }, // light gray
-  });
+    autoTable(doc, {
+      head: [["Date", "Status", "Reason", "Marked By", "Timestamp"]],
+      body: tableData,
+      startY: 30,
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [33, 37, 41] }, // dark gray
+      alternateRowStyles: { fillColor: [245, 245, 245] }, // light gray
+    });
 
-  doc.save(`${student.First_Name}_Attendance_Report.pdf`);
-};
-
+    doc.save(`${student.First_Name}_Attendance_Report.pdf`);
+  };
 
   const handleGenerateReport = (format: string) => {
     if (format === "CSV") {
@@ -242,10 +243,16 @@ const generatePDF = () => {
                       statusStyles = "bg-red-500 text-white";
                     }
 
-                    const tooltip = `Marked by: ${record?.markedBy || "Birhaun Hiwot"}\nTime: ${
+                    const tooltip = `Marked by: ${
+                      record?.markedBy || "Birhaun Hiwot"
+                    }\nTime: ${
                       record?.timestamp
-                        ? new Date(record.timestamp).toLocaleString()
-                        : new Date().toLocaleString()
+                        ? formatDateForDisplay(record.timestamp, {
+                            includeTime: true,
+                          })
+                        : formatDateForDisplay(new Date(), {
+                            includeTime: true,
+                          })
                     }\nReason: ${
                       status === "Permission" ? record?.reason || "—" : "N/A"
                     }`;

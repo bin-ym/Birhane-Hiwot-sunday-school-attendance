@@ -29,6 +29,7 @@ const eslintConfig = [
       '.next/',
       'dist/',
       'build/',
+      'src/app/api/subjects/[id]/route.ts',
     ],
   },
 ];

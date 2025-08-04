@@ -13,15 +13,83 @@ interface Grade {
   subjects: Subject[];
 }
 
+// Predefined subjects for each grade
+const GRADE_SUBJECTS = {
+  "Grade 1": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+  "Grade 2": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+  "Grade 3": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+  "Grade 4": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+  "Grade 5": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+  "Grade 6": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+  "Grade 7": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+  "Grade 8": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+};
+
 export default function Subjects() {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [selectedGrade, setSelectedGrade] = useState("");
   const [newSubject, setNewSubject] = useState("");
-  const [academicYear, setAcademicYear] = useState("");
+  const [academicYear, setAcademicYear] = useState("2024-2025");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
-  // Sample grades - in a real app, these would come from an API
   const gradeOptions = [
     "Grade 1",
     "Grade 2",
@@ -35,7 +103,6 @@ export default function Subjects() {
   const academicYearOptions = ["2024-2025", "2025-2026", "2026-2027"];
 
   useEffect(() => {
-    // Load existing subjects from API
     loadSubjects();
   }, []);
 
@@ -71,6 +138,37 @@ export default function Subjects() {
       setError("Failed to load subjects");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const initializeSubjectsForGrade = async (gradeName: string) => {
+    const subjectsForGrade =
+      GRADE_SUBJECTS[gradeName as keyof typeof GRADE_SUBJECTS] || [];
+
+    try {
+      for (const subjectName of subjectsForGrade) {
+        const subject: Subject = {
+          name: subjectName,
+          grade: gradeName,
+          academicYear: academicYear,
+        };
+
+        const response = await fetch("/api/subjects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(subject),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          console.warn(`Failed to add subject ${subjectName}:`, data.error);
+        }
+      }
+
+      // Reload subjects to get the updated list
+      await loadSubjects();
+    } catch (err) {
+      setError("Failed to initialize subjects");
     }
   };
 
@@ -143,9 +241,65 @@ export default function Subjects() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800">Subject Management</h2>
 
-      {/* Add New Subject */}
+      {/* Initialize Subjects Section */}
       <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-semibold mb-4">Add New Subject</h3>
+        <h3 className="text-lg font-semibold mb-4">
+          Initialize Subjects for Grade
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Grade
+            </label>
+            <select
+              value={selectedGrade}
+              onChange={(e) => setSelectedGrade(e.target.value)}
+              className="w-full p-3 border rounded-lg"
+            >
+              <option value="">Select Grade</option>
+              {gradeOptions.map((grade) => (
+                <option key={grade} value={grade}>
+                  {grade}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Academic Year
+            </label>
+            <select
+              value={academicYear}
+              onChange={(e) => setAcademicYear(e.target.value)}
+              className="w-full p-3 border rounded-lg"
+            >
+              {academicYearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() =>
+                selectedGrade && initializeSubjectsForGrade(selectedGrade)
+              }
+              disabled={!selectedGrade}
+              className="w-full bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              Initialize Subjects
+            </button>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mt-2">
+          This will add all predefined subjects for the selected grade.
+        </p>
+      </div>
+
+      {/* Add Individual Subject Section */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-4">Add Individual Subject</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -173,7 +327,6 @@ export default function Subjects() {
               onChange={(e) => setAcademicYear(e.target.value)}
               className="w-full p-3 border rounded-lg"
             >
-              <option value="">Select Year</option>
               {academicYearOptions.map((year) => (
                 <option key={year} value={year}>
                   {year}
@@ -196,7 +349,8 @@ export default function Subjects() {
           <div className="flex items-end">
             <button
               onClick={addSubject}
-              className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700"
+              disabled={!selectedGrade || !newSubject.trim()}
+              className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               Add Subject
             </button>
@@ -210,9 +364,15 @@ export default function Subjects() {
           <div key={grade.name} className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-lg font-semibold mb-4">{grade.name}</h3>
             {grade.subjects.length === 0 ? (
-              <p className="text-gray-500">
-                No subjects assigned to this grade.
-              </p>
+              <div className="text-center py-8">
+                <p className="text-gray-500">
+                  No subjects assigned to this grade.
+                </p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Use the &quot;Initialize Subjects&quot; section above to add predefined
+                  subjects.
+                </p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {grade.subjects.map((subject) => (

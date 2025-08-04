@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
+import { getTodayEthiopianDateISO } from "@/lib/utils";
 
 export interface TeacherAssignment {
   _id?: string;
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
       subjectName: subject.name,
       grade,
       academicYear,
-      assignedDate: new Date().toISOString().split("T")[0],
+      assignedDate: getTodayEthiopianDateISO(),
       status: "active",
     };
 

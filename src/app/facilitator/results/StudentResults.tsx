@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { getTodayEthiopianDateISO } from "@/lib/utils";
 
 interface Student {
   _id: string;
@@ -51,7 +52,7 @@ export default function StudentResults() {
     percentage: 0,
     grade: "",
     semester: "Semester 1",
-    remarks: ""
+    remarks: "",
   });
 
   const semesterOptions = ["Semester 1", "Semester 2", "Final"];
@@ -61,9 +62,9 @@ export default function StudentResults() {
     if (id) {
       fetchData();
     }
-  }, [id]);
+  }, [id, fetchData]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch student details
@@ -75,10 +76,26 @@ export default function StudentResults() {
       // Fetch subjects for the student's grade
       // In a real app, this would be an API call
       const sampleSubjects: Subject[] = [
-        { name: "Amharic", grade: studentData.Grade, academicYear: studentData.Academic_Year },
-        { name: "English", grade: studentData.Grade, academicYear: studentData.Academic_Year },
-        { name: "Mathematics", grade: studentData.Grade, academicYear: studentData.Academic_Year },
-        { name: "Science", grade: studentData.Grade, academicYear: studentData.Academic_Year }
+        {
+          name: "Amharic",
+          grade: studentData.Grade,
+          academicYear: studentData.Academic_Year,
+        },
+        {
+          name: "English",
+          grade: studentData.Grade,
+          academicYear: studentData.Academic_Year,
+        },
+        {
+          name: "Mathematics",
+          grade: studentData.Grade,
+          academicYear: studentData.Academic_Year,
+        },
+        {
+          name: "Science",
+          grade: studentData.Grade,
+          academicYear: studentData.Academic_Year,
+        },
       ];
       setSubjects(sampleSubjects);
 
@@ -95,8 +112,8 @@ export default function StudentResults() {
           grade: "A",
           academicYear: studentData.Academic_Year,
           semester: "Semester 1",
-          date: "2024-12-15"
-        }
+          date: "2024-12-15",
+        },
       ];
       setResults(sampleResults);
 
@@ -106,7 +123,7 @@ export default function StudentResults() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   const calculatePercentage = (mark: number, maxMark: number) => {
     return Math.round((mark / maxMark) * 100);
@@ -126,13 +143,13 @@ export default function StudentResults() {
   const handleMarkChange = (mark: number, maxMark: number) => {
     const percentage = calculatePercentage(mark, maxMark);
     const grade = getGradeFromPercentage(percentage);
-    
-    setNewResult(prev => ({
+
+    setNewResult((prev) => ({
       ...prev,
       mark,
       maxMark,
       percentage,
-      grade
+      grade,
     }));
   };
 
@@ -153,8 +170,8 @@ export default function StudentResults() {
         grade: newResult.grade,
         academicYear: student?.Academic_Year || "",
         semester: newResult.semester,
-        date: new Date().toISOString().split('T')[0],
-        remarks: newResult.remarks
+        date: getTodayEthiopianDateISO(),
+        remarks: newResult.remarks,
       };
 
       // In a real app, save to API
@@ -164,7 +181,7 @@ export default function StudentResults() {
       //   body: JSON.stringify(result)
       // });
 
-      setResults(prev => [...prev, result]);
+      setResults((prev) => [...prev, result]);
       setShowAddForm(false);
       setNewResult({
         subjectId: "",
@@ -174,7 +191,7 @@ export default function StudentResults() {
         percentage: 0,
         grade: "",
         semester: "Semester 1",
-        remarks: ""
+        remarks: "",
       });
       setError(null);
     } catch (err) {
@@ -187,15 +204,18 @@ export default function StudentResults() {
       // In a real app, delete from API
       // await fetch(`/api/results/${resultId}`, { method: 'DELETE' });
 
-      setResults(prev => prev.filter(r => r._id !== resultId));
+      setResults((prev) => prev.filter((r) => r._id !== resultId));
     } catch (err) {
       setError("Failed to delete result");
     }
   };
 
-  const filteredResults = results.filter(r => r.semester === selectedSemester);
+  const filteredResults = results.filter(
+    (r) => r.semester === selectedSemester
+  );
 
-  if (loading) return <div className="text-gray-500">Loading student results...</div>;
+  if (loading)
+    return <div className="text-gray-500">Loading student results...</div>;
   if (error) return <div className="text-red-500">{error}</div>;
   if (!student) return <div className="text-red-500">Student not found</div>;
 
@@ -205,7 +225,8 @@ export default function StudentResults() {
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Student Results</h2>
           <p className="text-gray-600">
-            {student.First_Name} {student.Father_Name} - {student.Grade} ({student.Academic_Year})
+            {student.First_Name} {student.Father_Name} - {student.Grade} (
+            {student.Academic_Year})
           </p>
         </div>
         <Link
@@ -220,7 +241,7 @@ export default function StudentResults() {
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-semibold mb-4">Select Semester</h3>
         <div className="flex gap-2">
-          {semesterOptions.map(semester => (
+          {semesterOptions.map((semester) => (
             <button
               key={semester}
               onClick={() => setSelectedSemester(semester)}
@@ -257,18 +278,23 @@ export default function StudentResults() {
               <select
                 value={newResult.subjectId}
                 onChange={(e) => {
-                  const subject = subjects.find(s => s._id === e.target.value);
-                  setNewResult(prev => ({
+                  const subject = subjects.find(
+                    (s) => s._id === e.target.value
+                  );
+                  setNewResult((prev) => ({
                     ...prev,
                     subjectId: e.target.value,
-                    subjectName: subject?.name || ""
+                    subjectName: subject?.name || "",
                   }));
                 }}
                 className="w-full p-3 border rounded-lg"
               >
                 <option value="">Select Subject</option>
-                {subjects.map(subject => (
-                  <option key={subject._id || subject.name} value={subject._id || subject.name}>
+                {subjects.map((subject) => (
+                  <option
+                    key={subject._id || subject.name}
+                    value={subject._id || subject.name}
+                  >
                     {subject.name}
                   </option>
                 ))}
@@ -283,7 +309,12 @@ export default function StudentResults() {
                 min="0"
                 max={newResult.maxMark}
                 value={newResult.mark}
-                onChange={(e) => handleMarkChange(parseInt(e.target.value) || 0, newResult.maxMark)}
+                onChange={(e) =>
+                  handleMarkChange(
+                    parseInt(e.target.value) || 0,
+                    newResult.maxMark
+                  )
+                }
                 className="w-full p-3 border rounded-lg"
               />
             </div>
@@ -295,7 +326,12 @@ export default function StudentResults() {
                 type="number"
                 min="1"
                 value={newResult.maxMark}
-                onChange={(e) => handleMarkChange(newResult.mark, parseInt(e.target.value) || 100)}
+                onChange={(e) =>
+                  handleMarkChange(
+                    newResult.mark,
+                    parseInt(e.target.value) || 100
+                  )
+                }
                 className="w-full p-3 border rounded-lg"
               />
             </div>
@@ -328,7 +364,9 @@ export default function StudentResults() {
               <input
                 type="text"
                 value={newResult.remarks}
-                onChange={(e) => setNewResult(prev => ({ ...prev, remarks: e.target.value }))}
+                onChange={(e) =>
+                  setNewResult((prev) => ({ ...prev, remarks: e.target.value }))
+                }
                 placeholder="Optional remarks"
                 className="w-full p-3 border rounded-lg"
               />
@@ -351,7 +389,9 @@ export default function StudentResults() {
           Results for {selectedSemester}
         </h3>
         {filteredResults.length === 0 ? (
-          <p className="text-gray-600">No results found for {selectedSemester}.</p>
+          <p className="text-gray-600">
+            No results found for {selectedSemester}.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse border">
@@ -369,7 +409,10 @@ export default function StudentResults() {
               </thead>
               <tbody>
                 {filteredResults.map((result) => (
-                  <tr key={result._id || `${result.subjectId}-${result.date}`} className="hover:bg-gray-50">
+                  <tr
+                    key={result._id || `${result.subjectId}-${result.date}`}
+                    className="hover:bg-gray-50"
+                  >
                     <td className="border p-3">{result.subjectName}</td>
                     <td className="border p-3">{result.mark}</td>
                     <td className="border p-3">{result.maxMark}</td>
@@ -394,4 +437,4 @@ export default function StudentResults() {
       </div>
     </div>
   );
-} 
+}

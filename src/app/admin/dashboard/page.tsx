@@ -10,7 +10,7 @@ interface DashboardData {
   attendance: Attendance[];
 }
 
-function exportToCSV(data: any[], filename: string) {
+function exportToCSV(data: Record<string, unknown>[], filename: string) {
   const csv = [
     Object.keys(data[0] || {}).join(","),
     ...data.map((row) => Object.values(row).map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")),
