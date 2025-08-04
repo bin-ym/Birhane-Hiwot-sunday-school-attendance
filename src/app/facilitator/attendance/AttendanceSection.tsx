@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { gregorianToEthiopianDate } from '@/lib/utils';
@@ -16,7 +16,7 @@ export default function AttendanceSection() {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
-  const currentDate = new Date();
+  const currentDate = useMemo(() => new Date(), []);
   const selectedDate = gregorianToEthiopianDate(currentDate);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [isSunday, setIsSunday] = useState(false);
@@ -28,7 +28,7 @@ export default function AttendanceSection() {
       .then((data) => setStudents(data))
       .catch(() => setStudents([]));
     // TODO: Fetch attendance for the selectedDate if needed
-  }, []);
+  }, [currentDate]);
 
   // Only show current academic year
   const currentYear = Math.max(...students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean));

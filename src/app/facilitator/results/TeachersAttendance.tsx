@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Student } from "@/lib/models";
 
 interface Teacher {
   _id: string;
@@ -8,6 +9,7 @@ interface Teacher {
   phone?: string;
   specialization?: string;
   status: "active" | "inactive";
+  subjects?: string[]; // Added subjects to the interface
 }
 
 interface Subject {
@@ -51,6 +53,7 @@ export default function TeachersAttendance() {
     phone: "",
     specialization: "",
     status: "active" as "active" | "inactive",
+    subjects: [] as string[],
   });
 
   const [newAssignment, setNewAssignment] = useState({
@@ -70,6 +73,16 @@ export default function TeachersAttendance() {
     "Grade 6",
     "Grade 7",
     "Grade 8",
+  ];
+
+  // Predefined subjects for selection
+  const availableSubjects = [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
   ];
 
   useEffect(() => {
@@ -94,7 +107,7 @@ export default function TeachersAttendance() {
         throw new Error(studentsData.error || "Failed to load students");
       }
       const uniqueGrades = [
-        ...new Set(studentsData.map((s: any) => s.Grade)),
+        ...new Set(studentsData.map((s: Student) => s.Grade)),
       ].sort() as string[];
       setGrades(uniqueGrades);
 
@@ -156,6 +169,7 @@ export default function TeachersAttendance() {
         phone: "",
         specialization: "",
         status: "active",
+        subjects: [],
       });
       setError(null);
     } catch (err) {
@@ -365,8 +379,8 @@ export default function TeachersAttendance() {
       {activeTab === "teachers" && (
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold text-gray-800">
                 Teachers List
               </h3>
               <button
@@ -408,36 +422,45 @@ export default function TeachersAttendance() {
                       required
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Phone
-                    </label>
-                    <input
-                      type="text"
-                      value={newTeacher.phone}
-                      onChange={(e) =>
-                        setNewTeacher({ ...newTeacher, phone: e.target.value })
-                      }
-                      className="w-full p-3 border rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Specialization
-                    </label>
-                    <input
-                      type="text"
-                      value={newTeacher.specialization}
-                      onChange={(e) =>
-                        setNewTeacher({
-                          ...newTeacher,
-                          specialization: e.target.value,
-                        })
-                      }
-                      className="w-full p-3 border rounded-lg"
-                    />
+                </div>
+
+                {/* Subject Selection */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Teaching Subjects
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {availableSubjects.map((subject) => (
+                      <label
+                        key={subject}
+                        className="flex items-center space-x-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={newTeacher.subjects.includes(subject)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewTeacher({
+                                ...newTeacher,
+                                subjects: [...newTeacher.subjects, subject],
+                              });
+                            } else {
+                              setNewTeacher({
+                                ...newTeacher,
+                                subjects: newTeacher.subjects.filter(
+                                  (s) => s !== subject
+                                ),
+                              });
+                            }
+                          }}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{subject}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
+
                 <button
                   onClick={addTeacher}
                   className="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
@@ -447,42 +470,66 @@ export default function TeachersAttendance() {
               </div>
             )}
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse border">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border p-3 text-left">Name</th>
-                    <th className="border p-3 text-left">Email</th>
-                    <th className="border p-3 text-left">Phone</th>
-                    <th className="border p-3 text-left">Specialization</th>
-                    <th className="border p-3 text-left">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teachers.map((teacher) => (
-                    <tr key={teacher._id} className="hover:bg-gray-50">
-                      <td className="border p-3">{teacher.name}</td>
-                      <td className="border p-3">{teacher.email}</td>
-                      <td className="border p-3">{teacher.phone || "-"}</td>
-                      <td className="border p-3">
-                        {teacher.specialization || "-"}
-                      </td>
-                      <td className="border p-3">
-                        <span
-                          className={`px-2 py-1 rounded text-sm ${
-                            teacher.status === "active"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {teacher.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Clean Teachers List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {teachers.map((teacher) => (
+                <div
+                  key={teacher._id}
+                  className="bg-gray-50 p-4 rounded-lg border hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 font-semibold text-lg">
+                        {teacher.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-800">
+                        {teacher.name}
+                      </h4>
+                      <p className="text-sm text-gray-600">{teacher.email}</p>
+                      <span
+                        className={`inline-block mt-1 px-2 py-1 rounded text-xs ${
+                          teacher.status === "active"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {teacher.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Teacher Subjects */}
+                  {teacher.subjects && teacher.subjects.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-xs font-medium text-gray-600 mb-1">
+                        Subjects:
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {teacher.subjects.map((subject, index) => (
+                          <span
+                            key={index}
+                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                          >
+                            {subject}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
+
+            {teachers.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No teachers found.</p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Add your first teacher to get started.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
