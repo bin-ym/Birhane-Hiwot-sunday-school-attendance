@@ -1,5 +1,5 @@
 // src/app/api/students/route.ts
-import { getDb } from '../../../lib/mongodb';
+import { getDb } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 
