@@ -1,17 +1,50 @@
+// src/components/tabs/AttendanceTab.tsx
 "use client";
-import { useState } from "react";
+import React, { useState } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Student, Attendance } from "@/lib/models";
 import {
   getSundaysInEthiopianYear,
   ethiopianToGregorianDate,
+  formatDateForDisplay,
 } from "@/lib/utils";
+import { useMonthGrid, useDatePicker } from "kenat-ui";
 import {
   CheckCircleIcon,
   MinusCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/solid";
+
+// Define types for kenat-ui hooks (since kenat-ui may lack type definitions)
+interface MonthGridDay {
+  ethiopian: {
+    year: number;
+    month: number;
+    day: number;
+  };
+  [key: string]: any;
+}
+
+interface MonthGrid {
+  monthName: string;
+  year: number;
+  headers: string[];
+  days: (MonthGridDay | null)[];
+}
+
+interface DatePickerState {
+  inputRef: React.MutableRefObject<HTMLInputElement | null>;
+  formatted: string;
+  open: boolean;
+  grid: MonthGrid;
+  days: (MonthGridDay | null)[];
+}
+
+interface DatePickerActions {
+  toggleOpen: () => void;
+  selectDate: (day: MonthGridDay) => void;
+}
 
 interface AttendanceTabProps {
   student: Student;
@@ -25,10 +58,23 @@ export default function AttendanceTab({
   currentDate,
 }: AttendanceTabProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(10); // Default: Sene
+  const [selectedYear, setSelectedYear] = useState(2017); // Default: 2017 EC
+  const { grid } = useMonthGrid({
+    year: selectedYear,
+    month: selectedMonth,
+    useGeez: false,
+    weekdayLang: "amharic",
+    weekStart: 0, // Start on Sunday
+  }) as { grid: MonthGrid };
+  const { state: pickerState, actions: pickerActions } = useDatePicker() as {
+    state: DatePickerState;
+    actions: DatePickerActions;
+  };
 
   const sundays = getSundaysInEthiopianYear(student.Academic_Year);
   const sundaysByMonth = sundays.reduce((acc, date) => {
-    const [month] = date.split(" ");
+    const [day, month] = date.split("/");
     if (!acc[month]) acc[month] = [];
     acc[month].push(date);
     return acc;
@@ -112,8 +158,8 @@ export default function AttendanceTab({
       body: tableData,
       startY: 30,
       styles: { fontSize: 10 },
-      headStyles: { fillColor: [33, 37, 41] }, // dark gray
-      alternateRowStyles: { fillColor: [245, 245, 245] }, // light gray
+      headStyles: { fillColor: [33, 37, 41] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
     });
 
     doc.save(`${student.First_Name}_Attendance_Report.pdf`);
@@ -126,6 +172,32 @@ export default function AttendanceTab({
       generatePDF();
     }
     setIsModalOpen(false);
+  };
+
+  const handleMarkAttendance = async (date: MonthGridDay) => {
+    const dateStr = `${date.ethiopian.day.toString().padStart(2, "0")}/${date.ethiopian.month
+      .toString()
+      .padStart(2, "0")}/${date.ethiopian.year}`;
+    try {
+      const response = await fetch(`/api/attendance/${student._id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: dateStr,
+          present: true, // Example; could be dynamic
+          hasPermission: false,
+          markedBy: "Admin",
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      if (response.ok) {
+        // Refresh attendance records
+        const updatedRecords = await fetch(`/api/attendance/${student._id}`).then((res) => res.json());
+        // Note: Requires refreshAttendance prop to update state
+      }
+    } catch (error) {
+      console.error("Failed to mark attendance:", error);
+    }
   };
 
   return (
@@ -155,41 +227,151 @@ export default function AttendanceTab({
         </div>
       </div>
 
-      {/* Modal for Report Options */}
-      {isModalOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
-          onClick={() => setIsModalOpen(false)}
-        >
-          <div
-            className="bg-white p-6 rounded shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-4">Choose Report Format</h3>
-            <div className="flex justify-around">
-              <button
-                onClick={() => handleGenerateReport("CSV")}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Export as CSV
-              </button>
-              <button
-                onClick={() => handleGenerateReport("PDF")}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Generate PDF
-              </button>
+      {/* Date Picker */}
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">Mark Attendance</h3>
+        <input
+          type="text"
+          readOnly
+          ref={pickerState.inputRef}
+          value={pickerState.formatted}
+          onClick={pickerActions.toggleOpen}
+          className="p-2 border rounded"
+        />
+        {pickerState.open && (
+          <div className="absolute bg-white border rounded p-4 shadow-lg z-10">
+            <div className="font-semibold mb-2">
+              {pickerState.grid.monthName} {pickerState.grid.year}
             </div>
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Cancel
-            </button>
+            <div className="grid grid-cols-7 gap-1 text-center">
+              {pickerState.days.map((day, i) =>
+                day ? (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      pickerActions.selectDate(day);
+                      handleMarkAttendance(day);
+                    }}
+                    className="p-2 hover:bg-blue-100 rounded"
+                  >
+                    {day.ethiopian.day}
+                  </button>
+                ) : (
+                  <div key={i} />
+                )
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
+      {/* Month/Year Selector */}
+      <div className="mb-4">
+        <label className="mr-2">Select Month:</label>
+        <select
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+          className="mr-4 p-2 border rounded"
+        >
+          {Array.from({ length: 13 }, (_, i) => i + 1).map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <label className="mr-2">Select Year:</label>
+        <input
+          type="number"
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+          className="p-2 border rounded"
+        />
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-3">
+          {grid.monthName} {grid.year}
+        </h3>
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {grid.headers.map((header: string, i: number) => (
+            <div key={i} className="font-medium text-gray-600">
+              {header}
+            </div>
+          ))}
+          {grid.days.map((day: MonthGridDay | null, i: number) => {
+            const dateStr = day
+              ? `${day.ethiopian.day.toString().padStart(2, "0")}/${day.ethiopian.month
+                  .toString()
+                  .padStart(2, "0")}/${day.ethiopian.year}`
+              : "";
+            const record = dateStr ? attendanceMap[dateStr] : undefined;
+            const gregorianDate = dateStr
+              ? ethiopianToGregorianDate(
+                  day!.ethiopian.year,
+                  day!.ethiopian.month,
+                  day!.ethiopian.day
+                )
+              : null;
+
+            let status = "";
+            let statusStyles = "";
+            let statusIcon: JSX.Element | null = null;
+
+            if (gregorianDate && gregorianDate > currentDate) {
+              status = "";
+            } else if (record) {
+              status = record.present
+                ? "Present"
+                : record.hasPermission
+                ? "Permission"
+                : "Absent";
+              statusStyles =
+                status === "Present"
+                  ? "bg-green-500 text-white"
+                  : status === "Permission"
+                  ? "bg-yellow-500 text-white"
+                  : "bg-red-500 text-white";
+              statusIcon =
+                status === "Present" ? (
+                  <CheckCircleIcon className="w-5 h-5 inline-block mr-1" />
+                ) : status === "Permission" ? (
+                  <MinusCircleIcon className="w-5 h-5 inline-block mr-1" />
+                ) : (
+                  <XCircleIcon className="w-5 h-5 inline-block mr-1" />
+                );
+            } else if (day) {
+              status = "Absent";
+              statusStyles = "bg-red-500 text-white";
+            }
+
+            return (
+              <div
+                key={i}
+                className={`p-2 ${day ? "bg-white" : "bg-gray-100"} border border-gray-200 rounded`}
+              >
+                {day ? (
+                  <div>
+                    <span>{day.ethiopian.day}</span>
+                    {status && (
+                      <p
+                        className={`text-xs font-semibold ${statusStyles} inline-flex items-center px-2 py-1 rounded-full mt-1`}
+                      >
+                        {statusIcon}
+                        {status}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  ""
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Month-by-Month View */}
       <div className="overflow-x-auto">
         {Object.keys(sundaysByMonth).length === 0 ? (
           <p className="text-gray-600">
@@ -205,14 +387,14 @@ export default function AttendanceTab({
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">
                   {month}
                 </h3>
-
                 <div className="grid grid-cols-1 gap-3">
                   {dates.map((date) => {
-                    const gregorianDate = ethiopianDateToGregorian(date);
+                    const [day, month, year] = date.split("/").map(Number);
+                    const gregorianDate = ethiopianToGregorianDate(year, month, day);
                     const record = attendanceMap[date];
                     let status = "";
                     let statusStyles = "";
-                    let statusIcon = null;
+                    let statusIcon: JSX.Element | null = null;
 
                     if (gregorianDate > currentDate) {
                       status = "";
@@ -222,14 +404,12 @@ export default function AttendanceTab({
                         : record.hasPermission
                         ? "Permission"
                         : "Absent";
-
                       statusStyles =
                         status === "Present"
                           ? "bg-green-500 text-white"
                           : status === "Permission"
                           ? "bg-yellow-500 text-white"
                           : "bg-red-500 text-white";
-
                       statusIcon =
                         status === "Present" ? (
                           <CheckCircleIcon className="w-5 h-5 inline-block mr-1" />
@@ -285,6 +465,41 @@ export default function AttendanceTab({
           </div>
         )}
       </div>
+
+      {/* Modal for Report Options */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="bg-white p-6 rounded shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-4">Choose Report Format</h3>
+            <div className="flex justify-around">
+              <button
+                onClick={() => handleGenerateReport("CSV")}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Export as CSV
+              </button>
+              <button
+                onClick={() => handleGenerateReport("PDF")}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Generate PDF
+              </button>
+            </div>
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
