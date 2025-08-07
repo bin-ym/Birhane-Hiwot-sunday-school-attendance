@@ -120,6 +120,11 @@ export default function AdminStudents() {
   });
   const [studentFormError, setStudentFormError] = useState<string | null>(null);
   const [studentFormLoading, setStudentFormLoading] = useState(false);
+  const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedSex, setSelectedSex] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedTableGrade, setSelectedTableGrade] = useState("");
+  const [expandedYears, setExpandedYears] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -141,8 +146,43 @@ export default function AdminStudents() {
   }, [fetchData]);
 
   useEffect(() => {
-    setPage(1); // Reset page when students change
-  }, [students.length]);
+    setPage(1); // Reset page when students or filters change
+  }, [students.length, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
+
+  // Group students by Academic_Year and Grade
+  const yearOptions = [...new Set(students.map((s) => s.Academic_Year))].sort();
+  const gradeOptionsByYear = yearOptions.reduce((acc, year) => {
+    const grades = [
+      ...new Set(
+        students.filter((s) => s.Academic_Year === year).map((s) => s.Grade)
+      ),
+    ].sort();
+    acc[year] = grades;
+    return acc;
+  }, {} as Record<string, string[]>);
+
+  const gradeOptions = [...new Set(students.map((s) => s.Grade))].sort();
+  const sexOptions = [...new Set(students.map((s) => s.Sex))].sort();
+
+  // Toggle year expansion
+  const toggleYear = (year: string) => {
+    setExpandedYears((prev) =>
+      prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
+    );
+  };
+
+  // Handle grade selection for table
+  const handleGradeSelect = (year: string, grade: string) => {
+    if (selectedYear === year && selectedTableGrade === grade) {
+      // Deselect if the same grade is clicked again
+      setSelectedYear("");
+      setSelectedTableGrade("");
+    } else {
+      setSelectedYear(year);
+      setSelectedTableGrade(grade);
+    }
+    setPage(1);
+  };
 
   function openModal(student: Student | null = null) {
     setEditStudent(student);
@@ -258,13 +298,18 @@ export default function AdminStudents() {
   );
 
   const filtered = useMemo(() => {
-    return students.filter((s) =>
-      [s.Unique_ID, s.First_Name, s.Father_Name, s.Grade]
-        .join(" ")
-        .toLowerCase()
-        .includes(search.toLowerCase())
+    return students.filter(
+      (student) =>
+        (!selectedYear || student.Academic_Year === selectedYear) &&
+        (!selectedTableGrade || student.Grade === selectedTableGrade) &&
+        (selectedGrade === "" || student.Grade === selectedGrade) &&
+        (selectedSex === "" || student.Sex === selectedSex) &&
+        ((student.Unique_ID || "").toLowerCase().includes(search.toLowerCase()) ||
+          (student.First_Name || "").toLowerCase().includes(search.toLowerCase()) ||
+          (student.Father_Name || "").toLowerCase().includes(search.toLowerCase()) ||
+          (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
     );
-  }, [students, search]);
+  }, [students, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
 
   const paged = useMemo(() => {
     return filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -294,92 +339,199 @@ export default function AdminStudents() {
           </button>
         </div>
       </div>
-      <label className="flex flex-col max-w-xs">
-        <span className="text-sm font-medium">Search Students</span>
-        <input
-          type="text"
-          placeholder="Search by ID, Name, or Grade"
-          className="p-2 border rounded w-full"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          aria-label="Search students"
-        />
-      </label>
-      {loading ? (
-        <div className="text-gray-500">Loading students...</div>
-      ) : error ? (
-        <div className="text-red-500">{error}</div>
-      ) : (
-        <div className="overflow-x-auto max-h-[600px]">
-          <table className="min-w-full border-collapse border">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border p-3 text-left">Unique ID</th>
-                <th className="border p-3 text-left">Name</th>
-                <th className="border p-3 text-left">Grade</th>
-                <th className="border p-3 text-left">Sex</th>
-                <th className="border p-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((student) => (
-                <tr key={student._id} className="hover:bg-gray-50">
-                  <td className="border p-3">{student.Unique_ID}</td>
-                  <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
-                  <td className="border p-3">{student.Grade}</td>
-                  <td className="border p-3">{student.Sex}</td>
-                  <td className="border p-3 flex gap-2">
-                    <Link
-                      href={`/admin/students/${student._id}`}
-                      className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700"
-                      aria-label={`View details for ${student.First_Name}`}
-                    >
-                      Details
-                    </Link>
-                    <button
-                      className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                      onClick={() => openModal(student)}
-                      aria-label={`Edit ${student.First_Name}`}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                      onClick={() => handleDeleteStudent(student._id!)}
-                      disabled={studentFormLoading}
-                      aria-label={`Delete ${student.First_Name}`}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
+
+      {/* Search and Filter Controls */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Search
+            </label>
+            <input
+              type="text"
+              placeholder="Search by ID, Name, or Grade"
+              className="p-3 border rounded w-full"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Search students"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Filter by Grade
+            </label>
+            <select
+              value={selectedGrade}
+              onChange={(e) => {
+                setSelectedGrade(e.target.value);
+                setPage(1);
+              }}
+              className="p-3 border rounded-lg w-full"
+            >
+              <option value="">All Grades</option>
+              {gradeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
               ))}
-            </tbody>
-          </table>
-          <div className="flex gap-2 mt-4 justify-center">
-            <button
-              className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              aria-label="Previous page"
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Filter by Sex
+            </label>
+            <select
+              value={selectedSex}
+              onChange={(e) => {
+                setSelectedSex(e.target.value);
+                setPage(1);
+              }}
+              className="p-3 border rounded-lg w-full"
             >
-              Prev
-            </button>
-            <span className="px-2">Page {page} of {pages}</span>
-            <button
-              className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
-              onClick={() => setPage((p) => Math.min(pages, p + 1))}
-              disabled={page === pages}
-              aria-label="Next page"
-            >
-              Next
-            </button>
+              <option value="">Both</option>
+              {sexOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Students by Academic Year */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">
+          Students by Academic Year
+        </h3>
+        {loading ? (
+          <div className="text-gray-500">Loading students...</div>
+        ) : error ? (
+          <div className="text-red-500">{error}</div>
+        ) : yearOptions.length === 0 ? (
+          <p className="text-gray-600">No students found.</p>
+        ) : (
+          yearOptions.map((year) => (
+            <div key={year} className="mb-4">
+              <button
+                onClick={() => toggleYear(year)}
+                className="w-full text-left bg-gray-200 p-3 rounded-lg flex justify-between items-center hover:bg-gray-300"
+                aria-expanded={expandedYears.includes(year)}
+              >
+                <span className="font-medium">Academic Year: {year}</span>
+                <span>{expandedYears.includes(year) ? "▲" : "▼"}</span>
+              </button>
+              {expandedYears.includes(year) && (
+                <div className="pl-4 pt-2">
+                  {gradeOptionsByYear[year].length === 0 ? (
+                    <p className="text-gray-600">No grades found for {year}.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {gradeOptionsByYear[year].map((grade) => (
+                        <li key={grade}>
+                          <button
+                            onClick={() => handleGradeSelect(year, grade)}
+                            className={`w-full text-left p-2 rounded-lg ${
+                              selectedYear === year && selectedTableGrade === grade
+                                ? "bg-blue-600 text-white"
+                                : "bg-gray-100 hover:bg-gray-200"
+                            }`}
+                          >
+                            {grade}
+                          </button>
+                          {selectedYear === year && selectedTableGrade === grade && (
+                            <div className="mt-4">
+                              <h4 className="text-lg font-semibold text-gray-700 mb-2">
+                                Students in {grade} for Academic Year {year}
+                              </h4>
+                              {filtered.length === 0 ? (
+                                <p className="text-gray-600">
+                                  No students found for {grade} in {year}.
+                                </p>
+                              ) : (
+                                <div className="overflow-x-auto max-h-[600px]">
+                                  <table className="min-w-full border-collapse border">
+                                    <thead className="bg-gray-100">
+                                      <tr>
+                                        <th className="border p-3 text-left">Unique ID</th>
+                                        <th className="border p-3 text-left">Name</th>
+                                        <th className="border p-3 text-left">Grade</th>
+                                        <th className="border p-3 text-left">Sex</th>
+                                        <th className="border p-3 text-left">Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {paged.map((student) => (
+                                        <tr key={student._id} className="hover:bg-gray-50">
+                                          <td className="border p-3">{student.Unique_ID}</td>
+                                          <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
+                                          <td className="border p-3">{student.Grade}</td>
+                                          <td className="border p-3">{student.Sex}</td>
+                                          <td className="border p-3 flex gap-2">
+                                            <Link
+                                              href={`/admin/students/${student._id}`}
+                                              className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700"
+                                              aria-label={`View details for ${student.First_Name}`}
+                                            >
+                                              Details
+                                            </Link>
+                                            <button
+                                              className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+                                              onClick={() => openModal(student)}
+                                              aria-label={`Edit ${student.First_Name}`}
+                                            >
+                                              Edit
+                                            </button>
+                                            <button
+                                              className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                                              onClick={() => handleDeleteStudent(student._id!)}
+                                              disabled={studentFormLoading}
+                                              aria-label={`Delete ${student.First_Name}`}
+                                            >
+                                              Delete
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                  <div className="flex gap-2 mt-4 justify-center">
+                                    <button
+                                      className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
+                                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                      disabled={page === 1}
+                                      aria-label="Previous page"
+                                    >
+                                      Prev
+                                    </button>
+                                    <span className="px-2">Page {page} of {pages}</span>
+                                    <button
+                                      className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
+                                      onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                                      disabled={page === pages}
+                                      aria-label="Next page"
+                                    >
+                                      Next
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-lg relative overflow-y-auto max-h-[80vh]">

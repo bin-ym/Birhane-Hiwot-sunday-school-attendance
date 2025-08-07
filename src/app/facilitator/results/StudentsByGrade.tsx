@@ -48,7 +48,6 @@ interface StudentResult {
   finalExam?: number;
   totalScore?: number;
   average?: number;
-  grade?: string;
   remarks?: string;
   recordedDate: string;
 }
@@ -62,7 +61,8 @@ export default function StudentsByGrade() {
     [key: string]: string[];
   }>({});
   const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
-  const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedTableGrade, setSelectedTableGrade] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -147,8 +147,14 @@ export default function StudentsByGrade() {
     setExpandedYears(newExpanded);
   };
 
-  const handleGradeSelect = (grade: string) => {
-    setSelectedGrade(grade);
+  const handleGradeSelect = (year: string, grade: string) => {
+    if (selectedYear === year && selectedTableGrade === grade) {
+      setSelectedYear("");
+      setSelectedTableGrade("");
+    } else {
+      setSelectedYear(year);
+      setSelectedTableGrade(grade);
+    }
   };
 
   const getStudentsByYearAndGrade = (year: string, grade: string) => {
@@ -267,23 +273,6 @@ export default function StudentsByGrade() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800">Student Records</h2>
 
-      {/* Grade Filter */}
-      {selectedGrade && (
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <div className="flex justify-between items-center">
-            <span className="font-medium text-blue-800">
-              Showing students for: {selectedGrade}
-            </span>
-            <button
-              onClick={() => setSelectedGrade("")}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              Clear Filter
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Students by Year and Grade */}
       <div className="space-y-4">
         {yearOptions.map((year) => (
@@ -291,6 +280,7 @@ export default function StudentsByGrade() {
             <button
               onClick={() => toggleYear(year)}
               className="w-full p-4 text-left flex justify-between items-center hover:bg-gray-50"
+              aria-expanded={expandedYears.has(year)}
             >
               <h3 className="text-lg font-semibold text-gray-800">
                 Academic Year: {year}
@@ -305,10 +295,11 @@ export default function StudentsByGrade() {
                 {gradeOptionsByYear[year]?.map((grade) => (
                   <div key={grade} className="border-b last:border-b-0">
                     <button
-                      onClick={() => handleGradeSelect(grade)}
+                      onClick={() => handleGradeSelect(year, grade)}
                       className={`w-full p-4 text-left flex justify-between items-center hover:bg-gray-50 ${
-                        selectedGrade === grade ? "bg-blue-50" : ""
+                        selectedYear === year && selectedTableGrade === grade ? "bg-blue-50" : ""
                       }`}
+                      aria-label={`Select ${grade} for ${year}`}
                     >
                       <h4 className="font-medium text-gray-700">{grade}</h4>
                       <span className="text-sm text-gray-500">
@@ -316,82 +307,66 @@ export default function StudentsByGrade() {
                       </span>
                     </button>
 
-                    {selectedGrade === grade && (
-                      <div className="bg-gray-50 p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {getStudentsByYearAndGrade(year, grade).map(
-                            (student) => (
-                              <div
-                                key={student._id}
-                                className="bg-white p-4 rounded-lg border hover:shadow-md transition-shadow"
-                              >
-                                <div className="flex justify-between items-start mb-3">
-                                  <div>
-                                    <h5 className="font-semibold text-gray-800">
-                                      {student.First_Name} {student.Father_Name}
-                                    </h5>
-                                    <p className="text-sm text-gray-600">
-                                      ID: {student.Unique_ID}
-                                    </p>
-                                  </div>
-                                  <Link
-                                    href={`/facilitator/results/students/${student._id}`}
-                                    className="text-blue-600 hover:text-blue-800 text-sm"
-                                  >
-                                    View Details
-                                  </Link>
-                                </div>
-
-                                {/* Subject Results */}
-                                <div className="space-y-2">
-                                  <h6 className="text-sm font-medium text-gray-700">
-                                    Subject Results:
-                                  </h6>
-                                  {getSubjectsByGrade(grade).map((subject) => {
-                                    const result = getStudentResults(
-                                      student._id,
-                                      subject._id || ""
-                                    );
-                                    return (
-                                      <div
-                                        key={subject._id}
-                                        className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm"
+                    {selectedYear === year && selectedTableGrade === grade && (
+                      <div className="p-4">
+                        <h4 className="text-lg font-semibold text-gray-700 mb-2">
+                          Students in {grade} for Academic Year {year}
+                        </h4>
+                        {getStudentsByYearAndGrade(year, grade).length === 0 ? (
+                          <p className="text-gray-600">
+                            No students found for {grade} in {year}.
+                          </p>
+                        ) : (
+                          <div className="overflow-x-auto max-h-[600px]">
+                            <table className="min-w-full border-collapse border">
+                              <thead className="bg-gray-100">
+                                <tr>
+                                  <th className="border p-3 text-left">Unique ID</th>
+                                  <th className="border p-3 text-left">Name</th>
+                                  <th className="border p-3 text-left">Grade</th>
+                                  <th className="border p-3 text-left">Sex</th>
+                                  <th className="border p-3 text-left">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {getStudentsByYearAndGrade(year, grade).map((student) => (
+                                  <tr key={student._id} className="hover:bg-gray-50">
+                                    <td className="border p-3">{student.Unique_ID}</td>
+                                    <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
+                                    <td className="border p-3">{student.Grade}</td>
+                                    <td className="border p-3">{student.Sex}</td>
+                                    <td className="border p-3 flex gap-2">
+                                      <Link
+                                        href={`/facilitator/results/students/${student._id}`}
+                                        className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700"
+                                        aria-label={`View details for ${student.First_Name}`}
                                       >
-                                        <span className="text-gray-700">
-                                          {subject.name}
-                                        </span>
-                                        {result ? (
-                                          <div className="flex items-center space-x-2">
-                                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                              Avg:{" "}
-                                              {calculateAverage(result).toFixed(
-                                                1
-                                              )}
-                                            </span>
-                                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                              {getGrade(
-                                                calculateAverage(result)
-                                              )}
-                                            </span>
-                                          </div>
-                                        ) : (
-                                          <button
-                                            onClick={() =>
-                                              openResultForm(student, subject)
+                                        Details
+                                      </Link>
+                                      <button
+                                        onClick={() =>
+                                          openResultForm(
+                                            student,
+                                            getSubjectsByGrade(grade)[0] || {
+                                              _id: "",
+                                              name: "",
+                                              grade: "",
+                                              academicYear: "",
                                             }
-                                            className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
-                                          >
-                                            Add Result
-                                          </button>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )
-                          )}
-                        </div>
+                                          )
+                                        }
+                                        className="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
+                                        aria-label={`Add result for ${student.First_Name}`}
+                                      >
+                                        Add Result
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -407,8 +382,7 @@ export default function StudentsByGrade() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">
-              Add Result for {selectedStudent.First_Name}{" "}
-              {selectedStudent.Father_Name}
+              Add Result for {selectedStudent.First_Name} {selectedStudent.Father_Name}
             </h3>
 
             <div className="space-y-4">
