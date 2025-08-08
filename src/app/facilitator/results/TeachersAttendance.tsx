@@ -1,7 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Student } from "@/lib/models";
+import { gregorianToEthiopian } from "@/lib/utils";
 
+const generateAcademicYearOptions = () => {
+  const { year: currentEthiopianYear } = gregorianToEthiopian(new Date());
+  // Generate options for last year, current year, and next year
+  return [
+    `${currentEthiopianYear - 1} EC`,
+    `${currentEthiopianYear} EC`,
+    `${currentEthiopianYear + 1} EC`,
+  ];
+};
 interface Teacher {
   _id: string;
   name: string;
@@ -63,7 +73,7 @@ export default function TeachersAttendance() {
     academicYear: "",
   });
 
-  const academicYearOptions = ["2024-2025", "2025-2026", "2026-2027"];
+  const academicYearOptions = generateAcademicYearOptions();
   const gradeOptions = [
     "Grade 1",
     "Grade 2",
