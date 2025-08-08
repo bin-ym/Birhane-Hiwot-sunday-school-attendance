@@ -2,12 +2,12 @@
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
-import { gregorianToEthiopianDate } from '@/lib/utils';
+import { gregorianToEthiopian, formatEthiopianDate } from '@/lib/utils';
 import { Student, Attendance } from '@/lib/models';
 
 interface AttendanceRecord {
   studentId: string;
-  date: string;
+  date: string; // Now properly typed as string
   present: boolean;
   hasPermission: boolean;
 }
@@ -17,7 +17,7 @@ export default function AttendanceSection() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
   const currentDate = new Date();
-  const selectedDate = gregorianToEthiopianDate(currentDate);
+  const ethiopianDate = gregorianToEthiopian(currentDate);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [isSunday, setIsSunday] = useState(false);
 
@@ -27,8 +27,10 @@ export default function AttendanceSection() {
       .then((res) => res.json())
       .then((data) => setStudents(data))
       .catch(() => setStudents([]));
-    // TODO: Fetch attendance for the selectedDate if needed
-  }, []);
+  }, [currentDate]); // Added currentDate to dependency array
+
+  // Create formatted date string once
+  const formattedDate = formatEthiopianDate(currentDate);
 
   // Only show current academic year
   const currentYear = Math.max(...students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean));
@@ -37,12 +39,12 @@ export default function AttendanceSection() {
   const toggleAttendance = (studentId: string) => {
     if (!isSunday) return alert("Attendance can only be marked on Sundays");
     const record = attendance.find(
-      (r: AttendanceRecord) => r.studentId === studentId && r.date === selectedDate
+      (r: AttendanceRecord) => r.studentId === studentId && r.date === formattedDate
     );
     setAttendance(
       record
         ? attendance.map((r: AttendanceRecord) =>
-            r.studentId === studentId && r.date === selectedDate
+            r.studentId === studentId && r.date === formattedDate
               ? { ...r, present: !r.present, hasPermission: false }
               : r
           )
@@ -50,7 +52,7 @@ export default function AttendanceSection() {
             ...attendance,
             {
               studentId,
-              date: selectedDate,
+              date: formattedDate,
               present: true,
               hasPermission: false,
             },
@@ -61,12 +63,12 @@ export default function AttendanceSection() {
   const togglePermission = (studentId: string) => {
     if (!isSunday) return alert("Permission can only be marked on Sundays");
     const record = attendance.find(
-      (r: AttendanceRecord) => r.studentId === studentId && r.date === selectedDate
+      (r: AttendanceRecord) => r.studentId === studentId && r.date === formattedDate
     );
     setAttendance(
       record
         ? attendance.map((r: AttendanceRecord) =>
-            r.studentId === studentId && r.date === selectedDate
+            r.studentId === studentId && r.date === formattedDate
               ? { ...r, hasPermission: !r.hasPermission, present: false }
               : r
           )
@@ -74,7 +76,7 @@ export default function AttendanceSection() {
             ...attendance,
             {
               studentId,
-              date: selectedDate,
+              date: formattedDate,
               present: false,
               hasPermission: true,
             },
@@ -90,15 +92,15 @@ export default function AttendanceSection() {
       Father_Name: student.Father_Name,
       Class: student.Class,
       Status: attendance.find(
-        (r: AttendanceRecord) => r.studentId === student._id && r.date === selectedDate
+        (r: AttendanceRecord) => r.studentId === student._id && r.date === formattedDate
       )?.present
         ? "Present"
         : attendance.find(
-            (r: AttendanceRecord) => r.studentId === student._id && r.date === selectedDate
+            (r: AttendanceRecord) => r.studentId === student._id && r.date === formattedDate
           )?.hasPermission
         ? "Permission"
         : "Absent",
-      Date: selectedDate,
+      Date: formattedDate,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -106,7 +108,7 @@ export default function AttendanceSection() {
     const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(
       new Blob([buffer], { type: "application/octet-stream" }),
-      `Attendance_${selectedDate.replace(/[\s,]+/g, '_')}.xlsx`
+      `Attendance_${formattedDate.replace(/[\s,]+/g, '_')}.xlsx`
     );
   };
 
@@ -115,7 +117,7 @@ export default function AttendanceSection() {
     if (!isSunday) return alert("Attendance can only be submitted on Sundays");
     if (
       !attendance.some(
-        (r: AttendanceRecord) => r.date === selectedDate && (r.present || r.hasPermission)
+        (r: AttendanceRecord) => r.date === formattedDate && (r.present || r.hasPermission)
       )
     )
       return alert(
@@ -148,7 +150,7 @@ export default function AttendanceSection() {
             Date
           </label>
           <p className="p-3 border border-gray-300 rounded-lg bg-gray-50">
-            {selectedDate}
+            {formattedDate}
           </p>
           {!isSunday && (
             <p className="text-red-500 text-sm mt-1">
@@ -215,7 +217,7 @@ export default function AttendanceSection() {
           <tbody>
             {filteredStudents.map((student: Student) => {
               const record = attendance.find(
-                (r: AttendanceRecord) => r.studentId === student._id && r.date === selectedDate
+                (r: AttendanceRecord) => r.studentId === student._id && r.date === formattedDate
               );
               return (
                 <tr key={student._id} className="hover:bg-gray-50">
@@ -246,4 +248,4 @@ export default function AttendanceSection() {
       </div>
     </div>
   );
-} 
+}

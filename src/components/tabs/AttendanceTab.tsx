@@ -5,7 +5,8 @@ import autoTable from "jspdf-autotable";
 import { Student, Attendance } from "@/lib/models";
 import {
   getSundaysInEthiopianYear,
-  ethiopianDateToGregorian,
+  ethiopianToGregorian, // Corrected import
+  ETHIOPIAN_MONTHS, // Added for parsing month names
 } from "@/lib/utils";
 import {
   CheckCircleIcon,
@@ -26,11 +27,18 @@ export default function AttendanceTab({
 }: AttendanceTabProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const sundays = getSundaysInEthiopianYear(student.Academic_Year);
-  const sundaysByMonth = sundays.reduce((acc, date) => {
-    const [month] = date.split(" ");
-    if (!acc[month]) acc[month] = [];
-    acc[month].push(date);
+  // Parse academic year into a number (e.g., "2017-2018" -> 2017)
+  const numericYear = parseInt(student.Academic_Year.split("-")[0], 10);
+
+  // Get Sundays for the numeric Ethiopian year
+  const sundays = getSundaysInEthiopianYear(numericYear);
+
+  // Group Sundays by their month name
+  const sundaysByMonth = sundays.reduce((acc, dateStr) => {
+    // dateStr is something like "5 Meskerem 2017"
+    const [dayStr, monthName, yearStr] = dateStr.split(" ");
+    if (!acc[monthName]) acc[monthName] = [];
+    acc[monthName].push(dateStr);
     return acc;
   }, {} as Record<string, string[]>);
 
@@ -48,16 +56,16 @@ export default function AttendanceTab({
   const escapeCSV = (val: string) => `"${val?.replace(/"/g, '""') || ""}"`;
 
   const exportToCSV = () => {
-    const rows = sundays.map((date) => {
-      const r = attendanceMap[date];
+    const rows = sundays.map((dateStr) => {
+      const record = attendanceMap[dateStr];
       return {
         Student: `${student.First_Name} ${student.Father_Name}`,
-        Date: date,
-        Present: r?.present ? "Yes" : "No",
-        Permission: r?.hasPermission ? "Yes" : "No",
-        Reason: r?.reason || "",
-        MarkedBy: r?.markedBy || "Birhaun Hiwot",
-        Timestamp: r?.timestamp || new Date().toISOString(),
+        Date: dateStr,
+        Present: record?.present ? "Yes" : "No",
+        Permission: record?.hasPermission ? "Yes" : "No",
+        Reason: record?.reason || "",
+        MarkedBy: record?.markedBy || "Birhaun Hiwot",
+        Timestamp: record?.timestamp || new Date().toISOString(),
       };
     });
 
@@ -78,50 +86,49 @@ export default function AttendanceTab({
     a.click();
   };
 
-const generatePDF = () => {
-  const doc = new jsPDF();
-  doc.setFontSize(14);
-  const title = `Attendance Report for ${student.First_Name} ${student.Father_Name}`;
-  doc.text(title, 14, 20);
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    const title = `Attendance Report for ${student.First_Name} ${student.Father_Name}`;
+    doc.text(title, 14, 20);
 
-  const tableData = sundays.map((date) => {
-    const record = attendanceMap[date];
-    const status = record
-      ? record.present
-        ? "Present"
-        : record.hasPermission
-        ? "Permission"
-        : "Absent"
-      : "Absent";
+    const tableData = sundays.map((dateStr) => {
+      const record = attendanceMap[dateStr];
+      const status = record
+        ? record.present
+          ? "Present"
+          : record.hasPermission
+          ? "Permission"
+          : "Absent"
+        : "Absent";
 
-    return [
-      date,
-      status,
-      record?.reason || (status === "Permission" ? "—" : "N/A"),
-      record?.markedBy || "Birhaun Hiwot",
-      record?.timestamp
-        ? new Date(record.timestamp).toLocaleString()
-        : new Date().toLocaleString(),
-    ];
-  });
+      return [
+        dateStr,
+        status,
+        record?.reason || (status === "Permission" ? "—" : "N/A"),
+        record?.markedBy || "Birhaun Hiwot",
+        record?.timestamp
+          ? new Date(record.timestamp).toLocaleString()
+          : new Date().toLocaleString(),
+      ];
+    });
 
-  autoTable(doc, {
-    head: [["Date", "Status", "Reason", "Marked By", "Timestamp"]],
-    body: tableData,
-    startY: 30,
-    styles: { fontSize: 10 },
-    headStyles: { fillColor: [33, 37, 41] }, // dark gray
-    alternateRowStyles: { fillColor: [245, 245, 245] }, // light gray
-  });
+    autoTable(doc, {
+      head: [["Date", "Status", "Reason", "Marked By", "Timestamp"]],
+      body: tableData,
+      startY: 30,
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [33, 37, 41] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
 
-  doc.save(`${student.First_Name}_Attendance_Report.pdf`);
-};
+    doc.save(`${student.First_Name}_Attendance_Report.pdf`);
+  };
 
-
-  const handleGenerateReport = (format: string) => {
+  const handleGenerateReport = (format: "CSV" | "PDF") => {
     if (format === "CSV") {
       exportToCSV();
-    } else if (format === "PDF") {
+    } else {
       generatePDF();
     }
     setIsModalOpen(false);
@@ -141,7 +148,6 @@ const generatePDF = () => {
         </button>
       </div>
 
-      {/* Summary */}
       <div className="flex flex-wrap gap-4 text-sm text-gray-800 font-medium mb-6">
         <div className="bg-green-100 px-3 py-1 rounded-full">
           Present: {present}/{total} ({((present / total) * 100).toFixed(0)}%)
@@ -149,12 +155,9 @@ const generatePDF = () => {
         <div className="bg-yellow-100 px-3 py-1 rounded-full">
           Permission: {permission}
         </div>
-        <div className="bg-red-100 px-3 py-1 rounded-full">
-          Absent: {absent}
-        </div>
+        <div className="bg-red-100 px-3 py-1 rounded-full">Absent: {absent}</div>
       </div>
 
-      {/* Modal for Report Options */}
       {isModalOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
@@ -196,19 +199,25 @@ const generatePDF = () => {
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {Object.entries(sundaysByMonth).map(([month, dates]) => (
+            {Object.entries(sundaysByMonth).map(([monthName, dates]) => (
               <div
-                key={month}
+                key={monthName}
                 className="bg-gradient-to-r from-gray-50 to-white border border-gray-300 rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow duration-300"
               >
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                  {month}
+                  {monthName}
                 </h3>
 
                 <div className="grid grid-cols-1 gap-3">
-                  {dates.map((date) => {
-                    const gregorianDate = ethiopianDateToGregorian(date);
-                    const record = attendanceMap[date];
+                  {dates.map((dateStr) => {
+                    // Parse dateStr, e.g., "5 Meskerem 2017"
+                    const [dayStr, monthNameStr, yearStr] = dateStr.split(" ");
+                    const day = parseInt(dayStr, 10);
+                    const year = parseInt(yearStr, 10);
+                    const monthIndex = ETHIOPIAN_MONTHS.indexOf(monthNameStr) + 1; // 1-based
+                    const gregorianDate = ethiopianToGregorian(year, monthIndex, day);
+
+                    const record = attendanceMap[dateStr];
                     let status = "";
                     let statusStyles = "";
                     let statusIcon = null;
@@ -240,9 +249,12 @@ const generatePDF = () => {
                     } else {
                       status = "Absent";
                       statusStyles = "bg-red-500 text-white";
+                      statusIcon = <XCircleIcon className="w-5 h-5 inline-block mr-1" />;
                     }
 
-                    const tooltip = `Marked by: ${record?.markedBy || "Birhaun Hiwot"}\nTime: ${
+                    const tooltip = `Marked by: ${
+                      record?.markedBy || "Birhaun Hiwot"
+                    }\nTime: ${
                       record?.timestamp
                         ? new Date(record.timestamp).toLocaleString()
                         : new Date().toLocaleString()
@@ -252,11 +264,11 @@ const generatePDF = () => {
 
                     return (
                       <div
-                        key={date}
+                        key={dateStr}
                         className="border border-gray-200 rounded-lg p-3 bg-white hover:bg-gray-50 transition duration-150 ease-in-out"
                       >
                         <p className="text-sm font-medium text-gray-800">
-                          {date}
+                          {dateStr}
                         </p>
                         {status ? (
                           <p
