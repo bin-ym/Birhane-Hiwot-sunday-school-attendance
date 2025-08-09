@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { gregorianToEthiopian, formatEthiopianDate } from '@/lib/utils';
@@ -7,7 +7,7 @@ import { Student, Attendance } from '@/lib/models';
 
 interface AttendanceRecord {
   studentId: string;
-  date: string; // Now properly typed as string
+  date: string;
   present: boolean;
   hasPermission: boolean;
 }
@@ -16,7 +16,7 @@ export default function AttendanceSection() {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
-  const currentDate = new Date();
+  const currentDate = useMemo(() => new Date(), []); // Stabilize currentDate
   const ethiopianDate = gregorianToEthiopian(currentDate);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [isSunday, setIsSunday] = useState(false);
@@ -27,12 +27,9 @@ export default function AttendanceSection() {
       .then((res) => res.json())
       .then((data) => setStudents(data))
       .catch(() => setStudents([]));
-  }, [currentDate]); // Added currentDate to dependency array
+  }, [currentDate]);
 
-  // Create formatted date string once
   const formattedDate = formatEthiopianDate(currentDate);
-
-  // Only show current academic year
   const currentYear = Math.max(...students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean));
   const currentYearStudents = students.filter((s: Student) => s.Academic_Year === String(currentYear));
 
