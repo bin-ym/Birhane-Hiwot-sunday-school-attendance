@@ -52,3 +52,13 @@ export interface User {
   name?: string;
   role: UserRole;
 }
+
+export interface Subject {
+  _id?: string;
+  name: string;
+  grade: string;
+  academicYear: string;
+  description?: string;
+  teacherId?: string;
+  students?: Student[];
+}

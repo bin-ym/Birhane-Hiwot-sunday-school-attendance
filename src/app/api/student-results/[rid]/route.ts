@@ -1,85 +1,103 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
-import { Student, Attendance } from '@/lib/models';
-import { formatEthiopianDate } from '@/lib/utils';
+import { Subject } from '@/lib/models';
 
-// Fetch student and their attendance records
-async function fetchStudentResult(rid: string): Promise<{ student: Student | null; attendance: Attendance[] } | null> {
+// Fetch a subject by ID
+async function fetchSubject(id: string): Promise<Subject | null> {
   try {
     const db = await getDb();
-    const studentCollection = db.collection<Student>('students');
-    const attendanceCollection = db.collection<Attendance>('attendance');
+    const subjectCollection = db.collection<Subject>('subjects');
 
-    // Validate rid as ObjectId
-    if (!ObjectId.isValid(rid)) {
+    if (!ObjectId.isValid(id)) {
       return null;
     }
 
-    // Fetch student by _id, converting rid to ObjectId
-    const student = await studentCollection.findOne({ _id: rid });
-    if (!student) {
-      return null;
-    }
-
-    // Fetch attendance records for the student
-    const attendance = await attendanceCollection
-      .find({ studentId: rid })
-      .toArray();
-
-    // Format attendance dates to Ethiopian calendar
-    const formattedAttendance = attendance.map((record) => ({
-      ...record,
-      date: formatEthiopianDate(new Date(record.date)),
-    }));
-
-    return { student, attendance: formattedAttendance };
+    const subject = await subjectCollection.findOne({ _id: new ObjectId(id) });
+    return subject;
   } catch (error) {
-    console.error('Error fetching student result:', error);
+    console.error('Error fetching subject:', error);
     return null;
   }
 }
 
-// GET handler for student result by rid
-export async function GET(request: NextRequest, context: { params: Promise<{ rid: string }> }) {
+// Delete a subject by ID
+async function deleteSubject(id: string): Promise<boolean> {
   try {
-    const params = await context.params; // Await the params Promise
-    const { rid } = params;
-    if (!rid) {
-      return NextResponse.json({ error: 'Result ID is required' }, { status: 400 });
+    const db = await getDb();
+    const subjectCollection = db.collection<Subject>('subjects');
+
+    if (!ObjectId.isValid(id)) {
+      return false;
     }
 
-    const result = await fetchStudentResult(rid);
-    if (!result || !result.student) {
-      return NextResponse.json({ error: 'Student result not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({
-      student: {
-        _id: result.student._id ? result.student._id.toString() : '',
-        Unique_ID: result.student.Unique_ID,
-        First_Name: result.student.First_Name,
-        Father_Name: result.student.Father_Name,
-        Grade: result.student.Grade,
-        Academic_Year: result.student.Academic_Year,
-      },
-      attendance: result.attendance,
-    });
+    const result = await subjectCollection.deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount === 1;
   } catch (error) {
-    console.error('API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch student result' }, { status: 500 });
+    console.error('Error deleting subject:', error);
+    return false;
   }
 }
 
-// Generate static parameters for all student IDs
+// GET handler: Fetch a subject by ID
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const params = await context.params;
+    const { id } = params;
+    if (!id) {
+      return NextResponse.json({ error: 'Subject ID is required' }, { status: 400 });
+    }
+
+    const subject = await fetchSubject(id);
+    if (!subject) {
+      return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      _id: subject._id ? subject._id.toString() : '',
+      name: subject.name,
+      grade: subject.grade,
+      academicYear: subject.academicYear,
+      description: subject.description,
+      teacherId: subject.teacherId,
+      students: subject.students,
+    });
+  } catch (error) {
+    console.error('API error:', error);
+    return NextResponse.json({ error: 'Failed to fetch subject' }, { status: 500 });
+  }
+}
+
+// DELETE handler: Delete a subject by ID
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const params = await context.params;
+    const { id } = params;
+    if (!id) {
+      return NextResponse.json({ error: 'Subject ID is required' }, { status: 400 });
+    }
+
+    const success = await deleteSubject(id);
+    if (!success) {
+      return NextResponse.json({ error: 'Subject not found or could not be deleted' }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: 'Subject deleted successfully' });
+  } catch (error) {
+    console.error('API error:', error);
+    return NextResponse.json({ error: 'Failed to delete subject' }, { status: 500 });
+  }
+}
+
+// Generate static parameters for all subject IDs
 export async function generateStaticParams() {
   try {
     const db = await getDb();
-    const studentCollection = db.collection<Student>('students');
-    const students = await studentCollection
+    const subjectCollection = db.collection<Subject>('subjects');
+    const subjects = await subjectCollection
       .find({}, { projection: { _id: 1 } })
       .toArray();
-    return students.map((student) => ({ rid: student._id.toString() }));
+    return subjects.map((subject) => ({ id: subject._id.toString() }));
   } catch (error) {
     console.error('Error generating static params:', error);
     return [];
