@@ -326,14 +326,14 @@ export default function AdminStudents() {
             </thead>
             <tbody>
               {paged.map((student) => (
-                <tr key={student._id} className="hover:bg-gray-50">
+                <tr key={student._id?.toString()} className="hover:bg-gray-50">
                   <td className="border p-3">{student.Unique_ID}</td>
                   <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
                   <td className="border p-3">{student.Grade}</td>
                   <td className="border p-3">{student.Sex}</td>
                   <td className="border p-3 flex gap-2">
                     <Link
-                      href={`/admin/students/${student._id}`}
+                      href={`/admin/students/${student._id?.toString()}`}
                       className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700"
                       aria-label={`View details for ${student.First_Name}`}
                     >
@@ -348,7 +348,7 @@ export default function AdminStudents() {
                     </button>
                     <button
                       className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                      onClick={() => handleDeleteStudent(student._id!)}
+                      onClick={() => handleDeleteStudent(student._id!.toString())}
                       disabled={studentFormLoading}
                       aria-label={`Delete ${student.First_Name}`}
                     >

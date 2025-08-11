@@ -89,11 +89,11 @@ export default function AttendanceSection() {
       Father_Name: student.Father_Name,
       Class: student.Class,
       Status: attendance.find(
-        (r: AttendanceRecord) => r.studentId === student._id && r.date === formattedDate
+        (r: AttendanceRecord) => r.studentId === student._id?.toString() && r.date === formattedDate
       )?.present
         ? "Present"
         : attendance.find(
-            (r: AttendanceRecord) => r.studentId === student._id && r.date === formattedDate
+            (r: AttendanceRecord) => r.studentId === student._id?.toString() && r.date === formattedDate
           )?.hasPermission
         ? "Permission"
         : "Absent",
@@ -214,10 +214,10 @@ export default function AttendanceSection() {
           <tbody>
             {filteredStudents.map((student: Student) => {
               const record = attendance.find(
-                (r: AttendanceRecord) => r.studentId === student._id && r.date === formattedDate
+                (r: AttendanceRecord) => r.studentId === student._id?.toString() && r.date === formattedDate
               );
               return (
-                <tr key={student._id} className="hover:bg-gray-50">
+                <tr key={student._id?.toString()} className="hover:bg-gray-50">
                   <td className="border p-3">{student.Unique_ID}</td>
                   <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
                   <td className="border p-3">{student.Grade}</td>
@@ -225,7 +225,7 @@ export default function AttendanceSection() {
                     <input
                       type="checkbox"
                       checked={!!record?.present}
-                      onChange={() => student._id && toggleAttendance(student._id)}
+                      onChange={() => student._id && toggleAttendance(student._id.toString())}
                       disabled={!isSunday}
                     />
                   </td>
@@ -233,7 +233,7 @@ export default function AttendanceSection() {
                     <input
                       type="checkbox"
                       checked={!!record?.hasPermission}
-                      onChange={() => student._id && togglePermission(student._id)}
+                      onChange={() => student._id && togglePermission(student._id.toString())}
                       disabled={!isSunday}
                     />
                   </td>

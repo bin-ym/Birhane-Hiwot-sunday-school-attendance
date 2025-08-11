@@ -1,5 +1,7 @@
+import { ObjectId } from "mongodb";
+
 export interface Student {
-  _id?: string;
+  _id?: ObjectId;
   Unique_ID: string;
   First_Name: string;
   Father_Name: string;
@@ -35,7 +37,7 @@ export interface Attendance {
 }
 
 export interface Payment {
-  _id?: string;
+  _id?: ObjectId;
   studentId: string;
   amount: number;
   date: string;
@@ -46,7 +48,7 @@ export interface Payment {
 export type UserRole = 'admin' | 'Attendance Facilitator' | 'Education Facilitator';
 
 export interface User {
-  _id?: string;
+  _id?: ObjectId;
   email: string;
   password: string;
   name?: string;
@@ -54,7 +56,7 @@ export interface User {
 }
 
 export interface Subject {
-  _id?: string;
+  _id?: ObjectId;
   name: string;
   grade: string;
   academicYear: string;
