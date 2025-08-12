@@ -3,19 +3,8 @@ import { addDays, startOfDay } from 'date-fns';
 
 // Ethiopian Calendar months
 export const ETHIOPIAN_MONTHS = [
-  "Meskerem",
-  "Tikimt",
-  "Hidar",
-  "Tahsas",
-  "Tir",
-  "Yekatit",
-  "Megabit",
-  "Miyazia",
-  "Ginbot",
-  "Sene",
-  "Hamle",
-  "Nehase",
-  "Pagumē",
+  'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
+  'Megabit', 'Miyazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagumē'
 ];
 
 // Fixed leap year calculation
@@ -114,57 +103,4 @@ export function getSundaysInEthiopianYear(eYear: number): string[] {
   }
 
   return sundays;
-}
-
-// Format date for display in Ethiopian calendar
-export function formatDateForDisplay(
-  date: Date | string,
-  options: {
-    includeTime?: boolean;
-    language?: "am" | "en";
-  } = {}
-): string {
-  const { includeTime = false, language = "am" } = options;
-  const dateObj = typeof date === "string" ? new Date(date) : date;
-  const ethiopianDate = formatEthiopianDate(dateObj, { language });
-
-  if (includeTime) {
-    const timeStr = dateObj.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-    return `${ethiopianDate} ${timeStr}`;
-  }
-
-  return ethiopianDate;
-}
-
-// Get Ethiopian date for today in ISO format
-export function getTodayEthiopianDateISO(): string {
-  const ethiopian = getCurrentEthiopianDate();
-  return `${ethiopian.year}-${ethiopian.month.toString().padStart(2, "0")}-${ethiopian.day.toString().padStart(2, "0")}`;
-}
-
-// Convert ISO date string to Ethiopian date string
-export function isoDateToEthiopianString(isoDate: string, language: "am" | "en" = "am"): string {
-  const date = new Date(isoDate);
-  return formatEthiopianDate(date, { language });
-}
-
-// Test function to verify Ethiopian calendar functionality
-export function testEthiopianCalendar() {
-  const today = new Date();
-  const ethiopianToday = getCurrentEthiopianDate();
-  const formattedToday = formatEthiopianDate(today);
-  const todayString = getTodayEthiopianDateString();
-  const todayISO = getTodayEthiopianDateISO();
-
-  return {
-    gregorian: today.toISOString(),
-    ethiopian: ethiopianToday,
-    formatted: formattedToday,
-    string: todayString,
-    iso: todayISO,
-  };
 }
