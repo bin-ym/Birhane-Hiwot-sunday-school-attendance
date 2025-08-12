@@ -204,7 +204,7 @@ export default function AdminFacilitators() {
             </thead>
             <tbody>
               {paged.map((fac) => (
-                <tr key={fac._id} className="hover:bg-gray-50">
+                <tr key={fac._id?.toString()} className="hover:bg-gray-50">
                   <td className="border p-3">{fac.name || "-"}</td>
                   <td className="border p-3">{fac.email}</td>
                   <td className="border p-3 capitalize">{fac.role}</td>
@@ -218,7 +218,7 @@ export default function AdminFacilitators() {
                     </button>
                     <button
                       className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                      onClick={() => handleDeleteFac(fac._id!)}
+                      onClick={() => handleDeleteFac(fac._id!.toString())}
                       disabled={facFormLoading}
                       aria-label={`Delete ${fac.name || "facilitator"}`}
                     >

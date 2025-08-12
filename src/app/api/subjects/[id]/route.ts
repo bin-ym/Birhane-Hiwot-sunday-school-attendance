@@ -1,19 +1,14 @@
-/* eslint-disable */
-// @ts-nocheck
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
-
-export async function DELETE(req: NextRequest, { params }: RouteContext) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const db = await getDb();
-    const { id } = params;
+    const { id } = await params;
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { getSundaysInEthiopianYear } from "@/lib/utils";
 
 interface Subject {
   _id?: string;
@@ -27,7 +28,7 @@ const GRADE_SUBJECTS = {
     "መሠረተ ሃይማኖት",
     "ክርስቲያናዊ ሥነ ምግባር",
     "የቤተ-ክርስቲያን ታሪክ",
-    "ሥርዓተ ቤተ-ክርስቲያን",
+    "ሥሷተ ቤተ-ክርስቲያን",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
@@ -35,7 +36,7 @@ const GRADE_SUBJECTS = {
     "መሠረተ ሃይማኖት",
     "ክርስቲያናዊ ሥነ ምግባር",
     "የቤተ-ክርስቲያን ታሪክ",
-    "ሥርዓተ ቤተ-ክርስቲያን",
+    "ሥሷተ ቤተ-ክርስቲያን",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
@@ -43,39 +44,39 @@ const GRADE_SUBJECTS = {
     "መሠረተ ሃይማኖት",
     "ክርስቲያናዊ ሥነ ምግባር",
     "የቤተ-ክርስቲያን ታሪክ",
-    "ሥርዓተ ቤተ-ክርስቲያን",
+    "ሥሷተ ቤተ-ክርስቲያን",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 5": [
     "መሠረተ ሃይማኖት",
     "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያን ታሪክ",
-    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የቤተ-ክርስቲያኝ ታሪክ",
+    "ሥሷተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 6": [
     "መሠረተ ሃይማኖት",
     "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያን ታሪክ",
-    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የቤተ-ክርስቲያኝ ታሪክ",
+    "ሥሷተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 7": [
     "መሠረተ ሃይማኖት",
     "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያን ታሪክ",
-    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የቤተ-ክርስቲያኝ ታሪክ",
+    "ሥሷተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 8": [
     "መሠረተ ሃይማኖት",
     "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያን ታሪክ",
-    "ሥርዓተ ቤተ-ክርስቲያን",
+    "የቤተ-ክርስቲያኝ ታሪክ",
+    "ሥሷተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
@@ -88,7 +89,7 @@ export default function Subjects() {
   const [academicYear, setAcademicYear] = useState("2024-2025");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
+  const [sundays, setSundays] = useState<string[]>([]);
 
   const gradeOptions = [
     "Grade 1",
@@ -101,6 +102,17 @@ export default function Subjects() {
     "Grade 8",
   ];
   const academicYearOptions = ["2024-2025", "2025-2026", "2026-2027"];
+
+  // Update Sundays when academic year changes
+  useEffect(() => {
+    if (academicYear) {
+      const [startYear] = academicYear.split("-").map(Number);
+      // Convert Gregorian year to Ethiopian year (approximate: 2024 Gregorian ≈ 2017 Ethiopian)
+      const ethiopianYear = startYear - 7; // Adjust for calendar offset
+      const sundaysInYear = getSundaysInEthiopianYear(ethiopianYear);
+      setSundays(sundaysInYear);
+    }
+  }, [academicYear]);
 
   useEffect(() => {
     loadSubjects();
@@ -240,6 +252,24 @@ export default function Subjects() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800">Subject Management</h2>
+
+      {/* Sundays in Academic Year Section */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-4">
+          Sundays in Academic Year {academicYear} (Ethiopian Calendar)
+        </h3>
+        {sundays.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sundays.map((sunday, index) => (
+              <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                {sunday}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">No Sundays available for the selected academic year.</p>
+        )}
+      </div>
 
       {/* Initialize Subjects Section */}
       <div className="bg-white p-6 rounded-lg shadow">

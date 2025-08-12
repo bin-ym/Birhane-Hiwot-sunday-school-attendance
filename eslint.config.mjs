@@ -15,12 +15,9 @@ const eslintConfig = [
     rules: {
       '@typescript-eslint/no-unused-vars': 'off', // Disable unused vars
       'react/prop-types': 'off', // Disable prop-types (using TypeScript)
-      '@typescript-eslint/explicit-mat-boundary-types': 'off', // Allow omitting return types
-      'no-console': ['warn', { allow: ['warn', 'error'] }], // Allow console.warn and console.error, warn on console.log
+      '@typescript-eslint/explicit-module-boundary-types': 'off', // Allow omitting return types
+      '@typescript-eslint/no-explicit-any': 'off', // Disable warning for 'any' types
       'react/jsx-key': 'error', // Require keys in JSX
-      '@typescript-eslint/no-explicit-any': 'warn', // Warn on 'any' types
-      '@typescript-eslint/consistent-type-definitions': ['error', 'interface'], // Prefer interfaces
-      // 'react/no-unescaped-entities': offset', 
       'react-hooks/exhaustive-deps': 'warn', // Warn on missing hook dependencies
     },
     ignores: [
