@@ -68,11 +68,11 @@ export default function AttendanceTable({
               return null; // Skip students without _id
             }
             const record = attendance.find(
-              (r) => r.studentId === student._id && r.date === selectedDate
+              (r) => r.studentId === student._id?.toString() && r.date === selectedDate
             );
             const isAbsent = !record?.present && !record?.hasPermission;
             return (
-              <tr key={student._id} className="hover:bg-gray-50">
+              <tr key={student._id?.toString()} className="hover:bg-gray-50">
                 <td className="border p-3">{student.Unique_ID}</td>
                 <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
                 <td className="border p-3">{student.Grade}</td>
@@ -80,7 +80,7 @@ export default function AttendanceTable({
                   <input
                     type="checkbox"
                     checked={record?.present || false}
-                    onChange={() => toggleAttendance(student._id!)}
+                    onChange={() => toggleAttendance(student._id!.toString())}
                     disabled={!isSunday}
                     className="h-5 w-5 rounded border-gray-300 focus:ring-blue-500"
                   />
@@ -89,7 +89,7 @@ export default function AttendanceTable({
                   <input
                     type="checkbox"
                     checked={record?.hasPermission || false}
-                    onChange={() => togglePermission(student._id!)}
+                    onChange={() => togglePermission(student._id!.toString())}
                     disabled={!isSunday}
                     className="h-5 w-5 rounded border-gray-300 focus:ring-blue-500"
                   />
@@ -98,7 +98,7 @@ export default function AttendanceTable({
                   <input
                     type="checkbox"
                     checked={isAbsent}
-                    onChange={() => toggleAbsent(student._id!)}
+                    onChange={() => toggleAbsent(student._id!.toString())}
                     disabled={!isSunday}
                     className="h-5 w-5 rounded border-gray-300 focus:ring-blue-500"
                   />
