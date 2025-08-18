@@ -1,5 +1,6 @@
+// src/components/tabs/AttendanceTab.tsx
 "use client";
-import { useState } from "react";
+import React, { useState } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Student, Attendance } from "@/lib/models";
@@ -8,11 +9,42 @@ import {
   ethiopianToGregorian, // Corrected import
   ETHIOPIAN_MONTHS, // Added for parsing month names
 } from "@/lib/utils";
+import { useMonthGrid, useDatePicker } from "kenat-ui";
 import {
   CheckCircleIcon,
   MinusCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/solid";
+
+// Define types for kenat-ui hooks (since kenat-ui may lack type definitions)
+interface MonthGridDay {
+  ethiopian: {
+    year: number;
+    month: number;
+    day: number;
+  };
+  [key: string]: any;
+}
+
+interface MonthGrid {
+  monthName: string;
+  year: number;
+  headers: string[];
+  days: (MonthGridDay | null)[];
+}
+
+interface DatePickerState {
+  inputRef: React.MutableRefObject<HTMLInputElement | null>;
+  formatted: string;
+  open: boolean;
+  grid: MonthGrid;
+  days: (MonthGridDay | null)[];
+}
+
+interface DatePickerActions {
+  toggleOpen: () => void;
+  selectDate: (day: MonthGridDay) => void;
+}
 
 interface AttendanceTabProps {
   student: Student;
@@ -26,6 +58,19 @@ export default function AttendanceTab({
   currentDate,
 }: AttendanceTabProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(10); // Default: Sene
+  const [selectedYear, setSelectedYear] = useState(2017); // Default: 2017 EC
+  const { grid } = useMonthGrid({
+    year: selectedYear,
+    month: selectedMonth,
+    useGeez: false,
+    weekdayLang: "amharic",
+    weekStart: 0, // Start on Sunday
+  }) as { grid: MonthGrid };
+  const { state: pickerState, actions: pickerActions } = useDatePicker() as {
+    state: DatePickerState;
+    actions: DatePickerActions;
+  };
 
   // Parse academic year into a number (e.g., "2017-2018" -> 2017)
   const numericYear = parseInt(student.Academic_Year.split("-")[0], 10);
@@ -134,6 +179,32 @@ export default function AttendanceTab({
     setIsModalOpen(false);
   };
 
+  const handleMarkAttendance = async (date: MonthGridDay) => {
+    const dateStr = `${date.ethiopian.day.toString().padStart(2, "0")}/${date.ethiopian.month
+      .toString()
+      .padStart(2, "0")}/${date.ethiopian.year}`;
+    try {
+      const response = await fetch(`/api/attendance/${student._id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: dateStr,
+          present: true, // Example; could be dynamic
+          hasPermission: false,
+          markedBy: "Admin",
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      if (response.ok) {
+        // Refresh attendance records
+        const updatedRecords = await fetch(`/api/attendance/${student._id}`).then((res) => res.json());
+        // Note: Requires refreshAttendance prop to update state
+      }
+    } catch (error) {
+      console.error("Failed to mark attendance:", error);
+    }
+  };
+
   return (
     <div className="mb-6">
       <div className="flex justify-between items-center mb-4">
@@ -190,8 +261,9 @@ export default function AttendanceTab({
             </button>
           </div>
         </div>
-      )}
+      </div>
 
+      {/* Month-by-Month View */}
       <div className="overflow-x-auto">
         {Object.keys(sundaysByMonth).length === 0 ? (
           <p className="text-gray-600">
@@ -207,7 +279,6 @@ export default function AttendanceTab({
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">
                   {monthName}
                 </h3>
-
                 <div className="grid grid-cols-1 gap-3">
                   {dates.map((dateStr) => {
                     // Parse dateStr, e.g., "5 Meskerem 2017"
@@ -220,7 +291,7 @@ export default function AttendanceTab({
                     const record = attendanceMap[dateStr];
                     let status = "";
                     let statusStyles = "";
-                    let statusIcon = null;
+                    let statusIcon: JSX.Element | null = null;
 
                     if (gregorianDate > currentDate) {
                       status = "";
@@ -230,14 +301,12 @@ export default function AttendanceTab({
                         : record.hasPermission
                         ? "Permission"
                         : "Absent";
-
                       statusStyles =
                         status === "Present"
                           ? "bg-green-500 text-white"
                           : status === "Permission"
                           ? "bg-yellow-500 text-white"
                           : "bg-red-500 text-white";
-
                       statusIcon =
                         status === "Present" ? (
                           <CheckCircleIcon className="w-5 h-5 inline-block mr-1" />
@@ -256,8 +325,12 @@ export default function AttendanceTab({
                       record?.markedBy || "Birhaun Hiwot"
                     }\nTime: ${
                       record?.timestamp
-                        ? new Date(record.timestamp).toLocaleString()
-                        : new Date().toLocaleString()
+                        ? formatDateForDisplay(record.timestamp, {
+                            includeTime: true,
+                          })
+                        : formatDateForDisplay(new Date(), {
+                            includeTime: true,
+                          })
                     }\nReason: ${
                       status === "Permission" ? record?.reason || "—" : "N/A"
                     }`;
@@ -290,6 +363,41 @@ export default function AttendanceTab({
           </div>
         )}
       </div>
+
+      {/* Modal for Report Options */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="bg-white p-6 rounded shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-4">Choose Report Format</h3>
+            <div className="flex justify-around">
+              <button
+                onClick={() => handleGenerateReport("CSV")}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Export as CSV
+              </button>
+              <button
+                onClick={() => handleGenerateReport("PDF")}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Generate PDF
+              </button>
+            </div>
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
