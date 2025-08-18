@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Student } from "@/lib/models";
 import Link from "next/link";
+import * as XLSX from "xlsx";
+import Papa from "papaparse";
 
 const PAGE_SIZE = 10;
 
@@ -86,6 +88,18 @@ function exportToCSV(data: Student[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function getCurrentECYear() {
+  const today = new Date();
+  const gcYear = today.getFullYear();
+  const gcMonth = today.getMonth() + 1;
+  const gcDay = today.getDate();
+  if (gcMonth > 9 || (gcMonth === 9 && gcDay >= 11)) {
+    return gcYear - 7;
+  } else {
+    return gcYear - 8;
+  }
+}
+
 export default function AdminStudents() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,6 +134,13 @@ export default function AdminStudents() {
   });
   const [studentFormError, setStudentFormError] = useState<string | null>(null);
   const [studentFormLoading, setStudentFormLoading] = useState(false);
+  const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedSex, setSelectedSex] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedTableGrade, setSelectedTableGrade] = useState("");
+  const [expandedYears, setExpandedYears] = useState<string[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -141,8 +162,43 @@ export default function AdminStudents() {
   }, [fetchData]);
 
   useEffect(() => {
-    setPage(1); // Reset page when students change
-  }, [students.length]);
+    setPage(1); // Reset page when students or filters change
+  }, [students.length, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
+
+  // Group students by Academic_Year and Grade
+  const yearOptions = [...new Set(students.map((s) => s.Academic_Year))].sort();
+  const gradeOptionsByYear = yearOptions.reduce((acc, year) => {
+    const grades = [
+      ...new Set(
+        students.filter((s) => s.Academic_Year === year).map((s) => s.Grade)
+      ),
+    ].sort();
+    acc[year] = grades;
+    return acc;
+  }, {} as Record<string, string[]>);
+
+  const gradeOptions = [...new Set(students.map((s) => s.Grade))].sort();
+  const sexOptions = [...new Set(students.map((s) => s.Sex))].sort();
+
+  // Toggle year expansion
+  const toggleYear = (year: string) => {
+    setExpandedYears((prev) =>
+      prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
+    );
+  };
+
+  // Handle grade selection for table
+  const handleGradeSelect = (year: string, grade: string) => {
+    if (selectedYear === year && selectedTableGrade === grade) {
+      // Deselect if the same grade is clicked again
+      setSelectedYear("");
+      setSelectedTableGrade("");
+    } else {
+      setSelectedYear(year);
+      setSelectedTableGrade(grade);
+    }
+    setPage(1);
+  };
 
   function openModal(student: Student | null = null) {
     setEditStudent(student);
@@ -257,14 +313,170 @@ export default function AdminStudents() {
     [fetchData]
   );
 
+  const processImportData = useCallback(async (rows: any[]) => {
+    // Assume first row is headers, data starts from second row
+    const headers = rows[0] as string[];
+    const dataRows = rows.slice(1);
+
+    // Map Amharic headers to indices (trim any extra spaces)
+    const colMap: Record<string, number> = {};
+    headers.forEach((header, index) => {
+      const trimmed = header.trim();
+      colMap[trimmed] = index;
+    });
+
+    const requiredCols = [
+      "ኮድ",
+      "ስም እስከ አያት",
+      "ፆታ",
+      "ክርስትና ስም",
+      "ስልክ ቁጥር",
+      "የልደት ዓ/ም",
+      "መርሃ ግብር",
+      "የት/ት ደረጃ",
+      "የስራ ዓይነት (ሙያ )",
+      "የመኖርያ አድራሻ",
+      "አገልግሎት ክፍል",
+      "አገልግሎት የጀመሩበት ዓ/ም",
+    ];
+
+    // Check if all required columns exist
+    for (const col of requiredCols) {
+      if (!(col in colMap)) {
+        throw new Error(`Missing required column: ${col}`);
+      }
+    }
+
+    const currentYear = getCurrentECYear();
+    const importedStudents: StudentForm[] = [];
+
+    for (const row of dataRows) {
+      if (row.length === 0) continue; // Skip empty rows
+
+      const nameParts = (row[colMap["ስም እስከ አያት"]] || "").trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const fatherName = nameParts[1] || "";
+      const grandfatherName = nameParts.slice(2).join(" ") || "";
+
+      const dobYearStr = (row[colMap["የልደት ዓ/ም"]] || "").toString().trim();
+      const dobYear = parseInt(dobYearStr, 10);
+      const age = isNaN(dobYear) ? 0 : currentYear - dobYear;
+
+      const sexAm = (row[colMap["ፆታ"]] || "").toString().trim();
+      const sex = sexAm === "ወንድ" ? "Male" : sexAm === "ሴት" ? "Female" : "";
+
+      const student: StudentForm = {
+        Unique_ID: (row[colMap["ኮድ"]] || "").toString().trim(),
+        First_Name: firstName,
+        Father_Name: fatherName,
+        Grandfather_Name: grandfatherName,
+        Mothers_Name: "", // Not present in Excel, default to empty
+        Christian_Name: (row[colMap["ክርስትና ስም"]] || "").toString().trim(),
+        DOB_Date: "", // Not present, default empty
+        DOB_Month: "", // Not present, default empty
+        DOB_Year: dobYearStr,
+        Age: age,
+        Sex: sex,
+        Phone_Number: (row[colMap["ስልክ ቁጥር"]] || "").toString().trim(),
+        Class: (row[colMap["መርሃ ግብር"]] || "").toString().trim(),
+        Occupation: (row[colMap["የስራ ዓይነት (ሙያ )"]] || "").toString().trim(),
+        School: "", // Optional
+        School_Other: "", // Optional
+        Educational_Background: (row[colMap["የት/ት ደረጃ"]] || "").toString().trim(),
+        Place_of_Work: (row[colMap["አገልግሎት ክፍል"]] || "").toString().trim(),
+        Address: (row[colMap["የመኖርያ አድራሻ"]] || "").toString().trim(),
+        Address_Other: "", // Optional
+        Academic_Year: (row[colMap["አገልግሎት የጀመሩበት ዓ/ም"]] || "").toString().trim(),
+        Grade: (row[colMap["የት/ት ደረጃ"]] || "").toString().trim(), // Mapping educational level to grade
+      };
+
+      // Skip if key fields are missing
+      if (!student.Unique_ID || !student.First_Name) continue;
+
+      importedStudents.push(student);
+    }
+
+    // Batch import by posting each student
+    for (const student of importedStudents) {
+      try {
+        const res = await fetch("/api/students", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(student),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          console.error(`Failed to import student ${student.Unique_ID}: ${errData.error}`);
+        }
+      } catch (err) {
+        console.error(`Error importing student ${student.Unique_ID}: ${(err as Error).message}`);
+      }
+    }
+
+    fetchData(); // Refresh the list after import
+  }, [fetchData]);
+
+  const handleImportFromExcel = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportLoading(true);
+    setImportError(null);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const data = event.target?.result as ArrayBuffer;
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        await processImportData(rows);
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (err) {
+      setImportError((err as Error).message || "Failed to import students");
+    } finally {
+      setImportLoading(false);
+      e.target.value = ""; // Reset file input
+    }
+  }, [processImportData]);
+
+  const handleImportFromGoogleSheet = useCallback(async () => {
+    setImportLoading(true);
+    setImportError(null);
+
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/1WqEqOfqkuzZj1itPSglpZBoVmenHVUxwDQ3X5WWGKMc/export?format=csv&gid=2068043858";
+
+    try {
+      const res = await fetch(sheetUrl);
+      if (!res.ok) throw new Error("Failed to fetch Google Sheet");
+      const csvText = await res.text();
+      const parsed = Papa.parse(csvText, { header: false });
+      const rows = parsed.data;
+
+      await processImportData(rows);
+    } catch (err) {
+      setImportError((err as Error).message || "Failed to import from Google Sheet. Ensure the sheet is shared publicly.");
+    } finally {
+      setImportLoading(false);
+    }
+  }, [processImportData]);
+
   const filtered = useMemo(() => {
-    return students.filter((s) =>
-      [s.Unique_ID, s.First_Name, s.Father_Name, s.Grade]
-        .join(" ")
-        .toLowerCase()
-        .includes(search.toLowerCase())
+    return students.filter(
+      (student) =>
+        (!selectedYear || student.Academic_Year === selectedYear) &&
+        (!selectedTableGrade || student.Grade === selectedTableGrade) &&
+        (selectedGrade === "" || student.Grade === selectedGrade) &&
+        (selectedSex === "" || student.Sex === selectedSex) &&
+        ((student.Unique_ID || "").toLowerCase().includes(search.toLowerCase()) ||
+          (student.First_Name || "").toLowerCase().includes(search.toLowerCase()) ||
+          (student.Father_Name || "").toLowerCase().includes(search.toLowerCase()) ||
+          (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
     );
-  }, [students, search]);
+  }, [students, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
 
   const paged = useMemo(() => {
     return filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -285,6 +497,25 @@ export default function AdminStudents() {
           >
             Export CSV
           </button>
+          <label className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer">
+            Import from Excel
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              onChange={handleImportFromExcel}
+              className="hidden"
+              disabled={importLoading}
+              aria-label="Import students from Excel"
+            />
+          </label>
+          <button
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+            onClick={handleImportFromGoogleSheet}
+            disabled={importLoading}
+            aria-label="Import students from Google Sheet"
+          >
+            Import from Google Sheet
+          </button>
           <button
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             onClick={() => openModal()}
@@ -294,6 +525,8 @@ export default function AdminStudents() {
           </button>
         </div>
       </div>
+      {importLoading && <div className="text-gray-500">Importing students...</div>}
+      {importError && <div className="text-red-500">{importError}</div>}
       <label className="flex flex-col max-w-xs">
         <span className="text-sm font-medium">Search Students</span>
         <input
