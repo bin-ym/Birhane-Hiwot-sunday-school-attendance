@@ -1,0 +1,227 @@
+[33mcommit 0d15ab2febe0a84be33ccc7a3152cf31b8058784[m[33m ([m[1;31morigin/actors[m[33m, [m[1;32mactors[m[33m)[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Thu Jul 31 02:15:19 2025 +0300
+
+    chore: Update .gitignore to include .vercel directory
+    
+    - Added .vercel to .gitignore to prevent deployment configuration files from being tracked in version control.
+
+[33mcommit 1f771de9ce54f1a75a8565ce2683a8ddf7488edf[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Thu Jul 31 01:41:41 2025 +0300
+
+    feat: Refactor admin layout and navigation components to use Link for routing
+    
+    - Replaced anchor tags with Link components in AdminLayout and AdminHome for improved client-side navigation.
+    - Updated AdminDashboard and other components to utilize TypeScript interfaces for better type safety.
+    - Enhanced API routes to handle parameters as promises for improved error handling and clarity.
+    - Removed unnecessary console logs and streamlined error messages across various API routes.
+    - Improved attendance and student management components with better type definitions and state handling.
+
+[33mcommit 5b3055490f03c0784c7907aab26badf6a65b89c5[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Wed Jul 30 23:22:25 2025 +0300
+
+    fix: Correct initial section state in AttendanceFacilitatorDashboard
+
+[33mcommit a9e4ae67c81d7ea962ba111f0daf2c58e0404cb7[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Tue Jul 29 01:50:46 2025 +0300
+
+    feat: Implement Teachers Attendance Management with Add Teacher and Assignment functionality
+    
+    - Refactored TeachersAttendance component to manage teachers, subjects, and assignments.
+    - Added loading and error states for better user experience.
+    - Introduced forms for adding new teachers and assignments.
+    - Created a tabbed interface for navigating between overview, teachers, and assignments.
+    - Implemented sample data fetching for teachers, subjects, and assignments.
+    - Enhanced UI with responsive design and improved styling.
+    
+    feat: Update Education Department page to include Student Records section
+    
+    - Modified the section state to default to "subjects".
+    - Added a new section for managing student records.
+    
+    feat: Create Student Results component for displaying individual student results
+    
+    - Developed StudentResults component to fetch and display results for a specific student.
+    - Included functionality for adding new results and deleting existing ones.
+    - Implemented semester selection for filtering results.
+    - Enhanced UI for better usability and clarity.
+    
+    feat: Add dynamic routing for student results page
+    
+    - Created a new page for displaying results of individual students based on their ID.
+
+[33mcommit fdd66a359b7a41d02e031f8fbe5748916e0d7b46[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Mon Jul 28 17:49:37 2025 +0300
+
+    feat: Implement student management functionality with CRUD operations
+    
+    - Added AdminStudents component for managing student records, including search, pagination, and CSV export.
+    - Created StudentDetails component to display detailed information about a student, including attendance and payment records.
+    - Implemented API routes for fetching attendance and payment records for individual students.
+    - Enhanced data models to include Payment interface and updated existing Student interface.
+    - Added forms for submitting attendance and payment records with validation and error handling.
+
+[33mcommit 0bda8864854ab517b845b12a9b017597cf2a07e5[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Mon Jul 28 16:37:26 2025 +0300
+
+    Enhance facilitator management and student registration features
+    
+    - Added lodash as a dependency for utility functions.
+    - Refactored AdminFacilitators component for improved data handling and UI.
+    - Updated API routes for facilitators to include role validation and error handling.
+    - Improved StudentList component with better filtering and search functionality.
+    - Refactored OldStudent component for cleaner code and enhanced user experience.
+    - Updated models to reflect accurate user roles and student attributes.
+
+[33mcommit f53deb4c2952f3b8dd784e0626ec6cfd8258e5ac[m[33m ([m[1;32mcheckout[m[33m)[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Mon Jul 21 17:40:04 2025 +0300
+
+    Refactor Home component to redirect to LoginPage
+    
+    - Removed attendance management logic and replaced it with a direct return of the LoginPage component.
+    - Streamlined the Home component for improved clarity and focus on authentication redirection.
+    - Updated the Admin layout to include a logout button for user session management.
+    - Enhanced AdminHome and AdminFacilitators pages with logout functionality for better user experience.
+
+[33mcommit 7d398111371d071edb9009e5a8dcaa436f18b19a[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Mon Jul 21 01:01:17 2025 +0300
+
+    Refactor layout and authentication redirection across components
+    
+    - Changed main elements to section tags for better semantic structure in layout files.
+    - Updated authentication redirection paths from "/api/auth/signin" to "/login" for consistency across various components.
+    - Added logout functionality in the Attendance Facilitator Dashboard and Education Department pages.
+    - Enhanced the NavBar with updated branding and streamlined sign-out functionality.
+
+[33mcommit 166cc9a022600518e8ef90e1a388ed3257aecda8[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Sun Jul 20 23:48:54 2025 +0300
+
+    Enhance authentication and user role management in NextAuth
+    
+    - Updated the authentication callback to include user role and name in the returned user object.
+    - Added JWT and session callbacks to store user role and name in the token and session.
+    - Refactored the Facilitator layout to improve navigation labels for clarity.
+    - Replaced the ResultsFacilitator component with a new EducationDepartment component featuring modular sections for Teachers Attendance, Students, and Subjects.
+
+[33mcommit 7360dff634482427e4c5fa54eb362a8e1a6197e0[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Sat Jul 19 18:25:31 2025 +0300
+
+    Refactor Attendance Facilitator Dashboard with modular components and improved navigation
+    
+    - Replaced the previous attendance management logic with a new dashboard layout.
+    - Introduced modular components for student registration, list, and attendance management.
+    - Enhanced user experience with a sidebar navigation for easy access to different sections.
+    - Removed unused code and streamlined state management for better performance.
+
+[33mcommit 8a47e3f2567466730d0aa3d7503cbce398d1e2eb[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Fri Jul 18 11:35:44 2025 +0300
+
+    Refactor NewStudent registration page with improved UI and form structure
+    
+    - Renamed state variable for clarity.
+    - Updated routing after successful registration.
+    - Redesigned form layout for better user experience, including enhanced styling and organization.
+    - Added error handling for form fields and improved accessibility features.
+    - Streamlined input handling for personal and academic information.
+
+[33mcommit e7c8173ab94f6712cba1d85a258e142f256c4dd9[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Tue Jul 15 00:40:17 2025 +0300
+
+    `Update ESLint configuration and AttendanceTab component to add new rules and features`
+
+[33mcommit e1c3e0e3e338cd0e1c8baf4afe8a0111500975fa[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Sun Jul 13 23:58:46 2025 +0300
+
+    `Added jspdf and jspdf-autotable dependencies and updated AttendanceTab component to use them`
+
+[33mcommit a5f560953e8ad285b4ce5c4c7117a4980bc46ee3[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Wed Jul 9 16:33:56 2025 +0300
+
+    Refactor student API and components
+    
+    - Updated the student API route to correctly await parameters and handle errors.
+    - Removed redundant student and attendance interfaces from the Home component and imported them from models.
+    - Adjusted date handling in the Home component for consistency.
+    - Enhanced student details page by modularizing tabs into separate components (DetailsTab, AttendanceTab, PaymentStatusTab, ResultsTab).
+    - Implemented attendance tracking with improved error handling and logging.
+    - Created a new payment API route to manage payment status retrieval and updates.
+    - Added CSV and PDF export functionality for attendance records.
+    - Improved UI for displaying payment status with loading states and user feedback.
+
+[33mcommit c10347e2ca7278520ff5460f97437a480614a5f8[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Sun Jul 6 20:22:32 2025 +0300
+
+    feat: Enhance student details page with attendance and payment tabs
+    
+    - Added attendance and payment status tabs to the student details page.
+    - Implemented fetching of attendance records from the API.
+    - Introduced a new API endpoint for checking duplicate student entries.
+    - Created a new API endpoint for fetching attendance records by student ID.
+    - Updated MongoDB connection logic for improved error handling.
+    - Refactored student model and utility functions for Ethiopian date conversions.
+    - Added constants for schools and addresses.
+    - Created a test script for MongoDB connection verification.
+
+[33mcommit a4a6febdc70ee988e6896080aa29c950a65438b3[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Sun Jun 15 12:07:29 2025 +0300
+
+    Refactor student registration and records pages
+    
+    - Updated OldStudent component to filter and display students by Academic Year and Grade.
+    - Enhanced search functionality to include filtering by Grade instead of Class.
+    - Improved UI for selecting Academic Year and Grade with expandable sections.
+    - Simplified data fetching and error handling in both OldStudent and Students components.
+    - Added delete functionality for student records in the Students component.
+    - Updated import statements for consistency and removed unused code.
+    - Created a new PostCSS configuration file for Tailwind CSS integration.
+
+[33mcommit 7226a6bd25a4145fa1ec5d7a5bf77f47fc54870f[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Sat Jun 14 04:17:19 2025 +0300
+
+    feat: Implement student registration and management API
+    
+    - Added GET endpoint for fetching a student by ID.
+    - Added POST endpoint for counting students based on academic year and grade.
+    - Implemented GET and POST endpoints for managing the student collection.
+    - Created a new registration page for adding new students with form validation.
+    - Developed an old student registration page for viewing and filtering existing students.
+    - Introduced an attendance table component for managing student attendance.
+    - Created a client session provider for managing authentication state.
+    - Enhanced navigation bar with links for home, students, registration, and sign out.
+    - Established MongoDB connection utility for database operations.
+    - Defined constants and types for student and attendance data structures.
+
+[33mcommit 83ddb8f3556bb5dfa60d8bd7a8af1e0607271f06[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Fri Jun 13 20:45:16 2025 +0300
+
+    feat: Implement student registration and details pages
+    
+    - Added student registration page with form to add new students.
+    - Implemented search functionality for registered students.
+    - Created student details page to display individual student information.
+    - Developed student list page with filtering and sorting options.
+    - Integrated Excel import feature for bulk student registration.
+    - Established data structure for student information.
+
+[33mcommit 3206a15d3c3cade36eb6fc98cb5804e719dc6b61[m
+Author: Binyam Tagel <binyam.tagel@gmail.com>
+Date:   Fri Jun 6 19:21:05 2025 +0300
+
+    Initial commit from Create Next App

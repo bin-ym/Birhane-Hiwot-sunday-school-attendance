@@ -199,6 +199,43 @@ export default function AdminStudents() {
     }
     setPage(1);
   };
+    setPage(1); // Reset page when students or filters change
+  }, [students.length, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
+
+  // Group students by Academic_Year and Grade
+  const yearOptions = [...new Set(students.map((s) => s.Academic_Year))].sort();
+  const gradeOptionsByYear = yearOptions.reduce((acc, year) => {
+    const grades = [
+      ...new Set(
+        students.filter((s) => s.Academic_Year === year).map((s) => s.Grade)
+      ),
+    ].sort();
+    acc[year] = grades;
+    return acc;
+  }, {} as Record<string, string[]>);
+
+  const gradeOptions = [...new Set(students.map((s) => s.Grade))].sort();
+  const sexOptions = [...new Set(students.map((s) => s.Sex))].sort();
+
+  // Toggle year expansion
+  const toggleYear = (year: string) => {
+    setExpandedYears((prev) =>
+      prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
+    );
+  };
+
+  // Handle grade selection for table
+  const handleGradeSelect = (year: string, grade: string) => {
+    if (selectedYear === year && selectedTableGrade === grade) {
+      // Deselect if the same grade is clicked again
+      setSelectedYear("");
+      setSelectedTableGrade("");
+    } else {
+      setSelectedYear(year);
+      setSelectedTableGrade(grade);
+    }
+    setPage(1);
+  };
 
   function openModal(student: Student | null = null) {
     setEditStudent(student);
@@ -475,7 +512,18 @@ export default function AdminStudents() {
           (student.First_Name || "").toLowerCase().includes(search.toLowerCase()) ||
           (student.Father_Name || "").toLowerCase().includes(search.toLowerCase()) ||
           (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
+    return students.filter(
+      (student) =>
+        (!selectedYear || student.Academic_Year === selectedYear) &&
+        (!selectedTableGrade || student.Grade === selectedTableGrade) &&
+        (selectedGrade === "" || student.Grade === selectedGrade) &&
+        (selectedSex === "" || student.Sex === selectedSex) &&
+        ((student.Unique_ID || "").toLowerCase().includes(search.toLowerCase()) ||
+          (student.First_Name || "").toLowerCase().includes(search.toLowerCase()) ||
+          (student.Father_Name || "").toLowerCase().includes(search.toLowerCase()) ||
+          (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
     );
+  }, [students, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
   }, [students, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
 
   const paged = useMemo(() => {
