@@ -163,44 +163,14 @@ export default function AdminStudents() {
 
   useEffect(() => {
     setPage(1); // Reset page when students or filters change
-  }, [students.length, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
-
-  // Group students by Academic_Year and Grade
-  const yearOptions = [...new Set(students.map((s) => s.Academic_Year))].sort();
-  const gradeOptionsByYear = yearOptions.reduce((acc, year) => {
-    const grades = [
-      ...new Set(
-        students.filter((s) => s.Academic_Year === year).map((s) => s.Grade)
-      ),
-    ].sort();
-    acc[year] = grades;
-    return acc;
-  }, {} as Record<string, string[]>);
-
-  const gradeOptions = [...new Set(students.map((s) => s.Grade))].sort();
-  const sexOptions = [...new Set(students.map((s) => s.Sex))].sort();
-
-  // Toggle year expansion
-  const toggleYear = (year: string) => {
-    setExpandedYears((prev) =>
-      prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
-    );
-  };
-
-  // Handle grade selection for table
-  const handleGradeSelect = (year: string, grade: string) => {
-    if (selectedYear === year && selectedTableGrade === grade) {
-      // Deselect if the same grade is clicked again
-      setSelectedYear("");
-      setSelectedTableGrade("");
-    } else {
-      setSelectedYear(year);
-      setSelectedTableGrade(grade);
-    }
-    setPage(1);
-  };
-    setPage(1); // Reset page when students or filters change
-  }, [students.length, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
+  }, [
+    students.length,
+    search,
+    selectedGrade,
+    selectedSex,
+    selectedYear,
+    selectedTableGrade,
+  ]);
 
   // Group students by Academic_Year and Grade
   const yearOptions = [...new Set(students.map((s) => s.Academic_Year))].sort();
@@ -241,7 +211,12 @@ export default function AdminStudents() {
     setEditStudent(student);
     setStudentForm(
       student
-        ? { ...student, DOB_Date: student.DOB_Date || "", DOB_Month: student.DOB_Month || "", DOB_Year: student.DOB_Year || "" }
+        ? {
+            ...student,
+            DOB_Date: student.DOB_Date || "",
+            DOB_Month: student.DOB_Month || "",
+            DOB_Year: student.DOB_Year || "",
+          }
         : {
             Unique_ID: "",
             First_Name: "",
@@ -308,7 +283,9 @@ export default function AdminStudents() {
       setStudentFormError(null);
       try {
         const method = editStudent ? "PUT" : "POST";
-        const body = editStudent ? { ...studentForm, id: editStudent._id } : studentForm;
+        const body = editStudent
+          ? { ...studentForm, id: editStudent._id }
+          : studentForm;
         const res = await fetch("/api/students", {
           method,
           headers: { "Content-Type": "application/json" },
@@ -350,141 +327,158 @@ export default function AdminStudents() {
     [fetchData]
   );
 
-  const processImportData = useCallback(async (rows: any[]) => {
-    // Assume first row is headers, data starts from second row
-    const headers = rows[0] as string[];
-    const dataRows = rows.slice(1);
+  const processImportData = useCallback(
+    async (rows: any[]) => {
+      // Assume first row is headers, data starts from second row
+      const headers = rows[0] as string[];
+      const dataRows = rows.slice(1);
 
-    // Map Amharic headers to indices (trim any extra spaces)
-    const colMap: Record<string, number> = {};
-    headers.forEach((header, index) => {
-      const trimmed = header.trim();
-      colMap[trimmed] = index;
-    });
+      // Map Amharic headers to indices (trim any extra spaces)
+      const colMap: Record<string, number> = {};
+      headers.forEach((header, index) => {
+        const trimmed = header.trim();
+        colMap[trimmed] = index;
+      });
 
-    const requiredCols = [
-      "ኮድ",
-      "ስም እስከ አያት",
-      "ፆታ",
-      "ክርስትና ስም",
-      "ስልክ ቁጥር",
-      "የልደት ዓ/ም",
-      "መርሃ ግብር",
-      "የት/ት ደረጃ",
-      "የስራ ዓይነት (ሙያ )",
-      "የመኖርያ አድራሻ",
-      "አገልግሎት ክፍል",
-      "አገልግሎት የጀመሩበት ዓ/ም",
-    ];
+      const requiredCols = [
+        "ኮድ",
+        "ስም እስከ አያት",
+        "ፆታ",
+        "ክርስትና ስም",
+        "ስልክ ቁጥር",
+        "የልደት ዓ/ም",
+        "መርሃ ግብር",
+        "የት/ት ደረጃ",
+        "የስራ ዓይነት (ሙያ )",
+        "የመኖርያ አድራሻ",
+        "አገልግሎት ክፍል",
+        "አገልግሎት የጀመሩበት ዓ/ም",
+      ];
 
-    // Check if all required columns exist
-    for (const col of requiredCols) {
-      if (!(col in colMap)) {
-        throw new Error(`Missing required column: ${col}`);
-      }
-    }
-
-    const currentYear = getCurrentECYear();
-    const importedStudents: StudentForm[] = [];
-
-    for (const row of dataRows) {
-      if (row.length === 0) continue; // Skip empty rows
-
-      const nameParts = (row[colMap["ስም እስከ አያት"]] || "").trim().split(/\s+/);
-      const firstName = nameParts[0] || "";
-      const fatherName = nameParts[1] || "";
-      const grandfatherName = nameParts.slice(2).join(" ") || "";
-
-      const dobYearStr = (row[colMap["የልደት ዓ/ም"]] || "").toString().trim();
-      const dobYear = parseInt(dobYearStr, 10);
-      const age = isNaN(dobYear) ? 0 : currentYear - dobYear;
-
-      const sexAm = (row[colMap["ፆታ"]] || "").toString().trim();
-      const sex = sexAm === "ወንድ" ? "Male" : sexAm === "ሴት" ? "Female" : "";
-
-      const student: StudentForm = {
-        Unique_ID: (row[colMap["ኮድ"]] || "").toString().trim(),
-        First_Name: firstName,
-        Father_Name: fatherName,
-        Grandfather_Name: grandfatherName,
-        Mothers_Name: "", // Not present in Excel, default to empty
-        Christian_Name: (row[colMap["ክርስትና ስም"]] || "").toString().trim(),
-        DOB_Date: "", // Not present, default empty
-        DOB_Month: "", // Not present, default empty
-        DOB_Year: dobYearStr,
-        Age: age,
-        Sex: sex,
-        Phone_Number: (row[colMap["ስልክ ቁጥር"]] || "").toString().trim(),
-        Class: (row[colMap["መርሃ ግብር"]] || "").toString().trim(),
-        Occupation: (row[colMap["የስራ ዓይነት (ሙያ )"]] || "").toString().trim(),
-        School: "", // Optional
-        School_Other: "", // Optional
-        Educational_Background: (row[colMap["የት/ት ደረጃ"]] || "").toString().trim(),
-        Place_of_Work: (row[colMap["አገልግሎት ክፍል"]] || "").toString().trim(),
-        Address: (row[colMap["የመኖርያ አድራሻ"]] || "").toString().trim(),
-        Address_Other: "", // Optional
-        Academic_Year: (row[colMap["አገልግሎት የጀመሩበት ዓ/ም"]] || "").toString().trim(),
-        Grade: (row[colMap["የት/ት ደረጃ"]] || "").toString().trim(), // Mapping educational level to grade
-      };
-
-      // Skip if key fields are missing
-      if (!student.Unique_ID || !student.First_Name) continue;
-
-      importedStudents.push(student);
-    }
-
-    // Batch import by posting each student
-    for (const student of importedStudents) {
-      try {
-        const res = await fetch("/api/students", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(student),
-        });
-        if (!res.ok) {
-          const errData = await res.json();
-          console.error(`Failed to import student ${student.Unique_ID}: ${errData.error}`);
+      // Check if all required columns exist
+      for (const col of requiredCols) {
+        if (!(col in colMap)) {
+          throw new Error(`Missing required column: ${col}`);
         }
-      } catch (err) {
-        console.error(`Error importing student ${student.Unique_ID}: ${(err as Error).message}`);
       }
-    }
 
-    fetchData(); // Refresh the list after import
-  }, [fetchData]);
+      const currentYear = getCurrentECYear();
+      const importedStudents: StudentForm[] = [];
 
-  const handleImportFromExcel = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+      for (const row of dataRows) {
+        if (row.length === 0) continue; // Skip empty rows
 
-    setImportLoading(true);
-    setImportError(null);
+        const nameParts = (row[colMap["ስም እስከ አያት"]] || "").trim().split(/\s+/);
+        const firstName = nameParts[0] || "";
+        const fatherName = nameParts[1] || "";
+        const grandfatherName = nameParts.slice(2).join(" ") || "";
 
-    try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const data = event.target?.result as ArrayBuffer;
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        const dobYearStr = (row[colMap["የልደት ዓ/ም"]] || "").toString().trim();
+        const dobYear = parseInt(dobYearStr, 10);
+        const age = isNaN(dobYear) ? 0 : currentYear - dobYear;
 
-        await processImportData(rows);
-      };
-      reader.readAsArrayBuffer(file);
-    } catch (err) {
-      setImportError((err as Error).message || "Failed to import students");
-    } finally {
-      setImportLoading(false);
-      e.target.value = ""; // Reset file input
-    }
-  }, [processImportData]);
+        const sexAm = (row[colMap["ፆታ"]] || "").toString().trim();
+        const sex = sexAm === "ወንድ" ? "Male" : sexAm === "ሴት" ? "Female" : "";
+
+        const student: StudentForm = {
+          Unique_ID: (row[colMap["ኮድ"]] || "").toString().trim(),
+          First_Name: firstName,
+          Father_Name: fatherName,
+          Grandfather_Name: grandfatherName,
+          Mothers_Name: "", // Not present in Excel, default to empty
+          Christian_Name: (row[colMap["ክርስትና ስም"]] || "").toString().trim(),
+          DOB_Date: "", // Not present, default empty
+          DOB_Month: "", // Not present, default empty
+          DOB_Year: dobYearStr,
+          Age: age,
+          Sex: sex,
+          Phone_Number: (row[colMap["ስልክ ቁጥር"]] || "").toString().trim(),
+          Class: (row[colMap["መርሃ ግብር"]] || "").toString().trim(),
+          Occupation: (row[colMap["የስራ ዓይነት (ሙያ )"]] || "").toString().trim(),
+          School: "", // Optional
+          School_Other: "", // Optional
+          Educational_Background: (row[colMap["የት/ት ደረጃ"]] || "")
+            .toString()
+            .trim(),
+          Place_of_Work: (row[colMap["አገልግሎት ክፍል"]] || "").toString().trim(),
+          Address: (row[colMap["የመኖርያ አድራሻ"]] || "").toString().trim(),
+          Address_Other: "", // Optional
+          Academic_Year: (row[colMap["አገልግሎት የጀመሩበት ዓ/ም"]] || "")
+            .toString()
+            .trim(),
+          Grade: (row[colMap["የት/ት ደረጃ"]] || "").toString().trim(), // Mapping educational level to grade
+        };
+
+        // Skip if key fields are missing
+        if (!student.Unique_ID || !student.First_Name) continue;
+
+        importedStudents.push(student);
+      }
+
+      // Batch import by posting each student
+      for (const student of importedStudents) {
+        try {
+          const res = await fetch("/api/students", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(student),
+          });
+          if (!res.ok) {
+            const errData = await res.json();
+            console.error(
+              `Failed to import student ${student.Unique_ID}: ${errData.error}`
+            );
+          }
+        } catch (err) {
+          console.error(
+            `Error importing student ${student.Unique_ID}: ${
+              (err as Error).message
+            }`
+          );
+        }
+      }
+
+      fetchData(); // Refresh the list after import
+    },
+    [fetchData]
+  );
+
+  const handleImportFromExcel = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setImportLoading(true);
+      setImportError(null);
+
+      try {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const data = event.target?.result as ArrayBuffer;
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          await processImportData(rows);
+        };
+        reader.readAsArrayBuffer(file);
+      } catch (err) {
+        setImportError((err as Error).message || "Failed to import students");
+      } finally {
+        setImportLoading(false);
+        e.target.value = ""; // Reset file input
+      }
+    },
+    [processImportData]
+  );
 
   const handleImportFromGoogleSheet = useCallback(async () => {
     setImportLoading(true);
     setImportError(null);
 
-    const sheetUrl = "https://docs.google.com/spreadsheets/d/1WqEqOfqkuzZj1itPSglpZBoVmenHVUxwDQ3X5WWGKMc/export?format=csv&gid=2068043858";
+    const sheetUrl =
+      "https://docs.google.com/spreadsheets/d/1WqEqOfqkuzZj1itPSglpZBoVmenHVUxwDQ3X5WWGKMc/edit?gid=2068043858#gid=2068043858";
 
     try {
       const res = await fetch(sheetUrl);
@@ -495,7 +489,10 @@ export default function AdminStudents() {
 
       await processImportData(rows);
     } catch (err) {
-      setImportError((err as Error).message || "Failed to import from Google Sheet. Ensure the sheet is shared publicly.");
+      setImportError(
+        (err as Error).message ||
+          "Failed to import from Google Sheet. Ensure the sheet is shared publicly."
+      );
     } finally {
       setImportLoading(false);
     }
@@ -508,23 +505,25 @@ export default function AdminStudents() {
         (!selectedTableGrade || student.Grade === selectedTableGrade) &&
         (selectedGrade === "" || student.Grade === selectedGrade) &&
         (selectedSex === "" || student.Sex === selectedSex) &&
-        ((student.Unique_ID || "").toLowerCase().includes(search.toLowerCase()) ||
-          (student.First_Name || "").toLowerCase().includes(search.toLowerCase()) ||
-          (student.Father_Name || "").toLowerCase().includes(search.toLowerCase()) ||
-          (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
-    return students.filter(
-      (student) =>
-        (!selectedYear || student.Academic_Year === selectedYear) &&
-        (!selectedTableGrade || student.Grade === selectedTableGrade) &&
-        (selectedGrade === "" || student.Grade === selectedGrade) &&
-        (selectedSex === "" || student.Sex === selectedSex) &&
-        ((student.Unique_ID || "").toLowerCase().includes(search.toLowerCase()) ||
-          (student.First_Name || "").toLowerCase().includes(search.toLowerCase()) ||
-          (student.Father_Name || "").toLowerCase().includes(search.toLowerCase()) ||
+        ((student.Unique_ID || "")
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
+          (student.First_Name || "")
+            .toLowerCase()
+            .includes(search.toLowerCase()) ||
+          (student.Father_Name || "")
+            .toLowerCase()
+            .includes(search.toLowerCase()) ||
           (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
     );
-  }, [students, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
-  }, [students, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
+  }, [
+    students,
+    search,
+    selectedGrade,
+    selectedSex,
+    selectedYear,
+    selectedTableGrade,
+  ]);
 
   const paged = useMemo(() => {
     return filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -535,7 +534,9 @@ export default function AdminStudents() {
   return (
     <div className="min-h-screen flex flex-col gap-8 p-4">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-extrabold text-blue-900">Manage Students</h1>
+        <h1 className="text-3xl font-extrabold text-blue-900">
+          Manage Students
+        </h1>
         <div className="flex gap-2">
           <button
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
@@ -573,7 +574,9 @@ export default function AdminStudents() {
           </button>
         </div>
       </div>
-      {importLoading && <div className="text-gray-500">Importing students...</div>}
+      {importLoading && (
+        <div className="text-gray-500">Importing students...</div>
+      )}
       {importError && <div className="text-red-500">{importError}</div>}
       <label className="flex flex-col max-w-xs">
         <span className="text-sm font-medium">Search Students</span>
@@ -629,7 +632,9 @@ export default function AdminStudents() {
                     </button>
                     <button
                       className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                      onClick={() => handleDeleteStudent(student._id!.toString())}
+                      onClick={() =>
+                        handleDeleteStudent(student._id!.toString())
+                      }
                       disabled={studentFormLoading}
                       aria-label={`Delete ${student.First_Name}`}
                     >
@@ -649,7 +654,9 @@ export default function AdminStudents() {
             >
               Prev
             </button>
-            <span className="px-2">Page {page} of {pages}</span>
+            <span className="px-2">
+              Page {page} of {pages}
+            </span>
             <button
               className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
               onClick={() => setPage((p) => Math.min(pages, p + 1))}
@@ -671,8 +678,13 @@ export default function AdminStudents() {
             >
               &times;
             </button>
-            <h3 className="text-xl font-bold mb-4">{editStudent ? "Edit Student" : "Add Student"}</h3>
-            <form onSubmit={handleStudentFormSubmit} className="flex flex-col gap-4">
+            <h3 className="text-xl font-bold mb-4">
+              {editStudent ? "Edit Student" : "Add Student"}
+            </h3>
+            <form
+              onSubmit={handleStudentFormSubmit}
+              className="flex flex-col gap-4"
+            >
               <label className="flex flex-col">
                 <span className="text-sm font-medium">Unique ID</span>
                 <input
@@ -680,7 +692,12 @@ export default function AdminStudents() {
                   placeholder="Unique ID"
                   className="p-3 border rounded-lg"
                   value={studentForm.Unique_ID}
-                  onChange={(e) => setStudentForm({ ...studentForm, Unique_ID: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      Unique_ID: e.target.value,
+                    })
+                  }
                   required
                   aria-required="true"
                 />
@@ -692,7 +709,12 @@ export default function AdminStudents() {
                   placeholder="First Name"
                   className="p-3 border rounded-lg"
                   value={studentForm.First_Name}
-                  onChange={(e) => setStudentForm({ ...studentForm, First_Name: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      First_Name: e.target.value,
+                    })
+                  }
                   required
                   aria-required="true"
                 />
@@ -704,7 +726,12 @@ export default function AdminStudents() {
                   placeholder="Father Name"
                   className="p-3 border rounded-lg"
                   value={studentForm.Father_Name}
-                  onChange={(e) => setStudentForm({ ...studentForm, Father_Name: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      Father_Name: e.target.value,
+                    })
+                  }
                   required
                   aria-required="true"
                 />
@@ -716,7 +743,12 @@ export default function AdminStudents() {
                   placeholder="Grandfather Name"
                   className="p-3 border rounded-lg"
                   value={studentForm.Grandfather_Name}
-                  onChange={(e) => setStudentForm({ ...studentForm, Grandfather_Name: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      Grandfather_Name: e.target.value,
+                    })
+                  }
                   required
                   aria-required="true"
                 />
@@ -728,7 +760,12 @@ export default function AdminStudents() {
                   placeholder="Mother's Name"
                   className="p-3 border rounded-lg"
                   value={studentForm.Mothers_Name}
-                  onChange={(e) => setStudentForm({ ...studentForm, Mothers_Name: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      Mothers_Name: e.target.value,
+                    })
+                  }
                   required
                   aria-required="true"
                 />
@@ -740,7 +777,12 @@ export default function AdminStudents() {
                   placeholder="Christian Name"
                   className="p-3 border rounded-lg"
                   value={studentForm.Christian_Name}
-                  onChange={(e) => setStudentForm({ ...studentForm, Christian_Name: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      Christian_Name: e.target.value,
+                    })
+                  }
                   required
                   aria-required="true"
                 />
@@ -753,7 +795,12 @@ export default function AdminStudents() {
                     placeholder="DD"
                     className="p-3 border rounded-lg"
                     value={studentForm.DOB_Date}
-                    onChange={(e) => setStudentForm({ ...studentForm, DOB_Date: e.target.value })}
+                    onChange={(e) =>
+                      setStudentForm({
+                        ...studentForm,
+                        DOB_Date: e.target.value,
+                      })
+                    }
                     required
                     aria-required="true"
                   />
@@ -765,7 +812,12 @@ export default function AdminStudents() {
                     placeholder="MM"
                     className="p-3 border rounded-lg"
                     value={studentForm.DOB_Month}
-                    onChange={(e) => setStudentForm({ ...studentForm, DOB_Month: e.target.value })}
+                    onChange={(e) =>
+                      setStudentForm({
+                        ...studentForm,
+                        DOB_Month: e.target.value,
+                      })
+                    }
                     required
                     aria-required="true"
                   />
@@ -777,7 +829,12 @@ export default function AdminStudents() {
                     placeholder="YYYY"
                     className="p-3 border rounded-lg"
                     value={studentForm.DOB_Year}
-                    onChange={(e) => setStudentForm({ ...studentForm, DOB_Year: e.target.value })}
+                    onChange={(e) =>
+                      setStudentForm({
+                        ...studentForm,
+                        DOB_Year: e.target.value,
+                      })
+                    }
                     required
                     aria-required="true"
                   />
@@ -790,7 +847,12 @@ export default function AdminStudents() {
                   placeholder="Age"
                   className="p-3 border rounded-lg"
                   value={studentForm.Age}
-                  onChange={(e) => setStudentForm({ ...studentForm, Age: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      Age: parseInt(e.target.value) || 0,
+                    })
+                  }
                   required
                   aria-required="true"
                 />
@@ -800,7 +862,9 @@ export default function AdminStudents() {
                 <select
                   className="p-3 border rounded-lg"
                   value={studentForm.Sex}
-                  onChange={(e) => setStudentForm({ ...studentForm, Sex: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({ ...studentForm, Sex: e.target.value })
+                  }
                   required
                   aria-required="true"
                 >
@@ -816,7 +880,12 @@ export default function AdminStudents() {
                   placeholder="Phone Number"
                   className="p-3 border rounded-lg"
                   value={studentForm.Phone_Number}
-                  onChange={(e) => setStudentForm({ ...studentForm, Phone_Number: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      Phone_Number: e.target.value,
+                    })
+                  }
                   required
                   aria-required="true"
                 />
@@ -828,7 +897,9 @@ export default function AdminStudents() {
                   placeholder="Class"
                   className="p-3 border rounded-lg"
                   value={studentForm.Class}
-                  onChange={(e) => setStudentForm({ ...studentForm, Class: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({ ...studentForm, Class: e.target.value })
+                  }
                   required
                   aria-required="true"
                 />
@@ -840,7 +911,12 @@ export default function AdminStudents() {
                   placeholder="Occupation"
                   className="p-3 border rounded-lg"
                   value={studentForm.Occupation}
-                  onChange={(e) => setStudentForm({ ...studentForm, Occupation: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      Occupation: e.target.value,
+                    })
+                  }
                   required
                   aria-required="true"
                 />
@@ -852,17 +928,26 @@ export default function AdminStudents() {
                   placeholder="School"
                   className="p-3 border rounded-lg"
                   value={studentForm.School || ""}
-                  onChange={(e) => setStudentForm({ ...studentForm, School: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({ ...studentForm, School: e.target.value })
+                  }
                 />
               </label>
               <label className="flex flex-col">
-                <span className="text-sm font-medium">Educational Background (Optional)</span>
+                <span className="text-sm font-medium">
+                  Educational Background (Optional)
+                </span>
                 <input
                   type="text"
                   placeholder="Educational Background"
                   className="p-3 border rounded-lg"
                   value={studentForm.Educational_Background || ""}
-                  onChange={(e) => setStudentForm({ ...studentForm, Educational_Background: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      Educational_Background: e.target.value,
+                    })
+                  }
                 />
               </label>
               <label className="flex flex-col">
@@ -872,7 +957,9 @@ export default function AdminStudents() {
                   placeholder="Address"
                   className="p-3 border rounded-lg"
                   value={studentForm.Address}
-                  onChange={(e) => setStudentForm({ ...studentForm, Address: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({ ...studentForm, Address: e.target.value })
+                  }
                   required
                   aria-required="true"
                 />
@@ -884,7 +971,12 @@ export default function AdminStudents() {
                   placeholder="Academic Year"
                   className="p-3 border rounded-lg"
                   value={studentForm.Academic_Year}
-                  onChange={(e) => setStudentForm({ ...studentForm, Academic_Year: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({
+                      ...studentForm,
+                      Academic_Year: e.target.value,
+                    })
+                  }
                   required
                   aria-required="true"
                 />
@@ -896,19 +988,27 @@ export default function AdminStudents() {
                   placeholder="Grade"
                   className="p-3 border rounded-lg"
                   value={studentForm.Grade}
-                  onChange={(e) => setStudentForm({ ...studentForm, Grade: e.target.value })}
+                  onChange={(e) =>
+                    setStudentForm({ ...studentForm, Grade: e.target.value })
+                  }
                   required
                   aria-required="true"
                 />
               </label>
-              {studentFormError && <div className="text-red-500 text-sm">{studentFormError}</div>}
+              {studentFormError && (
+                <div className="text-red-500 text-sm">{studentFormError}</div>
+              )}
               <button
                 type="submit"
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
                 disabled={studentFormLoading}
                 aria-label={editStudent ? "Update student" : "Add student"}
               >
-                {studentFormLoading ? "Saving..." : editStudent ? "Update Student" : "Add Student"}
+                {studentFormLoading
+                  ? "Saving..."
+                  : editStudent
+                  ? "Update Student"
+                  : "Add Student"}
               </button>
             </form>
           </div>
