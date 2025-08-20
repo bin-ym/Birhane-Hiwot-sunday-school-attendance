@@ -16,6 +16,7 @@ export default function AttendanceSection() {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
   const currentDate = useMemo(() => new Date(), []); // Stabilize currentDate
   const ethiopianDate = gregorianToEthiopian(currentDate);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -89,7 +90,7 @@ export default function AttendanceSection() {
     const filteredStudents = students.filter(
       (student) =>
         student.Academic_Year === selectedYear &&
-        student.Grade === selectedTableGrade &&
+        student.Grade === selectedGrade &&
         ((student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
           (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
           (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -124,7 +125,7 @@ export default function AttendanceSection() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSunday) return alert("Attendance can only be submitted on Sundays");
-    if (!selectedYear || !selectedTableGrade) return alert("Please select an academic year and grade");
+    if (!selectedYear || !selectedGrade) return alert("Please select an academic year and grade");
     if (
       !attendance.some(
         (r: AttendanceRecord) => r.date === formattedDate && (r.present || r.hasPermission)
@@ -141,7 +142,7 @@ export default function AttendanceSection() {
   const filteredStudents = students.filter(
     (student) =>
       student.Academic_Year === selectedYear &&
-      student.Grade === selectedTableGrade &&
+      student.Grade === selectedGrade &&
       ((student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
