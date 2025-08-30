@@ -7,23 +7,9 @@ interface Student {
   Unique_ID: string;
   First_Name: string;
   Father_Name: string;
-  Grandfather_Name: string;
-  Mothers_Name: string;
-  Christian_Name: string;
-  Phone_Number: string;
-  Age: number;
-  Sex: string;
-  Class: string;
-  Occupation: string;
-  Educational_Background?: string;
-  Address: string;
-  Academic_Year: string;
   Grade: string;
-  DOB_Date?: string;
-  DOB_Month?: string;
-  DOB_Year?: string;
-  School?: string;
-  School_Other?: string;
+  Academic_Year: string;
+  Sex: string;
 }
 
 export default function StudentList() {
@@ -56,7 +42,6 @@ export default function StudentList() {
     }
   };
 
-  // Group students by Academic_Year and Grade
   const yearOptions = [...new Set(students.map((s) => s.Academic_Year))].sort();
   const gradeOptionsByYear = yearOptions.reduce((acc, year) => {
     const grades = [
@@ -68,20 +53,17 @@ export default function StudentList() {
     return acc;
   }, {} as Record<string, string[]>);
 
-  // Toggle year expansion
   const toggleYear = (year: string) => {
     setExpandedYears((prev) =>
       prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
     );
   };
 
-  // Handle grade selection for table
   const handleGradeSelect = (year: string, grade: string) => {
     setSelectedYear(year);
     setSelectedTableGrade(grade);
   };
 
-  // Filter students based on all criteria
   const filteredStudents = students.filter(
     (student) =>
       (!selectedYear || student.Academic_Year === selectedYear) &&
@@ -114,9 +96,7 @@ export default function StudentList() {
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
             <input
               type="text"
               placeholder="Search by ID, Name, or Grade"
@@ -126,9 +106,7 @@ export default function StudentList() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Grade
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Grade</label>
             <select
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
@@ -143,9 +121,7 @@ export default function StudentList() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Sex
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Sex</label>
             <select
               value={selectedSex}
               onChange={(e) => setSelectedSex(e.target.value)}
@@ -164,9 +140,7 @@ export default function StudentList() {
 
       {/* Students by Academic Year */}
       <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">
-          Students by Academic Year
-        </h3>
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">Students by Academic Year</h3>
         {yearOptions.length === 0 ? (
           <p className="text-gray-600">No students found.</p>
         ) : (
@@ -191,8 +165,7 @@ export default function StudentList() {
                           <button
                             onClick={() => handleGradeSelect(year, grade)}
                             className={`w-full text-left p-2 rounded-lg ${
-                              selectedYear === year &&
-                              selectedTableGrade === grade
+                              selectedYear === year && selectedTableGrade === grade
                                 ? "bg-blue-600 text-white"
                                 : "bg-gray-100 hover:bg-gray-200"
                             }`}
@@ -217,9 +190,7 @@ export default function StudentList() {
             Students in {selectedTableGrade} for Academic Year {selectedYear}
           </h3>
           {filteredStudents.length === 0 ? (
-            <p className="text-gray-600">
-              No students found for {selectedTableGrade} in {selectedYear}.
-            </p>
+            <p className="text-gray-600">No students found for {selectedTableGrade} in {selectedYear}.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full border-collapse border">

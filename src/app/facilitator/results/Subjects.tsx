@@ -80,13 +80,45 @@ const GRADE_SUBJECTS = {
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
+  "Grade 9": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያኝ ታሪክ",
+    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+  "Grade 10": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያኝ ታሪክ",
+    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+  "Grade 11": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያኝ ታሪክ",
+    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
+  "Grade 12": [
+    "መሠረተ ሃይማኖት",
+    "ክርስቲያናዊ ሥነ ምግባር",
+    "የቤተ-ክርስቲያኝ ታሪክ",
+    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "የመጽሐፍ ቅዱስ ጥናት",
+    "የግእዝ ቋንቋ ት/ት",
+  ],
 };
 
 export default function Subjects() {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [selectedGrade, setSelectedGrade] = useState("");
   const [newSubject, setNewSubject] = useState("");
-  const [academicYear, setAcademicYear] = useState("2024-2025");
+  const [academicYear, setAcademicYear] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sundays, setSundays] = useState<string[]>([]);
@@ -100,16 +132,22 @@ export default function Subjects() {
     "Grade 6",
     "Grade 7",
     "Grade 8",
+    "Grade 9",
+    "Grade 10",
+    "Grade 11",
+    "Grade 12",
   ];
-  const academicYearOptions = ["2024-2025", "2025-2026", "2026-2027"];
+  const currentEthiopianYear = new Date().getFullYear() - 8;
+
+  // Academic year options (e.g., last 5 years)
+  const academicYearOptions = Array.from({ length: 5 }, (_, i) =>
+    String(currentEthiopianYear - i)
+  );
 
   // Update Sundays when academic year changes
   useEffect(() => {
     if (academicYear) {
-      const [startYear] = academicYear.split("-").map(Number);
-      // Convert Gregorian year to Ethiopian year (approximate: 2024 Gregorian ≈ 2017 Ethiopian)
-      const ethiopianYear = startYear - 7; // Adjust for calendar offset
-      const sundaysInYear = getSundaysInEthiopianYear(ethiopianYear);
+      const sundaysInYear = getSundaysInEthiopianYear(Number(academicYear));
       setSundays(sundaysInYear);
     }
   }, [academicYear]);
@@ -123,12 +161,9 @@ export default function Subjects() {
     try {
       const response = await fetch("/api/subjects");
       const data = await response.json();
-
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(data.error || "Failed to load subjects");
-      }
 
-      // Group subjects by grade
       const gradeMap = new Map<string, Subject[]>();
       data.forEach((subject: Subject) => {
         if (!gradeMap.has(subject.grade)) {
@@ -177,7 +212,6 @@ export default function Subjects() {
         }
       }
 
-      // Reload subjects to get the updated list
       await loadSubjects();
     } catch (err) {
       setError("Failed to initialize subjects");
@@ -209,9 +243,7 @@ export default function Subjects() {
         throw new Error(data.error || "Failed to add subject");
       }
 
-      // Reload subjects to get the updated list
       await loadSubjects();
-
       setNewSubject("");
       setError(null);
     } catch (err) {
@@ -221,7 +253,6 @@ export default function Subjects() {
 
   const removeSubject = async (gradeName: string, subjectName: string) => {
     try {
-      // Find the subject to get its ID
       const grade = grades.find((g) => g.name === gradeName);
       const subject = grade?.subjects.find((s) => s.name === subjectName);
 
@@ -239,7 +270,6 @@ export default function Subjects() {
         throw new Error(data.error || "Failed to remove subject");
       }
 
-      // Reload subjects to get the updated list
       await loadSubjects();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to remove subject");
@@ -252,7 +282,6 @@ export default function Subjects() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800">Subject Management</h2>
-
       {/* Initialize Subjects Section */}
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-semibold mb-4">
@@ -285,7 +314,13 @@ export default function Subjects() {
               onChange={(e) => setAcademicYear(e.target.value)}
               className="w-full p-3 border rounded-lg"
             >
-              {academicYearOptions.map((year) => (
+              <option value="">Select Year</option>
+              {[
+                `${new Date().getFullYear() - 8
+                }`, // Current Ethiopian Year
+                `${new Date().getFullYear() - 7
+                }`, // Next Ethiopian Year
+              ].map((year) => (
                 <option key={year} value={year}>
                   {year}
                 </option>
@@ -339,7 +374,13 @@ export default function Subjects() {
               onChange={(e) => setAcademicYear(e.target.value)}
               className="w-full p-3 border rounded-lg"
             >
-              {academicYearOptions.map((year) => (
+              <option value="">Select Year</option>
+              {[
+                `${new Date().getFullYear() - 8
+                }`, // Current Ethiopian Year
+                `${new Date().getFullYear() - 7
+                }`, // Next Ethiopian Year
+              ].map((year) => (
                 <option key={year} value={year}>
                   {year}
                 </option>
@@ -381,8 +422,8 @@ export default function Subjects() {
                   No subjects assigned to this grade.
                 </p>
                 <p className="text-sm text-gray-400 mt-2">
-                  Use the &quot;Initialize Subjects&quot; section above to add predefined
-                  subjects.
+                  Use the &quot;Initialize Subjects&quot; section above to add
+                  predefined subjects.
                 </p>
               </div>
             ) : (
