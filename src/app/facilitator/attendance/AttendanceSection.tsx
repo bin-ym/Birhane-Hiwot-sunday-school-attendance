@@ -16,16 +16,12 @@ export default function AttendanceSection() {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
-  const [selectedYear, setSelectedYear] = useState(""); // Add this line
   const currentDate = useMemo(() => new Date(), []); // Stabilize currentDate
   const ethiopianDate = gregorianToEthiopian(currentDate);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [isSunday, setIsSunday] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const currentDate = new Date();
     setIsSunday(currentDate.getDay() === 0);
     fetch("/api/students")
       .then((res) => res.json())
@@ -86,18 +82,8 @@ export default function AttendanceSection() {
   };
 
   const generateExcel = () => {
-    if (!students.length) return;
-    const filteredStudents = students.filter(
-      (student) =>
-        student.Academic_Year === selectedYear &&
-        student.Grade === selectedGrade &&
-        student.Grade === selectedGrade &&
-        ((student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    const data = filteredStudents.map((student: Student) => ({
+    if (!students) return;
+    const data = currentYearStudents.map((student: Student) => ({
       Unique_ID: student.Unique_ID,
       First_Name: student.First_Name,
       Father_Name: student.Father_Name,
@@ -126,8 +112,6 @@ export default function AttendanceSection() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSunday) return alert("Attendance can only be submitted on Sundays");
-    if (!selectedYear || !selectedGrade) return alert("Please select an academic year and grade");
-    if (!selectedYear || !selectedGrade) return alert("Please select an academic year and grade");
     if (
       !attendance.some(
         (r: AttendanceRecord) => r.date === formattedDate && (r.present || r.hasPermission)
@@ -141,16 +125,16 @@ export default function AttendanceSection() {
     setAttendance([]);
   };
 
-  const filteredStudents = students.filter(
-    (student) =>
-      student.Academic_Year === selectedYear &&
-      student.Grade === selectedGrade &&
-      student.Grade === selectedGrade &&
-      ((student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredStudents =
+    currentYearStudents?.filter(
+      (student: Student) =>
+        student._id &&
+        (selectedGrade === "" || student.Grade === selectedGrade) &&
+        ((student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
+    ) || [];
 
   return (
     <div className="bg-white shadow-lg rounded-lg p-6">
@@ -177,22 +161,41 @@ export default function AttendanceSection() {
           </label>
           <input
             type="text"
-            placeholder="Search by ID, Name, or Grade"
+            placeholder="Search by ID, Name, or Class"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full p-3 border border-gray-300 rounded-lg"
-            aria-label="Search students"
           />
         </div>
       </div>
       <form
         onSubmit={handleSubmit}
-        className="mb-6 flex justify-end"
+        className="mb-6 flex justify-between items-end"
       >
+        <div className="w-1/2">
+          <label
+            htmlFor="classFilter"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Filter by Grade
+          </label>
+          <select
+            id="classFilter"
+            value={selectedGrade}
+            onChange={(e) => setSelectedGrade(e.target.value)}
+            className="w-full p-3 border rounded-lg"
+          >
+            <option value="">All Grades</option>
+            {[...new Set(currentYearStudents?.map((s: Student) => s.Grade) || [])].map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           type="submit"
           className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700"
-          aria-label="Submit attendance"
         >
           Submit
         </button>
