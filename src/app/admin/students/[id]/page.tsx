@@ -102,7 +102,7 @@ export default function StudentDetails() {
         />
       )}
       {activeTab === 'payment' && <PaymentStatusTab academicYear={student.Academic_Year} />}
-      {activeTab === 'results' && <ResultsTab />}
+      {activeTab === 'results' && <ResultsTab studentId={id} />}
       <Link
         href="/admin/students"
         className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 mt-6 inline-block"

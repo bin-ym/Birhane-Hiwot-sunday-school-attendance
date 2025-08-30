@@ -160,7 +160,17 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-semibold text-blue-800">Student Records</h2>
           <button
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-            onClick={() => exportToCSV(filteredStudents, "students.csv")}
+            onClick={() =>
+              exportToCSV(
+                filteredStudents.map(student => ({
+                  "ID Number": student.Unique_ID,
+                  "Name": `${student.First_Name} ${student.Father_Name}`,
+                  "Grade": student.Grade,
+                  "Sex": student.Sex
+                })),
+                "students.csv"
+              )
+            }
             disabled={filteredStudents.length === 0}
           >
             Export CSV
@@ -232,7 +242,16 @@ export default function AdminDashboard() {
           </button>
           <button
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 ml-2"
-            onClick={() => exportToCSV(filteredFacilitators, "facilitators.csv")}
+            onClick={() =>
+              exportToCSV(
+                filteredFacilitators.map(fac => ({
+                  Name: fac.name || "-",
+                  Email: fac.email,
+                  Role: fac.role
+                })),
+                "facilitators.csv"
+              )
+            }
             disabled={filteredFacilitators.length === 0}
           >
             Export CSV

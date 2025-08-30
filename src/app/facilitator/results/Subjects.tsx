@@ -253,24 +253,6 @@ export default function Subjects() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800">Subject Management</h2>
 
-      {/* Sundays in Academic Year Section */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-semibold mb-4">
-          Sundays in Academic Year {academicYear} (Ethiopian Calendar)
-        </h3>
-        {sundays.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sundays.map((sunday, index) => (
-              <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                {sunday}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500">No Sundays available for the selected academic year.</p>
-        )}
-      </div>
-
       {/* Initialize Subjects Section */}
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-semibold mb-4">

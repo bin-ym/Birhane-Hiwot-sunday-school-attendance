@@ -119,7 +119,7 @@ export default function StudentDetails() {
         />
       )}
       {activeTab === 'payment' && <PaymentStatusTab academicYear={student.Academic_Year} />}
-      {activeTab === 'results' && <ResultsTab />}
+      {activeTab === 'results' && <ResultsTab studentId={id} />}
 
       <Link
         href={isAdmin ? "/admin/students" : "/register/old"}

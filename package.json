@@ -16,7 +16,6 @@
     "file-saver": "^2.0.5",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
-    "kenat": "^2.2.0",
     "lodash": "^4.17.21",
     "mongodb": "^6.17.0",
     "next": "^15.4.5",
@@ -33,9 +32,9 @@
     "@types/bcryptjs": "^3.0.0",
     "@types/file-saver": "^2.0.7",
     "@types/jspdf": "^1.3.3",
-    "@types/node": "^20",
+    "@types/node": "20.19.11",
     "@types/papaparse": "^5.3.16",
-    "@types/react": "^19",
+    "@types/react": "19.1.10",
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
@@ -43,6 +42,6 @@
     "eslint-config-next": "^15.4.5",
     "postcss": "^8.5.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "5.9.2"
   }
 }
