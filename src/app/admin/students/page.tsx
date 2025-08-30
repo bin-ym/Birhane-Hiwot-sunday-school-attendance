@@ -162,44 +162,7 @@ export default function AdminStudents() {
   }, [fetchData]);
 
   useEffect(() => {
-    setPage(1); // Reset page when students or filters change
-  }, [students.length, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
-
-  // Group students by Academic_Year and Grade
-  const yearOptions = [...new Set(students.map((s) => s.Academic_Year))].sort();
-  const gradeOptionsByYear = yearOptions.reduce((acc, year) => {
-    const grades = [
-      ...new Set(
-        students.filter((s) => s.Academic_Year === year).map((s) => s.Grade)
-      ),
-    ].sort();
-    acc[year] = grades;
-    return acc;
-  }, {} as Record<string, string[]>);
-
-  const gradeOptions = [...new Set(students.map((s) => s.Grade))].sort();
-  const sexOptions = [...new Set(students.map((s) => s.Sex))].sort();
-
-  // Toggle year expansion
-  const toggleYear = (year: string) => {
-    setExpandedYears((prev) =>
-      prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
-    );
-  };
-
-  // Handle grade selection for table
-  const handleGradeSelect = (year: string, grade: string) => {
-    if (selectedYear === year && selectedTableGrade === grade) {
-      // Deselect if the same grade is clicked again
-      setSelectedYear("");
-      setSelectedTableGrade("");
-    } else {
-      setSelectedYear(year);
-      setSelectedTableGrade(grade);
-    }
     setPage(1);
-  };
-    setPage(1); // Reset page when students or filters change
   }, [students.length, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
 
   // Group students by Academic_Year and Grade
@@ -227,7 +190,6 @@ export default function AdminStudents() {
   // Handle grade selection for table
   const handleGradeSelect = (year: string, grade: string) => {
     if (selectedYear === year && selectedTableGrade === grade) {
-      // Deselect if the same grade is clicked again
       setSelectedYear("");
       setSelectedTableGrade("");
     } else {
@@ -351,11 +313,9 @@ export default function AdminStudents() {
   );
 
   const processImportData = useCallback(async (rows: any[]) => {
-    // Assume first row is headers, data starts from second row
     const headers = rows[0] as string[];
     const dataRows = rows.slice(1);
 
-    // Map Amharic headers to indices (trim any extra spaces)
     const colMap: Record<string, number> = {};
     headers.forEach((header, index) => {
       const trimmed = header.trim();
@@ -374,10 +334,9 @@ export default function AdminStudents() {
       "የስራ ዓይነት (ሙያ )",
       "የመኖርያ አድራሻ",
       "አገልግሎት ክፍል",
-      "አገልግሎት የጀመሩበት ዓ/ም",
+      "አገልግሎት የጀመሮበት ዓ/ም",
     ];
 
-    // Check if all required columns exist
     for (const col of requiredCols) {
       if (!(col in colMap)) {
         throw new Error(`Missing required column: ${col}`);
@@ -388,7 +347,7 @@ export default function AdminStudents() {
     const importedStudents: StudentForm[] = [];
 
     for (const row of dataRows) {
-      if (row.length === 0) continue; // Skip empty rows
+      if (row.length === 0) continue;
 
       const nameParts = (row[colMap["ስም እስከ አያት"]] || "").trim().split(/\s+/);
       const firstName = nameParts[0] || "";
@@ -407,33 +366,30 @@ export default function AdminStudents() {
         First_Name: firstName,
         Father_Name: fatherName,
         Grandfather_Name: grandfatherName,
-        Mothers_Name: "", // Not present in Excel, default to empty
+        Mothers_Name: "",
         Christian_Name: (row[colMap["ክርስትና ስም"]] || "").toString().trim(),
-        DOB_Date: "", // Not present, default empty
-        DOB_Month: "", // Not present, default empty
+        DOB_Date: "",
+        DOB_Month: "",
         DOB_Year: dobYearStr,
         Age: age,
         Sex: sex,
         Phone_Number: (row[colMap["ስልክ ቁጥር"]] || "").toString().trim(),
         Class: (row[colMap["መርሃ ግብር"]] || "").toString().trim(),
         Occupation: (row[colMap["የስራ ዓይነት (ሙያ )"]] || "").toString().trim(),
-        School: "", // Optional
-        School_Other: "", // Optional
+        School: "",
+        School_Other: "",
         Educational_Background: (row[colMap["የት/ት ደረጃ"]] || "").toString().trim(),
         Place_of_Work: (row[colMap["አገልግሎት ክፍል"]] || "").toString().trim(),
         Address: (row[colMap["የመኖርያ አድራሻ"]] || "").toString().trim(),
-        Address_Other: "", // Optional
-        Academic_Year: (row[colMap["አገልግሎት የጀመሩበት ዓ/ም"]] || "").toString().trim(),
-        Grade: (row[colMap["የት/ት ደረጃ"]] || "").toString().trim(), // Mapping educational level to grade
+        Address_Other: "",
+        Academic_Year: (row[colMap["አገልግሎት የጀመሮበት ዓ/ም"]] || "").toString().trim(),
+        Grade: (row[colMap["የት/ት ደረጃ"]] || "").toString().trim(),
       };
 
-      // Skip if key fields are missing
       if (!student.Unique_ID || !student.First_Name) continue;
-
       importedStudents.push(student);
     }
 
-    // Batch import by posting each student
     for (const student of importedStudents) {
       try {
         const res = await fetch("/api/students", {
@@ -450,7 +406,7 @@ export default function AdminStudents() {
       }
     }
 
-    fetchData(); // Refresh the list after import
+    fetchData();
   }, [fetchData]);
 
   const handleImportFromExcel = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -468,7 +424,6 @@ export default function AdminStudents() {
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
         await processImportData(rows);
       };
       reader.readAsArrayBuffer(file);
@@ -476,14 +431,13 @@ export default function AdminStudents() {
       setImportError((err as Error).message || "Failed to import students");
     } finally {
       setImportLoading(false);
-      e.target.value = ""; // Reset file input
+      e.target.value = "";
     }
   }, [processImportData]);
 
   const handleImportFromGoogleSheet = useCallback(async () => {
     setImportLoading(true);
     setImportError(null);
-
     const sheetUrl = "https://docs.google.com/spreadsheets/d/1WqEqOfqkuzZj1itPSglpZBoVmenHVUxwDQ3X5WWGKMc/export?format=csv&gid=2068043858";
 
     try {
@@ -492,7 +446,6 @@ export default function AdminStudents() {
       const csvText = await res.text();
       const parsed = Papa.parse(csvText, { header: false });
       const rows = parsed.data;
-
       await processImportData(rows);
     } catch (err) {
       setImportError((err as Error).message || "Failed to import from Google Sheet. Ensure the sheet is shared publicly.");
@@ -512,18 +465,7 @@ export default function AdminStudents() {
           (student.First_Name || "").toLowerCase().includes(search.toLowerCase()) ||
           (student.Father_Name || "").toLowerCase().includes(search.toLowerCase()) ||
           (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
-    return students.filter(
-      (student) =>
-        (!selectedYear || student.Academic_Year === selectedYear) &&
-        (!selectedTableGrade || student.Grade === selectedTableGrade) &&
-        (selectedGrade === "" || student.Grade === selectedGrade) &&
-        (selectedSex === "" || student.Sex === selectedSex) &&
-        ((student.Unique_ID || "").toLowerCase().includes(search.toLowerCase()) ||
-          (student.First_Name || "").toLowerCase().includes(search.toLowerCase()) ||
-          (student.Father_Name || "").toLowerCase().includes(search.toLowerCase()) ||
-          (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
     );
-  }, [students, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
   }, [students, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
 
   const paged = useMemo(() => {

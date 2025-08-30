@@ -343,23 +343,6 @@ export default function StudentsByGrade() {
                                       >
                                         Details
                                       </Link>
-                                      <button
-                                        onClick={() =>
-                                          openResultForm(
-                                            student,
-                                            getSubjectsByGrade(grade)[0] || {
-                                              _id: "",
-                                              name: "",
-                                              grade: "",
-                                              academicYear: "",
-                                            }
-                                          )
-                                        }
-                                        className="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
-                                        aria-label={`Add result for ${student.First_Name}`}
-                                      >
-                                        Add Result
-                                      </button>
                                     </td>
                                   </tr>
                                 ))}

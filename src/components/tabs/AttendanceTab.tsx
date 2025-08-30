@@ -6,45 +6,15 @@ import autoTable from "jspdf-autotable";
 import { Student, Attendance } from "@/lib/models";
 import {
   getSundaysInEthiopianYear,
-  ethiopianToGregorian, // Corrected import
-  ETHIOPIAN_MONTHS, // Added for parsing month names
+  ethiopianToGregorian,
+  ETHIOPIAN_MONTHS,
 } from "@/lib/utils";
-import { useMonthGrid, useDatePicker } from "kenat-ui";
+
 import {
   CheckCircleIcon,
   MinusCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/solid";
-
-// Define types for kenat-ui hooks (since kenat-ui may lack type definitions)
-interface MonthGridDay {
-  ethiopian: {
-    year: number;
-    month: number;
-    day: number;
-  };
-  [key: string]: any;
-}
-
-interface MonthGrid {
-  monthName: string;
-  year: number;
-  headers: string[];
-  days: (MonthGridDay | null)[];
-}
-
-interface DatePickerState {
-  inputRef: React.MutableRefObject<HTMLInputElement | null>;
-  formatted: string;
-  open: boolean;
-  grid: MonthGrid;
-  days: (MonthGridDay | null)[];
-}
-
-interface DatePickerActions {
-  toggleOpen: () => void;
-  selectDate: (day: MonthGridDay) => void;
-}
 
 interface AttendanceTabProps {
   student: Student;
@@ -60,17 +30,6 @@ export default function AttendanceTab({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(10); // Default: Sene
   const [selectedYear, setSelectedYear] = useState(2017); // Default: 2017 EC
-  const { grid } = useMonthGrid({
-    year: selectedYear,
-    month: selectedMonth,
-    useGeez: false,
-    weekdayLang: "amharic",
-    weekStart: 0, // Start on Sunday
-  }) as { grid: MonthGrid };
-  const { state: pickerState, actions: pickerActions } = useDatePicker() as {
-    state: DatePickerState;
-    actions: DatePickerActions;
-  };
 
   // Parse academic year into a number (e.g., "2017-2018" -> 2017)
   const numericYear = parseInt(student.Academic_Year.split("-")[0], 10);
@@ -80,7 +39,6 @@ export default function AttendanceTab({
 
   // Group Sundays by their month name
   const sundaysByMonth = sundays.reduce((acc, dateStr) => {
-    // dateStr is something like "5 Meskerem 2017"
     const [dayStr, monthName, yearStr] = dateStr.split(" ");
     if (!acc[monthName]) acc[monthName] = [];
     acc[monthName].push(dateStr);
@@ -179,31 +137,24 @@ export default function AttendanceTab({
     setIsModalOpen(false);
   };
 
-  const handleMarkAttendance = async (date: MonthGridDay) => {
-    const dateStr = `${date.ethiopian.day.toString().padStart(2, "0")}/${date.ethiopian.month
-      .toString()
-      .padStart(2, "0")}/${date.ethiopian.year}`;
-    try {
-      const response = await fetch(`/api/attendance/${student._id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: dateStr,
-          present: true, // Example; could be dynamic
-          hasPermission: false,
-          markedBy: "Admin",
-          timestamp: new Date().toISOString(),
-        }),
-      });
-      if (response.ok) {
-        // Refresh attendance records
-        const updatedRecords = await fetch(`/api/attendance/${student._id}`).then((res) => res.json());
-        // Note: Requires refreshAttendance prop to update state
-      }
-    } catch (error) {
-      console.error("Failed to mark attendance:", error);
-    }
-  };
+  function formatDateForDisplay(
+    timestamp: string,
+    { includeTime }: { includeTime: boolean }
+  ) {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "Invalid date";
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      ...(includeTime && {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+    };
+    return date.toLocaleString(undefined, options);
+  }
 
   return (
     <div className="mb-6">
@@ -226,40 +177,8 @@ export default function AttendanceTab({
         <div className="bg-yellow-100 px-3 py-1 rounded-full">
           Permission: {permission}
         </div>
-        <div className="bg-red-100 px-3 py-1 rounded-full">Absent: {absent}</div>
-      </div>
-
-      {isModalOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
-          onClick={() => setIsModalOpen(false)}
-        >
-          <div
-            className="bg-white p-6 rounded shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-4">Choose Report Format</h3>
-            <div className="flex justify-around">
-              <button
-                onClick={() => handleGenerateReport("CSV")}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Export as CSV
-              </button>
-              <button
-                onClick={() => handleGenerateReport("PDF")}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Generate PDF
-              </button>
-            </div>
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Cancel
-            </button>
-          </div>
+        <div className="bg-red-100 px-3 py-1 rounded-full">
+          Absent: {absent}
         </div>
       </div>
 
@@ -285,13 +204,18 @@ export default function AttendanceTab({
                     const [dayStr, monthNameStr, yearStr] = dateStr.split(" ");
                     const day = parseInt(dayStr, 10);
                     const year = parseInt(yearStr, 10);
-                    const monthIndex = ETHIOPIAN_MONTHS.indexOf(monthNameStr) + 1; // 1-based
-                    const gregorianDate = ethiopianToGregorian(year, monthIndex, day);
+                    const monthIndex =
+                      ETHIOPIAN_MONTHS.indexOf(monthNameStr) + 1; // 1-based
+                    const gregorianDate = ethiopianToGregorian(
+                      year,
+                      monthIndex,
+                      day
+                    );
 
                     const record = attendanceMap[dateStr];
                     let status = "";
                     let statusStyles = "";
-                    let statusIcon: JSX.Element | null = null;
+                    let statusIcon: React.ReactNode = null;
 
                     if (gregorianDate > currentDate) {
                       status = "";
@@ -318,7 +242,9 @@ export default function AttendanceTab({
                     } else {
                       status = "Absent";
                       statusStyles = "bg-red-500 text-white";
-                      statusIcon = <XCircleIcon className="w-5 h-5 inline-block mr-1" />;
+                      statusIcon = (
+                        <XCircleIcon className="w-5 h-5 inline-block mr-1" />
+                      );
                     }
 
                     const tooltip = `Marked by: ${
@@ -328,7 +254,7 @@ export default function AttendanceTab({
                         ? formatDateForDisplay(record.timestamp, {
                             includeTime: true,
                           })
-                        : formatDateForDisplay(new Date(), {
+                        : formatDateForDisplay(new Date().toISOString(), {
                             includeTime: true,
                           })
                     }\nReason: ${
