@@ -1,6 +1,11 @@
 // src/lib/utils.ts
 import { addDays, startOfDay } from 'date-fns';
 
+
+export function cn(...classes: (string | undefined | null | false)[]) {
+  return classes.filter(Boolean).join(" ");
+}
+
 // Ethiopian Calendar months
 export const ETHIOPIAN_MONTHS = [
   'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
