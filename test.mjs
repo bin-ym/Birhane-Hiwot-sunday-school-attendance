@@ -1,17 +1,12 @@
-import { MongoClient } from "mongodb";
+import bcrypt from "bcryptjs";
 
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
+async function test() {
+  const hash = "$2b$10$c0ZRBJ.E5dTzjuKYRr.ikOOb3K4bTVd42uI/40KJ2VvkwVfjyfKtO";
+  const ok1 = await bcrypt.compare("123456", hash);  // try your guessed password
+  console.log("Matches 123456?", ok1);
 
-async function testConnection() {
-  try {
-    await client.connect();
-    console.log("Connected successfully to MongoDB");
-  } catch (error) {
-    console.error("Connection failed:", error.message);
-  } finally {
-    await client.close();
-  }
+  const ok2 = await bcrypt.compare("yourrealpassword", hash);
+  console.log("Matches real?", ok2);
 }
 
-testConnection();
+test();
