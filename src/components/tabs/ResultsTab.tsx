@@ -2,23 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
-interface Result {
-  _id?: string;
-  studentId: string;
-  studentName: string;
-  subjectId: string;
-  subjectName: string;
-  academicYear: string;
-  assignment1: number;
-  assignment2: number;
-  midTest: number;
-  finalExam: number;
-  totalScore: number;
-  grade: string;
-  remarks?: string;
-  recordedDate: string;
-}
+import { Result } from "@/lib/models";
 
 export default function ResultsTab({ studentId }: { studentId: string }) {
   const [results, setResults] = useState<Result[]>([]);
@@ -48,7 +32,8 @@ export default function ResultsTab({ studentId }: { studentId: string }) {
 
   if (loading) return <div className="text-gray-500">Loading results…</div>;
   if (error) return <div className="text-red-500">{error}</div>;
-  if (results.length === 0) return <div>No results found for this student.</div>;
+  if (results.length === 0)
+    return <div>No results found for this student.</div>;
 
   return (
     <div className="mb-6">
@@ -69,8 +54,8 @@ export default function ResultsTab({ studentId }: { studentId: string }) {
             </tr>
           </thead>
           <tbody>
-            {results.map(r => (
-              <tr key={r._id} className="hover:bg-gray-50">
+            {results.map((r) => (
+              <tr key={r._id.toString()} className="hover:bg-gray-50">
                 <td className="p-2 border">{r.subjectName}</td>
                 <td className="p-2 border">{r.assignment1}</td>
                 <td className="p-2 border">{r.assignment2}</td>

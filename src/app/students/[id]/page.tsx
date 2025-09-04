@@ -118,7 +118,7 @@ export default function StudentDetails() {
           currentDate={currentDate}
         />
       )}
-      {activeTab === 'payment' && <PaymentStatusTab academicYear={student.Academic_Year} />}
+      {activeTab === 'payment' && <PaymentStatusTab studentId={id} academicYear={student.Academic_Year} />}
       {activeTab === 'results' && <ResultsTab studentId={id} />}
 
       <Link

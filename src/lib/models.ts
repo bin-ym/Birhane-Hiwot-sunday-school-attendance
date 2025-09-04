@@ -1,3 +1,5 @@
+//src/lib/models.ts
+
 import { ObjectId } from "mongodb";
 
 export interface Student {
@@ -64,3 +66,39 @@ export interface Subject {
   teacherId?: string;
   students?: Student[];
 }
+export interface Result {
+  _id: ObjectId;
+  studentId: string;
+  studentName: string;
+  subjectId: string;
+  subjectName: string;
+  academicYear: string;
+  assignment1: number;
+  assignment2: number;
+  midTest: number;
+  finalExam: number;
+  totalScore: number;
+  grade: string;
+  remarks?: string;
+  recordedDate: string;
+}
+
+export interface StudentResult {
+  _id?: ObjectId;
+  studentId: string;
+  studentName: string;
+  subjectId: string;
+  subjectName: string;
+  academicYear: string;
+  assignment1?: number; // 0–10
+  assignment2?: number; // 0–10
+  midTest?: number;     // 0–30
+  finalExam?: number;   // 0–50
+  totalScore?: number;  // 0–100
+  average?: number;
+  grade?: string;
+  remarks?: string;
+  recordedDate: string; // Ethiopian ISO
+}
+
+export type WithStringId<T> = Omit<T, "_id"> & { _id: string };

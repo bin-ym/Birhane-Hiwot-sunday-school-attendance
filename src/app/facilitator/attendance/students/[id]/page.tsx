@@ -130,7 +130,7 @@ export default function FacilitatorStudentDetails() {
         />
       )}
       {activeTab === "payment" && (
-        <PaymentStatusTab academicYear={student.Academic_Year} />
+        <PaymentStatusTab studentId={id} academicYear={student.Academic_Year} />
       )}
 
       <Link

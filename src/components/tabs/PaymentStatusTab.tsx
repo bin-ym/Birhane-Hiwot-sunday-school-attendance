@@ -1,19 +1,20 @@
-// src/components/tabs/PaymentStatusTab.tsx
+"use client";
+
 import { ETHIOPIAN_MONTHS } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 interface PaymentStatusTabProps {
   academicYear: string;
+  studentId: string; // dynamic now
 }
 
 type PaymentStatus = "Paid" | "Not Paid";
 
 export default function PaymentStatusTab({
   academicYear,
+  studentId,
 }: PaymentStatusTabProps) {
-  const [paymentStatus, setPaymentStatus] = useState<
-    Record<string, PaymentStatus>
-  >({});
+  const [paymentStatus, setPaymentStatus] = useState<Record<string, PaymentStatus>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -22,7 +23,9 @@ export default function PaymentStatusTab({
     const fetchPaymentStatus = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/payment?year=${academicYear}`);
+        const res = await fetch(
+          `/api/payment?year=${academicYear}&studentId=${studentId}`
+        );
         if (!res.ok) throw new Error("Network response was not ok");
 
         const data = await res.json();
@@ -32,6 +35,7 @@ export default function PaymentStatusTab({
         }, {} as Record<string, PaymentStatus>);
 
         setPaymentStatus(normalized);
+        setMessage(null);
       } catch (err) {
         console.error("Failed to load data:", err);
         setMessage("❌ Failed to load payment data.");
@@ -40,8 +44,8 @@ export default function PaymentStatusTab({
       }
     };
 
-    fetchPaymentStatus();
-  }, [academicYear]);
+    if (studentId) fetchPaymentStatus();
+  }, [academicYear, studentId]);
 
   const toggleStatus = (month: string) => {
     setPaymentStatus((prev) => ({
@@ -59,6 +63,7 @@ export default function PaymentStatusTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           year: academicYear,
+          studentId,
           data: paymentStatus,
         }),
       });
@@ -73,8 +78,7 @@ export default function PaymentStatusTab({
     }
   };
 
-  if (loading)
-    return <p className="text-gray-600">Loading payment status...</p>;
+  if (loading) return <p className="text-gray-600">Loading payment status...</p>;
 
   return (
     <div className="mb-6">
@@ -121,14 +125,11 @@ export default function PaymentStatusTab({
                 <input
                   type="checkbox"
                   checked={isPaid}
-                  onChange={() => !isPaid && toggleStatus(month)}
+                  onChange={() => toggleStatus(month)}
                   className="mr-2"
-                  disabled={isPaid}
                 />
                 <span
-                  className={`text-sm ${
-                    isPaid ? "text-green-700" : "text-red-700"
-                  }`}
+                  className={`text-sm ${isPaid ? "text-green-700" : "text-red-700"}`}
                 >
                   {isPaid ? "Paid" : "Not Paid"}
                 </span>
