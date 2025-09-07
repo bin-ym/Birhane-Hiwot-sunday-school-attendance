@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
+import { ETHIOPIAN_MONTHS } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   const db = await getDb();
@@ -22,18 +23,27 @@ export async function GET(req: NextRequest) {
   // If not found, initialize with "Not Paid" for all months
   if (!record) {
     const emptyData = Object.fromEntries(
-      ["Meskerem","Tikimt","Hidar","Tahsas","Tir","Yekatit","Megabit","Miyazya","Ginbot","Sene","Hamle","Nehasse"].map(
-        (m) => [m, "Not Paid"]
-      )
+      ETHIOPIAN_MONTHS.map((m) => [m, "Not Paid"])
     );
-    const insertResult = await collection.insertOne({ academicYear: year, studentId, data: emptyData });
+    const insertResult = await collection.insertOne({
+      academicYear: year,
+      studentId,
+      data: emptyData,
+    });
     record = await collection.findOne({ _id: insertResult.insertedId });
   }
 
   if (!record) {
-    return NextResponse.json({ error: "Record not found after creation" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Record not found after creation" },
+      { status: 500 }
+    );
   }
-  return NextResponse.json(record.data, { status: 200 });
+
+  return NextResponse.json(
+    { academicYear: record.academicYear, studentId: record.studentId, data: record.data },
+    { status: 200 }
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -47,9 +57,14 @@ export async function POST(req: NextRequest) {
 
   const collection = db.collection("payment_status");
 
+  // Normalize against ETHIOPIAN_MONTHS (prevents overwriting with partial data)
+  const normalizedData = Object.fromEntries(
+    ETHIOPIAN_MONTHS.map((m) => [m, data[m] === "Paid" ? "Paid" : "Not Paid"])
+  );
+
   await collection.updateOne(
     { academicYear: year, studentId },
-    { $set: { data } },
+    { $set: { data: normalizedData } },
     { upsert: true }
   );
 
