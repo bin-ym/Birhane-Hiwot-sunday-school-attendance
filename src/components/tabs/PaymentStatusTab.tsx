@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 interface PaymentStatusTabProps {
   academicYear: string;
-  studentId: string; // dynamic now
+  studentId: string;
 }
 
 type PaymentStatus = "Paid" | "Not Paid";
@@ -30,7 +30,7 @@ export default function PaymentStatusTab({
 
         const data = await res.json();
         const normalized = ETHIOPIAN_MONTHS.reduce((acc, month) => {
-          acc[month] = data[month] === "Paid" ? "Paid" : "Not Paid";
+          acc[month] = data.data?.[month] === "Paid" ? "Paid" : "Not Paid";
           return acc;
         }, {} as Record<string, PaymentStatus>);
 
@@ -129,7 +129,9 @@ export default function PaymentStatusTab({
                   className="mr-2"
                 />
                 <span
-                  className={`text-sm ${isPaid ? "text-green-700" : "text-red-700"}`}
+                  className={`text-sm ${
+                    isPaid ? "text-green-700" : "text-red-700"
+                  }`}
                 >
                   {isPaid ? "Paid" : "Not Paid"}
                 </span>
