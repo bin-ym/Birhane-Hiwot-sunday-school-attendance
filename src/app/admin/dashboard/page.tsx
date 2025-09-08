@@ -1,3 +1,5 @@
+// src/app/admin/dashboard/page.tsx
+
 "use client";
 import { useEffect, useState } from "react";
 import { Student, User, Attendance } from "@/lib/models";
