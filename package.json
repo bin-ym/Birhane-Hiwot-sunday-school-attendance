@@ -10,10 +10,14 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@radix-ui/react-dialog": "^1.1.15",
     "bcryptjs": "^3.0.2",
+    "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "file-saver": "^2.0.5",
+    "framer-motion": "^12.23.12",
+    "googleapis": "^159.0.0",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "lodash": "^4.17.21",
@@ -25,6 +29,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "rimraf": "^6.0.1",
+    "swr": "^2.3.6",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

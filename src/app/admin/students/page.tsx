@@ -1,9 +1,9 @@
+// src/app/admin/students/page.tsx
+
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Student, Subject } from "@/lib/models";
-import Link from "next/link";
-import * as XLSX from "xlsx";
-import Papa from "papaparse";
+import Link from "next/link"; 
 import { StudentFormModal } from "@/components/StudentFormModal";
 
 const PAGE_SIZE = 10;
@@ -87,18 +87,6 @@ function exportToCSV(data: Student[], filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function getCurrentECYear() {
-  const today = new Date();
-  const gcYear = today.getFullYear();
-  const gcMonth = today.getMonth() + 1;
-  const gcDay = today.getDate();
-  if (gcMonth > 9 || (gcMonth === 9 && gcDay >= 11)) {
-    return gcYear - 7;
-  } else {
-    return gcYear - 8;
-  }
 }
 
 export default function AdminStudents() {
@@ -205,16 +193,6 @@ export default function AdminStudents() {
     setPage(1);
   };
 
-  const getStudentsByYearAndGrade = (year: string, grade: string) => {
-    return students.filter(
-      (student) => student.Academic_Year === year && student.Grade === grade
-    );
-  };
-
-  const getSubjectsByGrade = (grade: string) => {
-    return subjects.filter((subject) => subject.grade === grade);
-  };
-
   const openModal = (student: Student | null = null) => {
     setEditStudent(student);
     setShowModal(true);
@@ -268,154 +246,6 @@ export default function AdminStudents() {
     [fetchData]
   );
 
-  const processImportData = useCallback(async (rows: any[]) => {
-    const headers = rows[0] as string[];
-    const dataRows = rows.slice(1);
-
-    const colMap: Record<string, number> = {};
-    headers.forEach((header, index) => {
-      const trimmed = header.trim();
-      colMap[trimmed] = index;
-    });
-
-    const requiredCols = [
-      "ኮድ",
-      "ስም እስከ አያት",
-      "ፆታ",
-      "ክርስትና ስም",
-      "ስልክ ቁጥር",
-      "የልደት ዓ/ም",
-      "መርሃ ግብር",
-      "የት/ት ደረጃ",
-      "የስራ ዓይነት (ሙያ )",
-      "የመኖርያ አድራሻ",
-      "አገልግሎት ክፍል",
-      "አገልግሎት የጀመሮበት ዓ/ም",
-    ];
-
-    for (const col of requiredCols) {
-      if (!(col in colMap)) {
-        throw new Error(`Missing required column: ${col}`);
-      }
-    }
-
-    const currentYear = getCurrentECYear();
-    const importedStudents: StudentForm[] = [];
-
-    for (const row of dataRows) {
-      if (row.length === 0) continue;
-
-      const nameParts = (row[colMap["ስም እስከ አያት"]] || "").trim().split(/\s+/);
-      const firstName = nameParts[0] || "";
-      const fatherName = nameParts[1] || "";
-      const grandfatherName = nameParts.slice(2).join(" ") || "";
-
-      const dobYearStr = (row[colMap["የልደት ዓ/ም"]] || "").toString().trim();
-      const dobYear = parseInt(dobYearStr, 10);
-      const age = isNaN(dobYear) ? 0 : currentYear - dobYear;
-
-      const sexAm = (row[colMap["ፆታ"]] || "").toString().trim();
-      const sex = sexAm === "ወንድ" ? "Male" : sexAm === "ሴት" ? "Female" : "";
-
-      const student: StudentForm = {
-        Unique_ID: (row[colMap["ኮድ"]] || "").toString().trim(),
-        First_Name: firstName,
-        Father_Name: fatherName,
-        Grandfather_Name: grandfatherName,
-        Mothers_Name: "",
-        Christian_Name: (row[colMap["ክርስትና ስም"]] || "").toString().trim(),
-        DOB_Date: "",
-        DOB_Month: "",
-        DOB_Year: dobYearStr,
-        Age: age,
-        Sex: sex,
-        Phone_Number: (row[colMap["ስልክ ቁጥር"]] || "").toString().trim(),
-        Class: (row[colMap["መርሃ ግብር"]] || "").toString().trim(),
-        Occupation: (row[colMap["የስራ ዓይነት (ሙያ )"]] || "").toString().trim(),
-        School: "",
-        School_Other: "",
-        Educational_Background: (row[colMap["የት/ት ደረጃ"]] || "").toString().trim(),
-        Place_of_Work: (row[colMap["አገልግሎት ክፍል"]] || "").toString().trim(),
-        Address: (row[colMap["የመኖርያ አድራሻ"]] || "").toString().trim(),
-        Address_Other: "",
-        Academic_Year: (row[colMap["አገልግሎት የጀመሮበት ዓ/ም"]] || "").toString().trim(),
-        Grade: (row[colMap["የት/ት ደረጃ"]] || "").toString().trim(),
-      };
-
-      if (!student.Unique_ID || !student.First_Name) continue;
-      importedStudents.push(student);
-    }
-
-    for (const student of importedStudents) {
-      try {
-        const res = await fetch("/api/students", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(student),
-        });
-        if (!res.ok) {
-          const errData = await res.json();
-          console.error(`Failed to import student ${student.Unique_ID}: ${errData.error}`);
-        }
-      } catch (err) {
-        console.error(`Error importing student ${student.Unique_ID}: ${(err as Error).message}`);
-      }
-    }
-
-    fetchData();
-  }, [fetchData]);
-
-  const handleImportFromExcel = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      setImportLoading(true);
-      setImportError(null);
-
-      try {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const data = event.target?.result as ArrayBuffer;
-          const workbook = XLSX.read(data, { type: "array" });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-          await processImportData(rows);
-        };
-        reader.readAsArrayBuffer(file);
-      } catch (err) {
-        setImportError((err as Error).message || "Failed to import students");
-      } finally {
-        setImportLoading(false);
-        e.target.value = "";
-      }
-    },
-    [processImportData]
-  );
-
-  const handleImportFromGoogleSheet = useCallback(async () => {
-    setImportLoading(true);
-    setImportError(null);
-    const sheetUrl = "https://docs.google.com/spreadsheets/d/1WqEqOfqkuzZj1itPSglpZBoVmenHVUxwDQ3X5WWGKMc/export?format=csv&gid=2068043858";
-
-    try {
-      const res = await fetch(sheetUrl);
-      if (!res.ok) throw new Error("Failed to fetch Google Sheet");
-      const csvText = await res.text();
-      const parsed = Papa.parse(csvText, { header: false });
-      const rows = parsed.data;
-      await processImportData(rows);
-    } catch (err) {
-      setImportError(
-        (err as Error).message ||
-          "Failed to import from Google Sheet. Ensure the sheet is shared publicly."
-      );
-    } finally {
-      setImportLoading(false);
-    }
-  }, [processImportData]);
-
   const filtered = useMemo(() => {
     return students.filter(
       (student) =>
@@ -443,6 +273,15 @@ export default function AdminStudents() {
           Manage Students
         </h1>
         <div className="flex gap-2">
+          {/* New Button for Sheet Import Page */}
+          <Link
+            href="/admin/sheet-import"
+            className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700"
+            aria-label="View students from Google Sheets"
+          >
+            View Sheet Students
+          </Link>
+          {/* Existing buttons */}
           <button
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
             onClick={() => exportToCSV(filtered, "students.csv")}
@@ -450,25 +289,6 @@ export default function AdminStudents() {
             aria-label="Export students to CSV"
           >
             Export CSV
-          </button>
-          <label className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer">
-            Import from Excel
-            <input
-              type="file"
-              accept=".xlsx, .xls"
-              onChange={handleImportFromExcel}
-              className="hidden"
-              disabled={importLoading}
-              aria-label="Import students from Excel"
-            />
-          </label>
-          <button
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-            onClick={handleImportFromGoogleSheet}
-            disabled={importLoading}
-            aria-label="Import students from Google Sheet"
-          >
-            Import from Google Sheet
           </button>
           <button
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
