@@ -41,5 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 service-account.json
+sun.json
 
 .vercel
