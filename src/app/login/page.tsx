@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
-export default function   LoginPage() {
+export default function LoginPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -11,12 +11,18 @@ export default function   LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // If already logged in, redirect based on role
-  if (status === "authenticated" && session?.user?.role) {
-    if (session.user.role === "Admin") router.replace("/admin/dashboard");
-    else if (session.user.role === "Attendance Facilitator") router.replace("/facilitator/attendance");
-    else if (session.user.role === "Education Facilitator") router.replace("/facilitator/results");
-  }
+  // Redirect based on role if authenticated
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.role) {
+      if (session.user.role === "Admin") {
+        router.replace("/admin/dashboard");
+      } else if (session.user.role === "Attendance Facilitator") {
+        router.replace("/facilitator/attendance");
+      } else if (session.user.role === "Education Facilitator") {
+        router.replace("/facilitator/results");
+      }
+    }
+  }, [status, session, router]); // Dependencies to re-run the effect
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +37,7 @@ export default function   LoginPage() {
     if (res?.error) {
       setError("Invalid email or password");
     } else {
-      // Session will update and redirect will happen above
+      // Session will update and redirect will happen in the useEffect
     }
   };
 
@@ -68,4 +74,4 @@ export default function   LoginPage() {
       </div>
     </div>
   );
-} 
+}

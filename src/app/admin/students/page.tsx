@@ -315,7 +315,7 @@ export default function AdminStudents() {
                         onClick={() => handleGradeSelect(year, grade)}
                         aria-label={`Select ${year} - Grade ${grade}`}
                       >
-                        Grade {grade}
+                        {grade}
                       </button>
                       {selectedYear === year && selectedTableGrade === grade && (
                         <div className="mt-2">
