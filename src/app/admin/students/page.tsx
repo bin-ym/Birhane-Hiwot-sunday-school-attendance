@@ -1,37 +1,13 @@
 // src/app/admin/students/page.tsx
-
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Student, Subject } from "@/lib/models";
-import Link from "next/link"; 
+import Link from "next/link";
 import { StudentFormModal } from "@/components/StudentFormModal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const PAGE_SIZE = 10;
-
-interface StudentForm {
-  Unique_ID: string;
-  First_Name: string;
-  Father_Name: string;
-  Grandfather_Name: string;
-  Mothers_Name: string;
-  Christian_Name: string;
-  DOB_Date: string;
-  DOB_Month: string;
-  DOB_Year: string;
-  Age: number;
-  Sex: string;
-  Phone_Number: string;
-  Class: string;
-  Occupation: string;
-  School?: string;
-  School_Other?: string;
-  Educational_Background?: string;
-  Place_of_Work?: string;
-  Address: string;
-  Address_Other?: string;
-  Academic_Year: string;
-  Grade: string;
-}
 
 function exportToCSV(data: Student[], filename: string) {
   if (!data.length) return;
@@ -112,7 +88,6 @@ export default function AdminStudents() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch students
       const studentsRes = await fetch("/api/students");
       const studentsData = await studentsRes.json();
       if (!studentsRes.ok) {
@@ -120,7 +95,6 @@ export default function AdminStudents() {
       }
       setStudents(studentsData);
 
-      // Fetch subjects
       const subjectsRes = await fetch("/api/subjects");
       const subjectsData = await subjectsRes.json();
       if (!subjectsRes.ok) {
@@ -128,7 +102,6 @@ export default function AdminStudents() {
       }
       setSubjects(subjectsData);
 
-      // Fetch results
       const resultsRes = await fetch("/api/student-results");
       const resultsData = await resultsRes.json();
       if (!resultsRes.ok) {
@@ -138,7 +111,6 @@ export default function AdminStudents() {
         setResults(resultsData);
       }
 
-      // Group students by academic year and grade
       const yearMap = new Map<string, Set<string>>();
       studentsData.forEach((student: Student) => {
         if (!yearMap.has(student.Academic_Year)) {
@@ -273,7 +245,6 @@ export default function AdminStudents() {
           Manage Students
         </h1>
         <div className="flex gap-2">
-          {/* New Button for Sheet Import Page */}
           <Link
             href="/admin/sheet-import"
             className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700"
@@ -281,22 +252,21 @@ export default function AdminStudents() {
           >
             View Sheet Students
           </Link>
-          {/* Existing buttons */}
-          <button
+          <Button
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
             onClick={() => exportToCSV(filtered, "students.csv")}
             disabled={filtered.length === 0}
             aria-label="Export students to CSV"
           >
             Export CSV
-          </button>
-          <button
+          </Button>
+          <Button
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             onClick={() => openModal()}
             aria-label="Add new student"
           >
             + Add Student
-          </button>
+          </Button>
         </div>
       </div>
       {importLoading && (
@@ -305,7 +275,7 @@ export default function AdminStudents() {
       {importError && <div className="text-red-500">{importError}</div>}
       <label className="flex flex-col max-w-xs">
         <span className="text-sm font-medium">Search Students</span>
-        <input
+        <Input
           type="text"
           placeholder="Search by ID, Name, or Grade"
           className="p-2 border rounded w-full"
@@ -380,46 +350,46 @@ export default function AdminStudents() {
                                         >
                                           Details
                                         </Link>
-                                        <button
+                                        <Button
                                           className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
                                           onClick={() => openModal(student)}
                                           aria-label={`Edit ${student.First_Name}`}
                                         >
                                           Edit
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button
                                           className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
                                           onClick={() => handleDeleteStudent(student._id!.toString())}
                                           disabled={importLoading}
                                           aria-label={`Delete ${student.First_Name}`}
                                         >
                                           Delete
-                                        </button>
+                                        </Button>
                                       </td>
                                     </tr>
                                   ))}
                               </tbody>
                             </table>
                             <div className="flex gap-2 mt-4 justify-center">
-                              <button
+                              <Button
                                 className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                                 disabled={page === 1}
                                 aria-label="Previous page"
                               >
                                 Prev
-                              </button>
+                              </Button>
                               <span className="px-2">
                                 Page {page} of {pages}
                               </span>
-                              <button
+                              <Button
                                 className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
                                 onClick={() => setPage((p) => Math.min(pages, p + 1))}
                                 disabled={page === pages}
                                 aria-label="Next page"
                               >
                                 Next
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         </div>

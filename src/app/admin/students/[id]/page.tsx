@@ -1,11 +1,10 @@
 // src/app/admin/students/[id]/page.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Student } from "@/lib/models";
+import { Student, Attendance } from "@/lib/models";
 import DetailsTab from "@/components/tabs/DetailsTab";
 import AttendanceTab from "@/components/tabs/AttendanceTab";
 import PaymentStatusTab from "@/components/tabs/PaymentStatusTab";
@@ -14,6 +13,7 @@ import ResultsTab from "@/components/tabs/ResultsTab";
 export default function StudentDetails() {
   const { id } = useParams<{ id: string }>();
   const [student, setStudent] = useState<Student | null>(null);
+  const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
   const [activeTab, setActiveTab] = useState<
     "details" | "attendance" | "payment" | "results"
   >("details");
@@ -37,7 +37,23 @@ export default function StudentDetails() {
         setLoading(false);
       }
     }
-    if (id) fetchStudent();
+    
+    async function fetchAttendanceRecords() {
+      if (!id) return;
+      try {
+        const res = await fetch(`/api/attendance?studentId=${id}`);
+        if (!res.ok) throw new Error("Failed to fetch attendance records");
+        const data = await res.json();
+        setAttendanceRecords(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    if (id) {
+      fetchStudent();
+      fetchAttendanceRecords();
+    }
   }, [id]);
 
   if (loading) return <div>Loading student...</div>;
@@ -95,10 +111,15 @@ export default function StudentDetails() {
       {/* Tab Content */}
       {activeTab === "details" && <DetailsTab student={student} />}
       {activeTab === "attendance" && (
-        <AttendanceTab studentId={id} />
+        <AttendanceTab 
+          student={student} 
+          attendanceRecords={attendanceRecords} 
+          currentDate={new Date()}
+        />
       )}
       {activeTab === "payment" && (
         <PaymentStatusTab
+          academicYear={student.Academic_Year}
           studentId={id}
         />
       )}
@@ -112,4 +133,4 @@ export default function StudentDetails() {
       </Link>
     </section>
   );
-}
+} 

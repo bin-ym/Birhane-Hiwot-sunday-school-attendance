@@ -1,4 +1,4 @@
-// src/app/api/students/[id]/route.ts
+// src/app/api/students/[studentId]/route.ts
 import { getDb } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
