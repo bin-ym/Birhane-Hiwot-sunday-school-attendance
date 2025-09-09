@@ -78,6 +78,14 @@ export default function StudentDetails() {
 
   return (
     <section className="bg-white shadow-lg rounded-lg p-6 mx-auto my-6 max-w-4xl">
+      <div className="flex items-center mb-4">
+        <Link
+          href="/admin/students"
+          className="flex items-center bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-shadow duration-200 shadow-md hover:shadow-lg"
+        >
+          Back to Students
+        </Link>
+      </div>
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
         {student.First_Name} {student.Father_Name} {student.Grandfather_Name}
       </h1>
@@ -124,13 +132,6 @@ export default function StudentDetails() {
         />
       )}
       {activeTab === "results" && <ResultsTab studentId={id} />}
-
-      <Link
-        href="/admin/students"
-        className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 mt-6 inline-block"
-      >
-        Back to Students
-      </Link>
     </section>
   );
 } 
