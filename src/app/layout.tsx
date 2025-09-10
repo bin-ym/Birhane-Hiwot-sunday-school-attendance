@@ -17,12 +17,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body className="bg-background text-foreground min-h-screen">
         <ClientSessionProvider>
           <SidebarProvider>
             <div className="flex flex-col min-h-screen">
               <NavBar />
-              {children}
+              <main className="container-responsive flex-1">
+                {children}
+              </main>
             </div>
           </SidebarProvider>
         </ClientSessionProvider>

@@ -1,4 +1,4 @@
-// src/app/admin/layout.tsx   (server component)
+// src/app/admin/layout.tsx
 import RoleLayoutShell from '@/components/RoleLayoutShell';
 
 const adminLinks = [
