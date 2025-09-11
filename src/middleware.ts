@@ -1,31 +1,34 @@
-// middleware.ts (or src/middleware.ts)
+// src/middleware.ts
 import { withAuth } from "next-auth/middleware";
-import { NextRequest } from "next/server";
 
 export default withAuth({
   callbacks: {
-    authorized: ({ token, req }: { token: any; req: NextRequest }) => {
-      const { pathname } = req.nextUrl;
+    authorized: ({ token, req }) => {
+      const path = req.nextUrl.pathname;
 
-      // No token? Not authenticated.
       if (!token) return false;
 
       const role = token.role;
 
-      // Admin-only routes
-      if (pathname.startsWith("/admin")) {
-        return role === "Admin";
-      }
+      if (path.startsWith("/admin") && role !== "Admin") return false;
 
-      // Facilitator routes (both types)
-      if (pathname.startsWith("/facilitator")) {
-        return role === "Attendance Facilitator" || role === "Education Facilitator";
-      }
+      if (
+        path.startsWith("/facilitator/attendance") &&
+        role !== "Attendance Facilitator"
+      )
+        return false;
+
+      if (
+        path.startsWith("/facilitator/results") &&
+        role !== "Education Facilitator"
+      )
+        return false;
+
       return true;
     },
   },
 });
 
 export const config = {
-  matcher: ["/admin/:path*", "/facilitator/:path*"], // Protect these routes
+  matcher: ["/admin/:path*", "/facilitator/:path*"],
 };

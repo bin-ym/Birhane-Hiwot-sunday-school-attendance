@@ -1,4 +1,3 @@
-// src/components/RoleLayoutShell.tsx
 'use client';
 import { useSidebar } from './SidebarProvider';
 import RoleSidebar, { LinkItem } from './RoleSidebar';
@@ -15,7 +14,7 @@ export default function RoleLayoutShell({
   const { isOpen, toggleSidebar } = useSidebar();
 
   return (
-    <div className="flex min-h-screen"> {/* Ensure this is set to flex */}
+    <div className="flex min-h-screen flex-col md:flex-row relative"> {/* Added relative positioning */}
       {/* Sidebar */}
       <RoleSidebar
         roleTitle={roleTitle}
@@ -25,7 +24,7 @@ export default function RoleLayoutShell({
       />
 
       {/* Main content */}
-      <main className="flex-1 p-8 bg-gray-50 overflow-y-auto md:ml-0"> {/* Remove margin-left on mobile */}
+      <main className="flex-1 p-6 md:p-8 bg-gray-50 overflow-y-auto z-10"> {/* Ensure this has a higher z-index */}
         {children}
       </main>
     </div>

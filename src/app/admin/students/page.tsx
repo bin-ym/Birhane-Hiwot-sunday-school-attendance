@@ -83,7 +83,9 @@ export default function AdminStudents() {
   const [selectedTableGrade, setSelectedTableGrade] = useState("");
   const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
   const [yearOptions, setYearOptions] = useState<string[]>([]);
-  const [gradeOptionsByYear, setGradeOptionsByYear] = useState<Record<string, string[]>>({});
+  const [gradeOptionsByYear, setGradeOptionsByYear] = useState<
+    Record<string, string[]>
+  >({});
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -142,7 +144,14 @@ export default function AdminStudents() {
 
   useEffect(() => {
     setPage(1);
-  }, [students.length, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
+  }, [
+    students.length,
+    search,
+    selectedGrade,
+    selectedSex,
+    selectedYear,
+    selectedTableGrade,
+  ]);
 
   const toggleYear = (year: string) => {
     const newExpanded = new Set(expandedYears);
@@ -225,12 +234,25 @@ export default function AdminStudents() {
         (!selectedTableGrade || student.Grade === selectedTableGrade) &&
         (selectedGrade === "" || student.Grade === selectedGrade) &&
         (selectedSex === "" || student.Sex === selectedSex) &&
-        ((student.Unique_ID || "").toLowerCase().includes(search.toLowerCase()) ||
-          (student.First_Name || "").toLowerCase().includes(search.toLowerCase()) ||
-          (student.Father_Name || "").toLowerCase().includes(search.toLowerCase()) ||
+        ((student.Unique_ID || "")
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
+          (student.First_Name || "")
+            .toLowerCase()
+            .includes(search.toLowerCase()) ||
+          (student.Father_Name || "")
+            .toLowerCase()
+            .includes(search.toLowerCase()) ||
           (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
     );
-  }, [students, search, selectedGrade, selectedSex, selectedYear, selectedTableGrade]);
+  }, [
+    students,
+    search,
+    selectedGrade,
+    selectedSex,
+    selectedYear,
+    selectedTableGrade,
+  ]);
 
   const paged = useMemo(() => {
     return filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -240,20 +262,20 @@ export default function AdminStudents() {
 
   return (
     <div className="min-h-screen flex flex-col gap-8 p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-extrabold text-blue-900">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-4">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-blue-900">
           Manage Students
         </h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href="/admin/sheet-import"
-            className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700"
+            className="bg-teal-600 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg hover:bg-teal-700 text-sm sm:text-base"
             aria-label="View students from Google Sheets"
           >
             View Sheet Students
           </Link>
           <Button
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+            className="bg-green-600 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm sm:text-base"
             onClick={() => exportToCSV(filtered, "students.csv")}
             disabled={filtered.length === 0}
             aria-label="Export students to CSV"
@@ -261,7 +283,7 @@ export default function AdminStudents() {
             Export CSV
           </Button>
           <Button
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="bg-blue-600 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base"
             onClick={() => openModal()}
             aria-label="Add new student"
           >
@@ -273,12 +295,12 @@ export default function AdminStudents() {
         <div className="text-gray-500">Importing students...</div>
       )}
       {importError && <div className="text-red-500">{importError}</div>}
-      <label className="flex flex-col max-w-xs">
+      <label className="flex flex-col w-full sm:max-w-xs">
         <span className="text-sm font-medium">Search Students</span>
         <Input
           type="text"
           placeholder="Search by ID, Name, or Grade"
-          className="p-2 border rounded w-full"
+          className="p-2 border rounded w-full text-sm sm:text-base"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -288,7 +310,11 @@ export default function AdminStudents() {
         />
       </label>
       {loading ? (
-        <div className="text-gray-500">Loading students...</div>
+        <div className="flex flex-col gap-4">
+          <div className="animate-pulse bg-gray-200 h-8 rounded w-full"></div>
+          <div className="animate-pulse bg-gray-200 h-8 rounded w-3/4"></div>
+          <div className="animate-pulse bg-gray-200 h-8 rounded w-1/2"></div>
+        </div>
       ) : error ? (
         <div className="text-red-500">{error}</div>
       ) : (
@@ -296,104 +322,223 @@ export default function AdminStudents() {
           {yearOptions.map((year) => (
             <div key={year} className="border rounded-lg">
               <button
-                className="w-full p-3 text-left font-semibold bg-gray-100 hover:bg-gray-200"
+                className="w-full p-2 sm:p-3 text-left font-semibold bg-gray-100 hover:bg-gray-200 text-sm sm:text-base"
                 onClick={() => toggleYear(year)}
                 aria-label={`Toggle ${year} students`}
+                aria-expanded={expandedYears.has(year)}
               >
                 {year} {expandedYears.has(year) ? "▼" : "▶"}
               </button>
               {expandedYears.has(year) && (
-                <div className="p-3">
+                <div className="p-2 sm:p-3">
                   {gradeOptionsByYear[year]?.map((grade) => (
-                    <div key={grade} className="mb-4">
+                    <div key={grade} className="mb-2 sm:mb-4">
                       <button
-                        className={`w-full p-2 text-left font-medium ${
+                        className={`w-full p-1 sm:p-2 text-left font-medium ${
                           selectedYear === year && selectedTableGrade === grade
                             ? "bg-blue-100"
                             : "hover:bg-gray-50"
-                        }`}
+                        } text-sm sm:text-base`}
                         onClick={() => handleGradeSelect(year, grade)}
                         aria-label={`Select ${year} - Grade ${grade}`}
                       >
                         {grade}
                       </button>
-                      {selectedYear === year && selectedTableGrade === grade && (
-                        <div className="mt-2">
-                          <div className="overflow-x-auto max-h-[400px]">
-                            <table className="min-w-full border-collapse border">
-                              <thead className="bg-gray-100">
-                                <tr>
-                                  <th className="border p-3 text-left">Unique ID</th>
-                                  <th className="border p-3 text-left">Name</th>
-                                  <th className="border p-3 text-left">Grade</th>
-                                  <th className="border p-3 text-left">Sex</th>
-                                  <th className="border p-3 text-left">Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
+                      {selectedYear === year &&
+                        selectedTableGrade === grade && (
+                          <div className="mt-2">
+                            <div className="overflow-x-auto max-h-[400px]">
+                              <table
+                                className="min-w-full border-collapse border hidden sm:table"
+                                role="grid"
+                              >
+                                <thead className="bg-gray-100">
+                                  <tr>
+                                    <th
+                                      className="border p-3 text-left"
+                                      scope="col"
+                                    >
+                                      Unique ID
+                                    </th>
+                                    <th
+                                      className="border p-3 text-left"
+                                      scope="col"
+                                    >
+                                      Name
+                                    </th>
+                                    <th
+                                      className="border p-3 text-left"
+                                      scope="col"
+                                    >
+                                      Grade
+                                    </th>
+                                    <th
+                                      className="border p-3 text-left"
+                                      scope="col"
+                                    >
+                                      Sex
+                                    </th>
+                                    <th
+                                      className="border p-3 text-left"
+                                      scope="col"
+                                    >
+                                      Actions
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {paged
+                                    .filter(
+                                      (student) =>
+                                        student.Academic_Year === year &&
+                                        student.Grade === grade
+                                    )
+                                    .map((student) => (
+                                      <tr
+                                        key={student._id?.toString()}
+                                        className="hover:bg-gray-50"
+                                      >
+                                        <td className="border p-3">
+                                          {student.Unique_ID}
+                                        </td>
+                                        <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
+                                        <td className="border p-3">
+                                          {student.Grade}
+                                        </td>
+                                        <td className="border p-3">
+                                          {student.Sex}
+                                        </td>
+                                        <td className="border p-3 flex gap-2">
+                                          <Link
+                                            href={`/admin/students/${student._id?.toString()}`}
+                                            className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-sm sm:text-base"
+                                            aria-label={`View details for ${student.First_Name}`}
+                                          >
+                                            Details
+                                          </Link>
+                                          <Button
+                                            className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 text-sm sm:text-base"
+                                            onClick={() => openModal(student)}
+                                            aria-label={`Edit ${student.First_Name}`}
+                                          >
+                                            Edit
+                                          </Button>
+                                          <Button
+                                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm sm:text-base"
+                                            onClick={() =>
+                                              handleDeleteStudent(
+                                                student._id!.toString()
+                                              )
+                                            }
+                                            disabled={importLoading}
+                                            aria-label={`Delete ${student.First_Name}`}
+                                          >
+                                            Delete
+                                          </Button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                </tbody>
+                              </table>
+                              <div className="sm:hidden flex flex-col gap-4">
                                 {paged
                                   .filter(
                                     (student) =>
-                                      student.Academic_Year === year && student.Grade === grade
+                                      student.Academic_Year === year &&
+                                      student.Grade === grade
                                   )
                                   .map((student) => (
-                                    <tr key={student._id?.toString()} className="hover:bg-gray-50">
-                                      <td className="border p-3">{student.Unique_ID}</td>
-                                      <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
-                                      <td className="border p-3">{student.Grade}</td>
-                                      <td className="border p-3">{student.Sex}</td>
-                                      <td className="border p-3 flex gap-2">
-                                        <Link
-                                          href={`/admin/students/${student._id?.toString()}`}
-                                          className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700"
-                                          aria-label={`View details for ${student.First_Name}`}
-                                        >
-                                          Details
-                                        </Link>
-                                        <Button
-                                          className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                                          onClick={() => openModal(student)}
-                                          aria-label={`Edit ${student.First_Name}`}
-                                        >
-                                          Edit
-                                        </Button>
-                                        <Button
-                                          className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                                          onClick={() => handleDeleteStudent(student._id!.toString())}
-                                          disabled={importLoading}
-                                          aria-label={`Delete ${student.First_Name}`}
-                                        >
-                                          Delete
-                                        </Button>
-                                      </td>
-                                    </tr>
+                                    <div
+                                      key={student._id?.toString()}
+                                      className="border rounded-lg p-4 bg-white shadow-sm"
+                                    >
+                                      <div className="flex flex-col gap-2">
+                                        <div>
+                                          <span className="font-semibold">
+                                            ID:
+                                          </span>{" "}
+                                          {student.Unique_ID}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Name:
+                                          </span>{" "}
+                                          {`${student.First_Name} ${student.Father_Name}`}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Grade:
+                                          </span>{" "}
+                                          {student.Grade}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Sex:
+                                          </span>{" "}
+                                          {student.Sex}
+                                        </div>
+                                        <div className="flex gap-2 mt-2">
+                                          <Link
+                                            href={`/admin/students/${student._id?.toString()}`}
+                                            className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-sm"
+                                            aria-label={`View details for ${student.First_Name}`}
+                                          >
+                                            Details
+                                          </Link>
+                                          <Button
+                                            className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 text-sm"
+                                            onClick={() => openModal(student)}
+                                            aria-label={`Edit ${student.First_Name}`}
+                                          >
+                                            Edit
+                                          </Button>
+                                          <Button
+                                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm"
+                                            onClick={() =>
+                                              handleDeleteStudent(
+                                                student._id!.toString()
+                                              )
+                                            }
+                                            disabled={importLoading}
+                                            aria-label={`Delete ${student.First_Name}`}
+                                          >
+                                            Delete
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
                                   ))}
-                              </tbody>
-                            </table>
-                            <div className="flex gap-2 mt-4 justify-center">
-                              <Button
-                                className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
-                                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                disabled={page === 1}
-                                aria-label="Previous page"
-                              >
-                                Prev
-                              </Button>
-                              <span className="px-2">
-                                Page {page} of {pages}
-                              </span>
-                              <Button
-                                className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
-                                onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                                disabled={page === pages}
-                                aria-label="Next page"
-                              >
-                                Next
-                              </Button>
+                              </div>
                             </div>
+                            {filtered.length > PAGE_SIZE && (
+                              <div className="flex gap-2 mt-4 justify-center items-center">
+                                <Button
+                                  className="px-2 py-1 sm:px-3 sm:py-1 rounded border bg-gray-100 disabled:opacity-50 text-sm sm:text-base"
+                                  onClick={() =>
+                                    setPage((p) => Math.max(1, p - 1))
+                                  }
+                                  disabled={page === 1}
+                                  aria-label="Previous page"
+                                >
+                                  Prev
+                                </Button>
+                                <span className="px-2 text-sm sm:text-base">
+                                  Page {page} of {pages}
+                                </span>
+                                <Button
+                                  className="px-2 py-1 sm:px-3 sm:py-1 rounded border bg-gray-100 disabled:opacity-50 text-sm sm:text-base"
+                                  onClick={() =>
+                                    setPage((p) => Math.min(pages, p + 1))
+                                  }
+                                  disabled={page === pages}
+                                  aria-label="Next page"
+                                >
+                                  Next
+                                </Button>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
                   ))}
                 </div>
@@ -401,7 +546,15 @@ export default function AdminStudents() {
             </div>
           ))}
           {yearOptions.length === 0 && (
-            <div className="text-gray-500">No students available.</div>
+            <div className="text-gray-500">
+              No students available.{" "}
+              <button
+                className="text-blue-600 hover:underline"
+                onClick={() => openModal()}
+              >
+                Add a student to get started.
+              </button>
+            </div>
           )}
         </div>
       )}

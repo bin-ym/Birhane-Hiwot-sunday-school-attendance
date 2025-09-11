@@ -1,1 +1,39 @@
 @import "tailwindcss";
+
+.container-responsive {
+  padding-left: 1rem; /* px-4 */
+  padding-right: 1rem;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .container-responsive {
+    max-width: 24rem; /* sm:max-w-sm */
+  }
+}
+
+@media (min-width: 768px) {
+  .container-responsive {
+    max-width: 28rem; /* md:max-w-md */
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-responsive {
+    max-width: 32rem; /* lg:max-w-lg */
+  }
+}
+
+@media (min-width: 1280px) {
+  .container-responsive {
+    max-width: 36rem; /* xl:max-w-xl */
+  }
+}
+
+@media (min-width: 1536px) {
+  .container-responsive {
+    max-width: 80rem; /* 2xl:max-w-7xl */
+  }
+}
