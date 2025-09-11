@@ -1,4 +1,3 @@
-// src/components/RoleSidebar.tsx
 'use client';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
@@ -31,8 +30,9 @@ export default function RoleSidebar({
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-blue-900 text-white shadow-lg
-                    flex flex-col p-6 transform transition-transform md:relative md:translate-x-0
+        className={`fixed inset-y-0 left-0 z-50 w-70 bg-blue-900 text-white shadow-lg
+                    flex flex-col p-6 transform transition-transform overflow-y-auto min-h-screen
+                    md:relative md:translate-x-0
                     ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <h2 className="text-2xl font-bold mb-8">{roleTitle}</h2>

@@ -1,5 +1,3 @@
-// src/app/layout.tsx
-
 import './globals.css';
 import NavBar from '@/components/NavBar';
 import { SidebarProvider } from '@/components/SidebarProvider';
@@ -22,7 +20,8 @@ export default function RootLayout({
           <SidebarProvider>
             <div className="flex flex-col min-h-screen">
               <NavBar />
-              <main className="container-responsive flex-1">
+              <main className="container-responsive flex-1 px-0 mx-auto max-w-full
+                sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-7xl mt-4">
                 {children}
               </main>
             </div>
