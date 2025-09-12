@@ -1,4 +1,3 @@
-// src/app/admin/students/[id]/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -56,82 +55,103 @@ export default function StudentDetails() {
     }
   }, [id]);
 
-  if (loading) return <div>Loading student...</div>;
+  if (loading) {
+    return (
+      <main className="container-responsive py-6">
+        <div className="card-responsive">
+          <div className="animate-pulse bg-muted h-8 rounded w-full mb-4"></div>
+          <div className="animate-pulse bg-muted h-8 rounded w-3/4"></div>
+        </div>
+      </main>
+    );
+  }
+
   if (error)
-    return <div className="text-red-500 p-8">Error: {error}</div>;
+    return (
+      <main className="container-responsive py-6">
+        <div className="card-responsive">
+          <div className="text-destructive text-responsive p-8">{error}</div>
+        </div>
+      </main>
+    );
   if (!student) {
     return (
-      <section className="bg-white shadow-lg rounded-lg p-6 mx-auto my-6 max-w-4xl">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">
-          Student Not Found
-        </h1>
-        <p className="text-gray-600 mb-4">No student found with ID: {id}</p>
-        <Link
-          href="/admin/students"
-          className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700"
-        >
-          Back to Students
-        </Link>
-      </section>
+      <main className="container-responsive py-6">
+        <div className="card-responsive">
+          <h1 className="heading-responsive font-serif text-primary mb-6">
+            Student Not Found
+          </h1>
+          <p className="text-muted-foreground text-responsive mb-4">No student found with ID: {id}</p>
+          <Link
+            href="/admin/students"
+            className="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg hover:bg-secondary/80 text-responsive"
+          >
+            Back to Students
+          </Link>
+        </div>
+      </main>
     );
   }
 
   return (
-    <section className="bg-white shadow-lg rounded-lg p-6 mx-auto my-6 max-w-4xl">
-      <div className="flex items-center mb-4">
-        <Link
-          href="/admin/students"
-          className="flex items-center bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-shadow duration-200 shadow-md hover:shadow-lg"
-        >
-          Back to Students
-        </Link>
-      </div>
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">
-        {student.First_Name} {student.Father_Name} {student.Grandfather_Name}
-      </h1>
+    <main className="container-responsive py-6">
+      <div className="card-responsive">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="heading-responsive font-serif text-primary">
+            {student.First_Name} {student.Father_Name} {student.Grandfather_Name}
+          </h1>
+          <Link
+            href="/admin/students"
+            className="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg hover:bg-secondary/80 text-responsive"
+            aria-label="Back to students list"
+          >
+            Back to Students
+          </Link>
+        </div>
 
-      {/* Sub Navigation */}
-      <div className="mb-4">
-        <nav className="flex space-x-4 border-b">
-          {[
-            { key: "details", label: "Details" },
-            { key: "attendance", label: "Attendance" },
-            { key: "payment", label: "Payment Status" },
-            { key: "results", label: "Results" },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() =>
-                setActiveTab(tab.key as "details" | "attendance" | "payment" | "results")
-              }
-              className={`py-2 px-4 font-medium ${
-                activeTab === tab.key
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-gray-600 hover:text-blue-600"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+        {/* Sub Navigation */}
+        <div className="mb-6">
+          <nav className="flex flex-wrap gap-2 border-b border-border pb-2">
+            {[
+              { key: "details", label: "Details" },
+              { key: "attendance", label: "Attendance" },
+              { key: "payment", label: "Payment Status" },
+              { key: "results", label: "Results" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() =>
+                  setActiveTab(tab.key as "details" | "attendance" | "payment" | "results")
+                }
+                className={`px-4 py-2 rounded-lg font-medium text-responsive ${
+                  activeTab === tab.key
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-      {/* Tab Content */}
-      {activeTab === "details" && <DetailsTab student={student} />}
-      {activeTab === "attendance" && (
-        <AttendanceTab 
-          student={student} 
-          attendanceRecords={attendanceRecords} 
-          currentDate={new Date()}
-        />
-      )}
-      {activeTab === "payment" && (
-        <PaymentStatusTab
-          academicYear={student.Academic_Year}
-          studentId={id}
-        />
-      )}
-      {activeTab === "results" && <ResultsTab studentId={id} />}
-    </section>
+        {/* Tab Content */}
+        {activeTab === "details" && <DetailsTab student={student} />}
+        {activeTab === "attendance" && (
+          <AttendanceTab 
+            student={student} 
+            attendanceRecords={attendanceRecords} 
+            currentDate={new Date()}
+          />
+        )}
+        {activeTab === "payment" && (
+          <PaymentStatusTab
+            academicYear={student.Academic_Year}
+            studentId={id}
+          />
+        )}
+        {activeTab === "results" && <ResultsTab studentId={id} />}
+      </div>
+    </main>
   );
-} 
+}
