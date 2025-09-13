@@ -9,32 +9,34 @@ import { useStudentForm } from "@/lib/hooks/useStudentForm";
 
 interface StudentFormProps {
   student: Student | null;
+  onSave: (data: Omit<Student, "_id">) => Promise<void>;
   onCancel: () => void;
-  onSave: (studentData: Omit<Student, "_id">) => Promise<void>;
   title?: string;
 }
 
-export function StudentForm({ student, onCancel, onSave, title }: StudentFormProps) {
+export function StudentForm({ student, onSave, onCancel, title }: StudentFormProps) {
   const {
     formData,
-    error,
-    loading,
-    isLoadingUniqueID,
-    errors,
-    academicYears,
     handleChange,
     handleSubmit,
+    errors,
+    loading,
+    isLoadingUniqueID,
+    error,
+    academicYears,
   } = useStudentForm(student, onSave);
 
   return (
-    <div className="card-responsive">
-      {/* Header */}
-      {title && <h1 className="heading-responsive font-serif text-primary mb-6">{title}</h1>}
+    <div className="max-w-5xl mx-auto bg-white shadow-md rounded-lg p-6 md:p-8">
+      {title && (
+        <h1 className="text-2xl md:text-3xl font-bold text-blue-900 mb-6">
+          {title}
+        </h1>
+      )}
 
-      {/* Form */}
       <form
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6"
+        className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4"
       >
         <PersonalInfoSection formData={formData} errors={errors} handleChange={handleChange} />
         <AcademicInfoSection
@@ -47,31 +49,20 @@ export function StudentForm({ student, onCancel, onSave, title }: StudentFormPro
         />
 
         {isLoadingUniqueID && (
-          <p className="lg:col-span-2 text-muted-foreground text-responsive mt-1">
-            Generating ID...
-          </p>
+          <p className="md:col-span-2 text-gray-500">Generating ID...</p>
         )}
-        {error && (
-          <div className="lg:col-span-2 text-destructive text-responsive">{error}</div>
-        )}
+        {error && <p className="md:col-span-2 text-red-500">{error}</p>}
 
-        {/* Buttons */}
-        <div className="lg:col-span-2 flex flex-col sm:flex-row justify-end gap-4 mt-4">
+        <div className="md:col-span-2 flex justify-end gap-4 mt-4">
           <Button
             type="button"
             variant="secondary"
             onClick={onCancel}
-            disabled={loading || isLoadingUniqueID}
-            className="w-full sm:w-auto"
+            disabled={loading}
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={loading || isLoadingUniqueID}
-            className="w-full sm:w-auto"
-          >
+          <Button type="submit" variant="primary" disabled={loading}>
             {loading ? "Saving..." : student ? "Update Student" : "Add Student"}
           </Button>
         </div>

@@ -18,10 +18,8 @@ export default function AdminLayout({
     <RoleLayoutShell roleTitle="Admin" links={adminLinks}>
       <div className="flex md:flex-row w-full h-screen relative">
         {" "}
-        {/* Added relative positioning */}
         <main className="flex-1 p-6 overflow-y-auto">
           {" "}
-          {/* Content area */}
           {children}
         </main>
       </div>
