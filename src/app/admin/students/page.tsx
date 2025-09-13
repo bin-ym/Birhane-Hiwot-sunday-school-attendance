@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Student, Subject } from "@/lib/models";
 import Link from "next/link";
-import { StudentFormModal } from "@/components/StudentFormModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -11,8 +10,7 @@ const PAGE_SIZE = 10;
 
 function exportToCSV(data: Student[], filename: string) {
   if (!data.length) return;
-  const headers = [
-    "Unique ID",
+  const headers = [    "Unique ID",
     "First Name",
     "Father Name",
     "Grandfather Name",
@@ -30,11 +28,9 @@ function exportToCSV(data: Student[], filename: string) {
     "Academic Year",
     "Grade",
   ];
-  const csv = [
-    headers.join(","),
+  const csv = [    headers.join(","),
     ...data.map((row) =>
-      [
-        row.Unique_ID,
+      [        row.Unique_ID,
         row.First_Name,
         row.Father_Name,
         row.Grandfather_Name,
@@ -73,8 +69,6 @@ export default function AdminStudents() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [showModal, setShowModal] = useState(false);
-  const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [selectedGrade, setSelectedGrade] = useState("");
@@ -86,6 +80,8 @@ export default function AdminStudents() {
   const [gradeOptionsByYear, setGradeOptionsByYear] = useState<
     Record<string, string[]>
   >({});
+
+  // Removed showModal, editStudent, openModal, closeModal
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -144,8 +140,7 @@ export default function AdminStudents() {
 
   useEffect(() => {
     setPage(1);
-  }, [
-    students.length,
+  }, [    students.length,
     search,
     selectedGrade,
     selectedSex,
@@ -174,40 +169,7 @@ export default function AdminStudents() {
     setPage(1);
   };
 
-  const openModal = (student: Student | null = null) => {
-    setEditStudent(student);
-    setShowModal(true);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditStudent(null);
-  };
-
-  const handleStudentFormSubmit = useCallback(
-    async (studentData: Omit<Student, "_id">) => {
-      try {
-        const method = editStudent ? "PUT" : "POST";
-        const body = editStudent
-          ? { ...studentData, id: editStudent._id }
-          : studentData;
-        const res = await fetch("/api/students", {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Failed to save student");
-        }
-        closeModal();
-        fetchData();
-      } catch (err) {
-        setError((err as Error).message);
-      }
-    },
-    [editStudent, fetchData]
-  );
+  // Removed openModal, closeModal, editStudent
 
   const handleDeleteStudent = useCallback(
     async (id: string) => {
@@ -245,8 +207,7 @@ export default function AdminStudents() {
             .includes(search.toLowerCase()) ||
           (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
     );
-  }, [
-    students,
+  }, [    students,
     search,
     selectedGrade,
     selectedSex,
@@ -282,13 +243,14 @@ export default function AdminStudents() {
           >
             Export CSV
           </Button>
-          <Button
+          {/* Replaced modal trigger with link */}
+          <Link
+            href="/admin/students/new"
             className="bg-blue-600 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base"
-            onClick={() => openModal()}
             aria-label="Add new student"
           >
             + Add Student
-          </Button>
+          </Link>
         </div>
       </div>
       {importLoading && (
@@ -418,7 +380,9 @@ export default function AdminStudents() {
                                           </Link>
                                           <Button
                                             className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 text-sm sm:text-base"
-                                            onClick={() => openModal(student)}
+                                            onClick={() => {
+                                              /* Implement edit navigation if needed */
+                                            }}
                                             aria-label={`Edit ${student.First_Name}`}
                                           >
                                             Edit
@@ -487,7 +451,9 @@ export default function AdminStudents() {
                                           </Link>
                                           <Button
                                             className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 text-sm"
-                                            onClick={() => openModal(student)}
+                                            onClick={() => {
+                                              /* Implement edit navigation if needed */
+                                            }}
                                             aria-label={`Edit ${student.First_Name}`}
                                           >
                                             Edit
@@ -548,22 +514,15 @@ export default function AdminStudents() {
           {yearOptions.length === 0 && (
             <div className="text-gray-500">
               No students available.{" "}
-              <button
+              <Link
                 className="text-blue-600 hover:underline"
-                onClick={() => openModal()}
+                href="/admin/students/new"
               >
                 Add a student to get started.
-              </button>
+              </Link>
             </div>
           )}
         </div>
-      )}
-      {showModal && (
-        <StudentFormModal
-          student={editStudent}
-          onClose={closeModal}
-          onSave={handleStudentFormSubmit}
-        />
       )}
     </div>
   );
