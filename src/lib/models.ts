@@ -55,6 +55,13 @@ export interface User {
   password: string;
   name?: string;
   role: UserRole;
+  grade?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Facilitator extends User {
+  grade: string;
 }
 
 export interface Subject {

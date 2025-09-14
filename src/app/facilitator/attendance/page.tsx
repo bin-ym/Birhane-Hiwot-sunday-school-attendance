@@ -69,7 +69,7 @@ export default function AttendanceFacilitatorDashboard() {
         {showAddModal && (
           <StudentForm
             student={null}
-            onClose={() => setShowAddModal(false)}
+            onCancel={() => setShowAddModal(false)}
             onSave={handleAddStudent}
           />
         )}

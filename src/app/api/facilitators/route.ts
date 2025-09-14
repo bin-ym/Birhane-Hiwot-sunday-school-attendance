@@ -1,3 +1,5 @@
+// src/app/api/facilitators/route.ts
+
 import { getDb } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const db = await getDb();
-    const { name, email, password, role } = await req.json();
+    const { name, email, password, role, grade } = await req.json();
     // Validate required fields
     if (!email || !password || !role) {
       return NextResponse.json({ error: 'Missing required fields: email, password, and role are required' }, { status: 400 });
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const db = await getDb();
-    const { id, name, email, password, role } = await req.json();
+    const { id, name, email, password, role, grade } = await req.json();
     // Validate required fields
     if (!id || !email || !role) {
       return NextResponse.json({ error: 'Missing required fields: id, email, and role are required' }, { status: 400 });
@@ -79,9 +81,18 @@ export async function PUT(req: NextRequest) {
     if (!ObjectId.isValid(id)) {
       return NextResponse.json({ error: 'Invalid facilitator ID' }, { status: 400 });
     }
-    const update: { name?: string; email: string; role: string; password?: string } = { name, email, role };
+    const update: { name?: string; email: string; role: string; password?: string; grade?: string } = { name, email, role };
     if (password) {
       update.password = await bcrypt.hash(password, 10);
+    }
+
+    if (role === 'Attendance Facilitator') {
+      if (!grade) {
+        return NextResponse.json({ error: 'Grade is required for Attendance Facilitators' }, { status: 400 });
+      }
+      update.grade = grade;
+    }else {
+      update.grade = undefined; // Clear grade if not Attendance Facilitator
     }
     const result = await db.collection('users').updateOne(
       { _id: new ObjectId(id) },

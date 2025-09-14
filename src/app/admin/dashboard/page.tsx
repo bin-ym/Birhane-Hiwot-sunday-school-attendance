@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Student, User, Attendance } from "@/lib/models";
+import { Student, User, Attendance, UserRole } from "@/lib/models";
 
 const PAGE_SIZE = 10;
 
@@ -11,8 +11,9 @@ interface DashboardData {
 }
 
 function exportToCSV(data: Record<string, unknown>[], filename: string) {
+  if (!data.length) return;
   const csv = [
-    Object.keys(data[0] || {}).join(","),
+    Object.keys(data[0]).join(","),
     ...data.map((row) =>
       Object.values(row)
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
@@ -26,6 +27,35 @@ function exportToCSV(data: Record<string, unknown>[], filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// Define roles in component (or fetch from API — you already do)
+const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
+  { value: "Attendance Facilitator", label: "Attendance Facilitator" },
+  { value: "Education Facilitator", label: "Education Facilitator" },
+];
+
+const GRADE_OPTIONS = [
+  "Grade 1",
+  "Grade 2",
+  "Grade 3",
+  "Grade 4",
+  "Grade 5",
+  "Grade 6",
+  "Grade 7",
+  "Grade 8",
+  "Grade 9",
+  "Grade 10",
+  "Grade 11",
+  "Grade 12",
+];
+
+interface FacForm {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  grade?: string;
 }
 
 export default function AdminDashboard() {
@@ -43,11 +73,12 @@ export default function AdminDashboard() {
   // Modal state
   const [showFacModal, setShowFacModal] = useState(false);
   const [editFac, setEditFac] = useState<User | null>(null);
-  const [facForm, setFacForm] = useState({
+  const [facForm, setFacForm] = useState<FacForm>({
     name: "",
     email: "",
     password: "",
-    role: "facilitator1",
+    role: "Attendance Facilitator", // ✅ Fixed: was "facilitator1"
+    grade: "Grade 1",
   });
   const [facFormError, setFacFormError] = useState<string | null>(null);
   const [facFormLoading, setFacFormLoading] = useState(false);
@@ -57,7 +88,8 @@ export default function AdminDashboard() {
     fetchData();
     fetch("/api/facilitators/roles")
       .then((res) => res.json())
-      .then(setRoles);
+      .then(setRoles)
+      .catch(() => setRoles(ROLE_OPTIONS)); // fallback
   }, []);
 
   function fetchData() {
@@ -82,23 +114,37 @@ export default function AdminDashboard() {
   // Facilitator CRUD
   function openFacModal(fac: User | null = null) {
     setEditFac(fac);
-    setFacForm(
-      fac
-        ? {
-            name: fac.name || "",
-            email: fac.email,
-            password: "",
-            role: fac.role,
-          }
-        : { name: "", email: "", password: "", role: "facilitator1" }
-    );
+    if (fac) {
+      setFacForm({
+        name: fac.name || "",
+        email: fac.email,
+        password: "",
+        role: fac.role,
+        grade: fac.role === "Attendance Facilitator" ? fac.grade || "Grade 1" : undefined,
+      });
+    } else {
+      setFacForm({
+        name: "",
+        email: "",
+        password: "",
+        role: "Attendance Facilitator",
+        grade: "Grade 1",
+      });
+    }
     setFacFormError(null);
     setShowFacModal(true);
   }
+
   function closeFacModal() {
     setShowFacModal(false);
     setEditFac(null);
-    setFacForm({ name: "", email: "", password: "", role: "facilitator1" });
+    setFacForm({
+      name: "",
+      email: "",
+      password: "",
+      role: "Attendance Facilitator",
+      grade: "Grade 1",
+    });
     setFacFormError(null);
   }
 
@@ -106,33 +152,60 @@ export default function AdminDashboard() {
     e.preventDefault();
     setFacFormLoading(true);
     setFacFormError(null);
+
+    // Validate grade for Attendance Facilitators
+    if (facForm.role === "Attendance Facilitator" && !facForm.grade) {
+      setFacFormError("Grade is required for Attendance Facilitators");
+      setFacFormLoading(false);
+      return;
+    }
+
     const method = editFac ? "PUT" : "POST";
-    const body = editFac ? { ...facForm, id: editFac._id } : facForm;
-    const res = await fetch("/api/facilitators", {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
+    const body = {
+      ...facForm,
+      ...(editFac && { id: editFac._id }),
+    };
+
+    try {
+      const res = await fetch("/api/facilitators", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save facilitator");
+      }
+
       closeFacModal();
       fetchData();
-    } else {
-      const data = await res.json();
-      setFacFormError(data.error || "Failed to save facilitator");
+    } catch (err) {
+      setFacFormError((err as Error).message);
+    } finally {
+      setFacFormLoading(false);
     }
-    setFacFormLoading(false);
   }
 
   async function handleDeleteFac(id: string) {
     if (!confirm("Are you sure you want to delete this facilitator?")) return;
     setFacFormLoading(true);
-    const res = await fetch("/api/facilitators", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    if (res.ok) fetchData();
-    setFacFormLoading(false);
+    try {
+      const res = await fetch("/api/facilitators", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        fetchData();
+      } else {
+        throw new Error("Failed to delete");
+      }
+    } catch (err) {
+      setError("Failed to delete facilitator");
+    } finally {
+      setFacFormLoading(false);
+    }
   }
 
   // Filtered data
@@ -143,7 +216,7 @@ export default function AdminDashboard() {
       .includes(studentSearch.toLowerCase())
   );
   const filteredFacilitators = facilitators.filter((f) =>
-    [f.name, f.email, f.role]
+    [f.name, f.email, f.role, f.grade || ""]
       .join(" ")
       .toLowerCase()
       .includes(facilitatorSearch.toLowerCase())
@@ -170,7 +243,7 @@ export default function AdminDashboard() {
       : 0;
 
   return (
-    <div className="min-h-screen flex flex-col gap-8">
+    <div className="min-h-screen flex flex-col gap-8 p-4 md:p-6">
       <h1 className="text-2xl md:text-3xl font-extrabold text-blue-900 mb-4">
         Admin Dashboard
       </h1>
@@ -310,6 +383,7 @@ export default function AdminDashboard() {
                     Name: fac.name || "-",
                     Email: fac.email,
                     Role: fac.role,
+                    Grade: fac.role === "Attendance Facilitator" ? fac.grade || "—" : "—",
                   })),
                   "facilitators.csv"
                 )
@@ -339,6 +413,7 @@ export default function AdminDashboard() {
                 <th className="border p-2 md:p-3 text-left">Name</th>
                 <th className="border p-2 md:p-3 text-left">Email</th>
                 <th className="border p-2 md:p-3 text-left">Role</th>
+                <th className="border p-2 md:p-3 text-left">Grade</th> {/* ✅ Added */}
                 <th className="border p-2 md:p-3 text-left">Actions</th>
               </tr>
             </thead>
@@ -348,6 +423,11 @@ export default function AdminDashboard() {
                   <td className="border p-2 md:p-3">{fac.name || "-"}</td>
                   <td className="border p-2 md:p-3">{fac.email}</td>
                   <td className="border p-2 md:p-3 capitalize">{fac.role}</td>
+                  <td className="border p-2 md:p-3">
+                    {fac.role === "Attendance Facilitator"
+                      ? fac.grade || "— Not Assigned —"
+                      : "—"}
+                  </td>
                   <td className="border p-2 md:p-3 flex flex-wrap gap-2">
                     <button
                       className="bg-yellow-500 text-white px-2 md:px-3 py-1 rounded hover:bg-yellow-600 text-sm md:text-base"
@@ -402,6 +482,130 @@ export default function AdminDashboard() {
           [Reports and export options will go here]
         </div>
       </div>
+
+      {/* ✅ MODAL FOR ADD/EDIT FACILITATOR */}
+      {showFacModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl"
+              onClick={closeFacModal}
+            >
+              &times;
+            </button>
+            <h3 className="text-xl font-bold mb-4">
+              {editFac ? "Edit Facilitator" : "Add Facilitator"}
+            </h3>
+            <form onSubmit={handleFacFormSubmit} className="flex flex-col gap-4">
+              <label className="flex flex-col">
+                <span className="text-sm font-medium">Name</span>
+                <input
+                  type="text"
+                  placeholder="Name"
+                  className="p-2 border rounded"
+                  value={facForm.name}
+                  onChange={(e) =>
+                    setFacForm({ ...facForm, name: e.target.value })
+                  }
+                  required
+                />
+              </label>
+              <label className="flex flex-col">
+                <span className="text-sm font-medium">Email</span>
+                <input
+                  type="email"
+                  placeholder="Email"
+                  className="p-2 border rounded"
+                  value={facForm.email}
+                  onChange={(e) =>
+                    setFacForm({ ...facForm, email: e.target.value })
+                  }
+                  required
+                  disabled={!!editFac}
+                />
+              </label>
+              <label className="flex flex-col">
+                <span className="text-sm font-medium">
+                  {editFac ? "New Password (optional)" : "Password"}
+                </span>
+                <input
+                  type="password"
+                  placeholder={
+                    editFac ? "Leave blank to keep current" : "Password (min 6)"
+                  }
+                  className="p-2 border rounded"
+                  value={facForm.password}
+                  onChange={(e) =>
+                    setFacForm({ ...facForm, password: e.target.value })
+                  }
+                  minLength={editFac ? 0 : 6}
+                  required={!editFac}
+                />
+              </label>
+              <label className="flex flex-col">
+                <span className="text-sm font-medium">Role</span>
+                <select
+                  className="p-2 border rounded"
+                  value={facForm.role}
+                  onChange={(e) =>
+                    setFacForm({
+                      ...facForm,
+                      role: e.target.value as UserRole,
+                      // Clear grade if switched away from Attendance
+                      ...(e.target.value !== "Attendance Facilitator" && {
+                        grade: undefined,
+                      }),
+                    })
+                  }
+                  required
+                >
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {/* ✅ CONDITIONAL GRADE FIELD */}
+              {facForm.role === "Attendance Facilitator" && (
+                <label className="flex flex-col">
+                  <span className="text-sm font-medium">Assign Grade *</span>
+                  <select
+                    className="p-2 border rounded"
+                    value={facForm.grade || ""}
+                    onChange={(e) =>
+                      setFacForm({
+                        ...facForm,
+                        grade: e.target.value,
+                      })
+                    }
+                    required
+                  >
+                    <option value="">Select Grade</option>
+                    {GRADE_OPTIONS.map((grade) => (
+                      <option key={grade} value={grade}>
+                        {grade}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {facFormError && (
+                <div className="text-red-500 text-sm">{facFormError}</div>
+              )}
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                disabled={facFormLoading}
+              >
+                {facFormLoading ? "Saving..." : editFac ? "Update" : "Add"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
