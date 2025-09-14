@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { StudentFormModal } from "@/components/StudentFormModal";
+import { StudentForm } from "@/components/StudentForm";
 import { Button } from "@/components/ui/button";
 import { Student } from "@/lib/models";
 import { signOut } from "next-auth/react";
@@ -73,9 +73,9 @@ export default function AttendanceFacilitatorDashboard() {
         {section === "list" && <StudentList />}
         {section === "attendance" && <AttendanceSection />}
         {showAddModal && (
-          <StudentFormModal
+          <StudentForm
             student={null}
-            onClose={() => setShowAddModal(false)}
+            onCancel={() => setShowAddModal(false)}
             onSave={handleAddStudent}
           />
         )}

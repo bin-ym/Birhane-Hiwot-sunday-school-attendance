@@ -1,21 +1,14 @@
 // src/app/admin/facilitators/page.tsx
-
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
+import Link from "next/link"; // 👈 ADD THIS
 import { User } from "@/lib/models";
 
 const PAGE_SIZE = 10;
 const ROLE_VALUES = [
   { value: "Attendance Facilitator", label: "Attendance Facilitator" },
-  { value: "Education Facilitator", label: "Education Facilitator" },
+  // { value: "Education Facilitator", label: "Education Facilitator" },
 ];
-
-interface FacForm {
-  name: string;
-  email: string;
-  password: string;
-  role: string;
-}
 
 function exportToCSV(data: User[], filename: string) {
   if (!data.length) return;
@@ -45,11 +38,9 @@ export default function AdminFacilitators() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [showModal, setShowModal] = useState(false);
-  const [editFac, setEditFac] = useState<User | null>(null);
-  const [facForm, setFacForm] = useState<FacForm>({ name: "", email: "", password: "", role: "Attendance Facilitator" });
-  const [facFormError, setFacFormError] = useState<string | null>(null);
-  const [facFormLoading, setFacFormLoading] = useState(false);
+
+  // 👇 REMOVE ALL MODAL STATE HOOKS
+  // const [showModal, ...] → DELETED
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -71,59 +62,14 @@ export default function AdminFacilitators() {
   }, [fetchData]);
 
   useEffect(() => {
-    setPage(1); // Reset page when facilitators change
+    setPage(1);
   }, [facilitators.length]);
 
-  function openModal(fac: User | null = null) {
-    setEditFac(fac);
-    setFacForm(
-      fac
-        ? { name: fac.name || "", email: fac.email, password: "", role: fac.role }
-        : { name: "", email: "", password: "", role: "Attendance Facilitator" }
-    );
-    setFacFormError(null);
-    setShowModal(true);
-  }
-
-  function closeModal() {
-    setShowModal(false);
-    setEditFac(null);
-    setFacForm({ name: "", email: "", password: "", role: "Attendance Facilitator" });
-    setFacFormError(null);
-  }
-
-  const handleFacFormSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      setFacFormLoading(true);
-      setFacFormError(null);
-      try {
-        const method = editFac ? "PUT" : "POST";
-        const body = editFac ? { ...facForm, id: editFac._id } : facForm;
-        const res = await fetch("/api/facilitators", {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Failed to save facilitator");
-        }
-        closeModal();
-        fetchData();
-      } catch (err) {
-        setFacFormError((err as Error).message);
-      } finally {
-        setFacFormLoading(false);
-      }
-    },
-    [editFac, facForm, fetchData]
-  );
+  // 👇 REMOVE openModal, closeModal
 
   const handleDeleteFac = useCallback(
     async (id: string) => {
       if (!confirm("Are you sure you want to delete this facilitator?")) return;
-      setFacFormLoading(true);
       try {
         const res = await fetch("/api/facilitators", {
           method: "DELETE",
@@ -134,8 +80,6 @@ export default function AdminFacilitators() {
         fetchData();
       } catch (err) {
         setError("Failed to delete facilitator");
-      } finally {
-        setFacFormLoading(false);
       }
     },
     [fetchData]
@@ -166,13 +110,14 @@ export default function AdminFacilitators() {
           >
             Export CSV
           </button>
-          <button
+          {/* 👇 CHANGE TO LINK */}
+          <Link
+            href="/admin/facilitators/add"
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            onClick={() => openModal()}
             aria-label="Add new facilitator"
           >
             + Add Facilitator
-          </button>
+          </Link>
         </div>
       </div>
       <label className="flex flex-col max-w-xs">
@@ -201,6 +146,7 @@ export default function AdminFacilitators() {
                 <th className="border p-3 text-left">Name</th>
                 <th className="border p-3 text-left">Email</th>
                 <th className="border p-3 text-left">Role</th>
+                <th className="border p-3 text-left">Grade</th>
                 <th className="border p-3 text-left">Actions</th>
               </tr>
             </thead>
@@ -210,18 +156,19 @@ export default function AdminFacilitators() {
                   <td className="border p-3">{fac.name || "-"}</td>
                   <td className="border p-3">{fac.email}</td>
                   <td className="border p-3 capitalize">{fac.role}</td>
+                  <td className="border p-3">{fac.grade || "-"}</td>
                   <td className="border p-3 flex gap-2">
-                    <button
+                    {/* 👇 EDIT AS LINK */}
+                    <Link
+                      href={`/admin/facilitators/edit?id=${fac._id?.toString()}`}
                       className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                      onClick={() => openModal(fac)}
                       aria-label={`Edit ${fac.name || "facilitator"}`}
                     >
                       Edit
-                    </button>
+                    </Link>
                     <button
                       className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
                       onClick={() => handleDeleteFac(fac._id!.toString())}
-                      disabled={facFormLoading}
                       aria-label={`Delete ${fac.name || "facilitator"}`}
                     >
                       Delete
@@ -249,85 +196,6 @@ export default function AdminFacilitators() {
             >
               Next
             </button>
-          </div>
-        </div>
-      )}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative">
-            <button
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl"
-              onClick={closeModal}
-              aria-label="Close modal"
-            >
-              &times;
-            </button>
-            <h3 className="text-xl font-bold mb-4">{editFac ? "Edit Facilitator" : "Add Facilitator"}</h3>
-            <form onSubmit={handleFacFormSubmit} className="flex flex-col gap-4">
-              <label className="flex flex-col">
-                <span className="text-sm font-medium">Name</span>
-                <input
-                  type="text"
-                  placeholder="Name"
-                  className="p-3 border rounded-lg"
-                  value={facForm.name}
-                  onChange={(e) => setFacForm({ ...facForm, name: e.target.value })}
-                  required
-                  aria-required="true"
-                />
-              </label>
-              <label className="flex flex-col">
-                <span className="text-sm font-medium">Email</span>
-                <input
-                  type="email"
-                  placeholder="Email"
-                  className="p-3 border rounded-lg"
-                  value={facForm.email}
-                  onChange={(e) => setFacForm({ ...facForm, email: e.target.value })}
-                  required
-                  disabled={!!editFac}
-                  aria-required="true"
-                />
-              </label>
-              <label className="flex flex-col">
-                <span className="text-sm font-medium">Password</span>
-                <input
-                  type="password"
-                  placeholder={editFac ? "New Password (leave blank to keep)" : "Password"}
-                  className="p-3 border rounded-lg"
-                  value={facForm.password}
-                  onChange={(e) => setFacForm({ ...facForm, password: e.target.value })}
-                  minLength={editFac ? 0 : 6}
-                  required={!editFac}
-                  aria-required={!editFac}
-                />
-              </label>
-              <label className="flex flex-col">
-                <span className="text-sm font-medium">Role</span>
-                <select
-                  className="p-3 border rounded-lg"
-                  value={facForm.role}
-                  onChange={(e) => setFacForm({ ...facForm, role: e.target.value })}
-                  required
-                  aria-required="true"
-                >
-                  {ROLE_VALUES.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {facFormError && <div className="text-red-500 text-sm">{facFormError}</div>}
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
-                disabled={facFormLoading}
-                aria-label={editFac ? "Update facilitator" : "Add facilitator"}
-              >
-                {facFormLoading ? "Saving..." : editFac ? "Update Facilitator" : "Add Facilitator"}
-              </button>
-            </form>
           </div>
         </div>
       )}
