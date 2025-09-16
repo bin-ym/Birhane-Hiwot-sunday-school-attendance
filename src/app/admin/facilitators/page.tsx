@@ -87,7 +87,10 @@ export default function AdminFacilitators() {
 
   const filtered = useMemo(() => {
     return facilitators.filter((f) =>
-      [f.name, f.email, f.role].join(" ").toLowerCase().includes(search.toLowerCase())
+      [f.name, f.email, f.role]
+        .join(" ")
+        .toLowerCase()
+        .includes(search.toLowerCase())
     );
   }, [facilitators, search]);
 
@@ -100,7 +103,9 @@ export default function AdminFacilitators() {
   return (
     <div className="min-h-screen flex flex-col gap-8 p-4">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-extrabold text-blue-900">Manage Facilitators</h1>
+        <h1 className="text-3xl font-extrabold text-blue-900">
+          Manage Facilitators
+        </h1>
         <div className="flex gap-2">
           <button
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
@@ -156,11 +161,15 @@ export default function AdminFacilitators() {
                   <td className="border p-3">{fac.name || "-"}</td>
                   <td className="border p-3">{fac.email}</td>
                   <td className="border p-3 capitalize">{fac.role}</td>
-                  <td className="border p-3">{fac.grade || "-"}</td>
+                  <td className="border p-3">
+                    {Array.isArray(fac.grade)
+                      ? fac.grade.join(", ")
+                      : fac.grade || "-"}
+                  </td>
                   <td className="border p-3 flex gap-2">
                     {/* 👇 EDIT AS LINK */}
                     <Link
-                      href={`/admin/facilitators/edit?id=${fac._id?.toString()}`}
+                      href={`/admin/facilitators/edit/${fac._id?.toString()}`}
                       className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
                       aria-label={`Edit ${fac.name || "facilitator"}`}
                     >
@@ -187,7 +196,9 @@ export default function AdminFacilitators() {
             >
               Prev
             </button>
-            <span className="px-2">Page {page} of {pages}</span>
+            <span className="px-2">
+              Page {page} of {pages}
+            </span>
             <button
               className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
               onClick={() => setPage((p) => Math.min(pages, p + 1))}

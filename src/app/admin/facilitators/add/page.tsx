@@ -1,3 +1,5 @@
+// src/app/admin/facilitators/add/page.tsx
+
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -22,12 +24,13 @@ const GRADES = [
   "Grade 12",
 ];
 
+// 👇 UPDATED THIS INTERFACE
 interface FacForm {
   name: string;
   email: string;
   password: string;
   role: string;
-  grade?: string; // 👈 optional
+  grade?: string | string[]; // ✅ Fixed
 }
 
 export default function AddFacilitatorPage() {
@@ -38,15 +41,16 @@ export default function AddFacilitatorPage() {
     email: "",
     password: "",
     role: "Attendance Facilitator",
-    grade: "Grade 1", // default
+    grade: "Grade 1", // default can still be a single string
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     if (name === "role" && value !== "Attendance Facilitator") {
-      // Clear grade if not Attendance Facilitator
       setFacForm((prev) => ({ ...prev, [name]: value, grade: undefined }));
     } else {
       setFacForm((prev) => ({ ...prev, [name]: value }));
@@ -58,7 +62,6 @@ export default function AddFacilitatorPage() {
     setLoading(true);
     setError(null);
 
-    // Validate grade if role is Attendance Facilitator
     if (facForm.role === "Attendance Facilitator" && !facForm.grade) {
       setError("Grade is required for Attendance Facilitators");
       setLoading(false);
@@ -91,6 +94,7 @@ export default function AddFacilitatorPage() {
       <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow">
         <h2 className="text-xl font-bold mb-4">Add New Facilitator</h2>
         <form onSubmit={handleFormSubmit} className="space-y-4">
+          {/* ... other form fields are correct ... */}
           <div>
             <label className="block text-sm font-medium mb-1">Name</label>
             <input
@@ -141,25 +145,62 @@ export default function AddFacilitatorPage() {
               ))}
             </select>
           </div>
-
-          {/* 👇 CONDITIONAL GRADE FIELD */}
           {facForm.role === "Attendance Facilitator" && (
             <div>
-              <label className="block text-sm font-medium mb-1">Assign Grade *</label>
-              <select
-                name="grade"
-                className="w-full p-2 border rounded"
-                value={facForm.grade || ""}
-                onChange={handleFormChange}
-                required
-              >
-                <option value="">Select Grade</option>
+              <label className="block text-sm font-medium mb-1">
+                Assign Grades *
+              </label>
+              <div className="space-y-2 max-h-40 overflow-y-auto border p-3 rounded">
                 {GRADES.map((grade) => (
-                  <option key={grade} value={grade}>
+                  <label key={grade} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={
+                        Array.isArray(facForm.grade)
+                          ? facForm.grade.includes(grade)
+                          : facForm.grade === grade
+                      }
+                      onChange={(e) => {
+                        let newGrades: string | string[] | undefined;
+
+                        if (Array.isArray(facForm.grade)) {
+                          if (e.target.checked) {
+                            newGrades = [...facForm.grade, grade];
+                          } else {
+                            newGrades = facForm.grade.filter(
+                              (g) => g !== grade
+                            );
+                          }
+                        } else {
+                          if (e.target.checked) {
+                            if (facForm.grade === grade) {
+                              newGrades = undefined;
+                            } else if (facForm.grade) {
+                              newGrades = [facForm.grade, grade];
+                            } else {
+                              newGrades = grade;
+                            }
+                          } else {
+                            newGrades = undefined;
+                          }
+                        }
+
+                        setFacForm((prev) => ({
+                          ...prev,
+                          grade:
+                            newGrades &&
+                            (Array.isArray(newGrades) && newGrades.length === 1
+                              ? newGrades[0] // Keep single as string
+                              : newGrades.length > 0
+                              ? newGrades
+                              : undefined),
+                        }));
+                      }}
+                    />
                     {grade}
-                  </option>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
           )}
 

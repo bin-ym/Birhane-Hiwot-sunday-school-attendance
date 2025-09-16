@@ -15,20 +15,50 @@ export async function GET(req: NextRequest) {
   if (req.nextUrl.pathname.endsWith('/roles')) {
     return NextResponse.json(ROLE_VALUES, { status: 200 });
   }
+
   try {
     const db = await getDb();
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
+
+    if (id) {
+      // 👇 Return single facilitator by ID
+      if (!ObjectId.isValid(id)) {
+        return NextResponse.json({ error: 'Invalid facilitator ID' }, { status: 400 });
+      }
+
+      const facilitator = await db
+        .collection('users')
+        .findOne({ _id: new ObjectId(id) }, { projection: { password: 0 } });
+
+      if (!facilitator) {
+        return NextResponse.json({ error: 'Facilitator not found' }, { status: 404 });
+      }
+
+      return NextResponse.json(
+        {
+          ...facilitator,
+          _id: facilitator._id.toString(),
+        },
+        { status: 200 }
+      );
+    }
+
+    // 👇 Else return all facilitators
     const facilitators = await db
       .collection('users')
       .find({ role: { $in: ['Attendance Facilitator', 'Education Facilitator'] } })
-      .project({ password: 0 }) // Exclude password
+      .project({ password: 0 })
       .toArray();
-    // Transform _id to string
+
     const transformedFacilitators = facilitators.map((fac) => ({
       ...fac,
       _id: fac._id.toString(),
     }));
+
     return NextResponse.json(transformedFacilitators, { status: 200 });
   } catch (error) {
+    console.error("Facilitator GET error:", error);
     return NextResponse.json({ error: 'Failed to fetch facilitators' }, { status: 500 });
   }
 }
@@ -37,30 +67,61 @@ export async function POST(req: NextRequest) {
   try {
     const db = await getDb();
     const { name, email, password, role, grade } = await req.json();
-    // Validate required fields
+
     if (!email || !password || !role) {
-      return NextResponse.json({ error: 'Missing required fields: email, password, and role are required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Missing required fields: email, password, and role are required' },
+        { status: 400 }
+      );
     }
-    // Validate role
+
     if (!ROLE_VALUES.some((r) => r.value === role)) {
-      return NextResponse.json({ error: `Invalid role. Must be one of: ${ROLE_VALUES.map((r) => r.value).join(', ')}` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Invalid role. Must be one of: ${ROLE_VALUES.map((r) => r.value).join(', ')}` },
+        { status: 400 }
+      );
     }
+
     const existing = await db.collection('users').findOne({ email });
     if (existing) {
       return NextResponse.json({ error: 'Email already exists' }, { status: 409 });
     }
+
     const hashed = await bcrypt.hash(password, 10);
-    const result = await db.collection('users').insertOne({ name, email, password: hashed, role });
+
+    // 👇 Construct full user object with grade
+    const newUser: any = {
+      name,
+      email,
+      password: hashed,
+      role,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (role === 'Attendance Facilitator') {
+      if (!grade) {
+        return NextResponse.json(
+          { error: 'Grade is required for Attendance Facilitators' },
+          { status: 400 }
+        );
+      }
+      newUser.grade = grade; // Can be string or string[]
+    }
+
+    const result = await db.collection('users').insertOne(newUser);
+
     return NextResponse.json(
       {
         _id: result.insertedId.toString(),
         name,
         email,
         role,
+        grade, // 👈 Include in response
       },
       { status: 201 }
     );
   } catch (error) {
+    console.error("Facilitator POST error:", error);
     return NextResponse.json({ error: 'Failed to create facilitator' }, { status: 500 });
   }
 }

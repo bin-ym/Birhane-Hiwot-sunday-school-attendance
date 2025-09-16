@@ -1,18 +1,13 @@
+//src/app/facilitator/attendance/StudentList.tsx
+
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-
-interface Student {
-  _id: string;
-  Unique_ID: string;
-  First_Name: string;
-  Father_Name: string;
-  Grade: string;
-  Academic_Year: string;
-  Sex: string;
-}
+import { useSession } from "next-auth/react";
+import { Student } from "@/lib/models";
 
 export default function StudentList() {
+  const { data: session } = useSession();
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
@@ -23,14 +18,31 @@ export default function StudentList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const facilitatorGrades = session?.user?.grade;
+
   useEffect(() => {
-    fetchStudents();
-  }, []);
+    // Only fetch if grades are assigned
+    if (facilitatorGrades && facilitatorGrades.length > 0) {
+      fetchStudents();
+    } else if (session) {
+      // if session exists but no grades
+      setLoading(false);
+      setError("No grades assigned to your account.");
+    }
+  }, [facilitatorGrades]); // 👈 ADD facilitatorGrades as a dependency
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/students");
+      // ✅ FIX: Build the URL with the assigned grades
+      const params = new URLSearchParams();
+      if (Array.isArray(facilitatorGrades)) {
+        facilitatorGrades.forEach((grade) => params.append("grade", grade));
+      } else if (facilitatorGrades) {
+        params.append("grade", facilitatorGrades);
+      }
+
+      const response = await fetch(`/api/students?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch students");
       const data = await response.json();
       setStudents(data);
@@ -96,7 +108,9 @@ export default function StudentList() {
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Search
+            </label>
             <input
               type="text"
               placeholder="Search by ID, Name, or Grade"
@@ -106,7 +120,9 @@ export default function StudentList() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Grade</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Filter by Grade
+            </label>
             <select
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
@@ -121,7 +137,9 @@ export default function StudentList() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Sex</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Filter by Sex
+            </label>
             <select
               value={selectedSex}
               onChange={(e) => setSelectedSex(e.target.value)}
@@ -140,7 +158,9 @@ export default function StudentList() {
 
       {/* Students by Academic Year */}
       <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">Students by Academic Year</h3>
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">
+          Students by Academic Year
+        </h3>
         {yearOptions.length === 0 ? (
           <p className="text-gray-600">No students found.</p>
         ) : (
@@ -165,7 +185,8 @@ export default function StudentList() {
                           <button
                             onClick={() => handleGradeSelect(year, grade)}
                             className={`w-full text-left p-2 rounded-lg ${
-                              selectedYear === year && selectedTableGrade === grade
+                              selectedYear === year &&
+                              selectedTableGrade === grade
                                 ? "bg-blue-600 text-white"
                                 : "bg-gray-100 hover:bg-gray-200"
                             }`}
@@ -190,7 +211,9 @@ export default function StudentList() {
             Students in {selectedTableGrade} for Academic Year {selectedYear}
           </h3>
           {filteredStudents.length === 0 ? (
-            <p className="text-gray-600">No students found for {selectedTableGrade} in {selectedYear}.</p>
+            <p className="text-gray-600">
+              No students found for {selectedTableGrade} in {selectedYear}.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full border-collapse border">
@@ -205,14 +228,17 @@ export default function StudentList() {
                 </thead>
                 <tbody>
                   {filteredStudents.map((student) => (
-                    <tr key={student._id} className="hover:bg-gray-50">
+                    <tr
+                      key={student._id.toString()}
+                      className="hover:bg-gray-50"
+                    >
                       <td className="border p-3">{student.Unique_ID}</td>
                       <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
                       <td className="border p-3">{student.Grade}</td>
                       <td className="border p-3">{student.Sex}</td>
                       <td className="border p-3 text-center">
                         <Link
-                          href={`/facilitator/attendance/students/${student._id}`}
+                          href={`/facilitator/attendance/students/${student._id.toString()}`}
                           className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700"
                         >
                           Details
