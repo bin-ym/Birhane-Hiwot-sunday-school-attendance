@@ -20,7 +20,7 @@ export default function AttendanceSection() {
   const { data: session } = useSession();
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedGrade, setSelectedGrade] = useState(""); // Local filter (optional)
   const currentDate = useMemo(() => new Date(), []);
   const ethiopianDate = gregorianToEthiopian(currentDate);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -28,12 +28,33 @@ export default function AttendanceSection() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Get facilitator's assigned grade from session
+  const facilitatorGrade = session?.user?.grade as
+    | string
+    | string[]
+    | undefined;
+
   useEffect(() => {
     setIsSunday(currentDate.getDay() === 0);
+
     async function fetchStudents() {
       setLoading(true);
       try {
-        const res = await fetch("/api/students");
+        // 👇 Only fetch students of assigned grade
+        let url = "/api/students";
+        if (facilitatorGrade) {
+          const params = new URLSearchParams();
+          if (Array.isArray(facilitatorGrade)) {
+            facilitatorGrade.forEach((grade) => params.append("grade", grade));
+          } else {
+            params.append("grade", facilitatorGrade);
+          }
+          if (params.toString()) {
+            url += `?${params.toString()}`;
+          }
+        }
+
+        const res = await fetch(url);
         if (!res.ok) throw new Error("Failed to load students");
         const data = await res.json();
         setStudents(data);
@@ -45,8 +66,14 @@ export default function AttendanceSection() {
         setLoading(false);
       }
     }
-    fetchStudents();
-  }, [currentDate]);
+
+    if (facilitatorGrade && facilitatorGrade.length > 0) {
+      fetchStudents();
+    } else {
+      setStudents([]);
+      setError("No grade assigned. Please contact admin.");
+    }
+  }, [currentDate, facilitatorGrade]);
 
   const formattedDate = formatEthiopianDate(currentDate);
   const currentYear = Math.max(
@@ -59,7 +86,8 @@ export default function AttendanceSection() {
   const toggleAttendance = (studentId: string) => {
     if (!isSunday) return alert("Attendance can only be marked on Sundays");
     const record = attendance.find(
-      (r: AttendanceRecord) => r.studentId === studentId && r.date === formattedDate
+      (r: AttendanceRecord) =>
+        r.studentId === studentId && r.date === formattedDate
     );
     setAttendance(
       record
@@ -84,7 +112,8 @@ export default function AttendanceSection() {
   const togglePermission = (studentId: string) => {
     if (!isSunday) return alert("Permission can only be marked on Sundays");
     const record = attendance.find(
-      (r: AttendanceRecord) => r.studentId === studentId && r.date === formattedDate
+      (r: AttendanceRecord) =>
+        r.studentId === studentId && r.date === formattedDate
     );
     setAttendance(
       record
@@ -132,10 +161,13 @@ export default function AttendanceSection() {
     if (!isSunday) return alert("Attendance can only be submitted on Sundays");
     if (
       !attendance.some(
-        (r: AttendanceRecord) => r.date === formattedDate && (r.present || r.hasPermission)
+        (r: AttendanceRecord) =>
+          r.date === formattedDate && (r.present || r.hasPermission)
       )
     ) {
-      return alert("Please mark at least one student as Present or with Permission");
+      return alert(
+        "Please mark at least one student as Present or with Permission"
+      );
     }
 
     setLoading(true);
@@ -165,15 +197,32 @@ export default function AttendanceSection() {
         Unique_ID: student.Unique_ID,
         First_Name: student.First_Name,
         Father_Name: student.Father_Name,
-        Class: student.Class,
+        Grade: student.Grade,
         Status: attendance.find(
-          (r: AttendanceRecord) => r.studentId === student._id?.toString() && r.date === formattedDate
+          (r: AttendanceRecord) =>
+            r.studentId === student._id?.toString() && r.date === formattedDate
         )?.present
           ? "Present"
           : attendance.find(
-              (r: AttendanceRecord) => r.studentId === student._id?.toString() && r.date === formattedDate
+              (r: AttendanceRecord) =>
+                r.studentId === student._id?.toString() &&
+                r.date === formattedDate
             )?.hasPermission
-          ? `Permission${attendance.find((r) => r.studentId === student._id?.toString() && r.date === formattedDate)?.reason ? ` (${attendance.find((r) => r.studentId === student._id?.toString() && r.date === formattedDate)?.reason})` : ""}`
+          ? `Permission${
+              attendance.find(
+                (r) =>
+                  r.studentId === student._id?.toString() &&
+                  r.date === formattedDate
+              )?.reason
+                ? ` (${
+                    attendance.find(
+                      (r) =>
+                        r.studentId === student._id?.toString() &&
+                        r.date === formattedDate
+                    )?.reason
+                  })`
+                : ""
+            }`
           : "Absent",
         Date: formattedDate,
       }));
@@ -188,43 +237,77 @@ export default function AttendanceSection() {
     }
   };
 
+  // Local filter (optional — you can remove grade filter dropdown if you want)
   const filteredStudents = currentYearStudents.filter(
     (student: Student) =>
       student._id &&
       (selectedGrade === "" || student.Grade === selectedGrade) &&
-      ((student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ((student.Unique_ID || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+        (student.First_Name || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (student.Father_Name || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
         (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
     <div className="bg-white shadow-lg rounded-lg p-6">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Attendance Management</h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">
+        Attendance Management
+      </h1>
       {error && <div className="text-red-500 mb-4">{error}</div>}
+      {facilitatorGrade && (
+        <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-800">
+          Assigned to:{" "}
+          <strong>
+            {Array.isArray(facilitatorGrade)
+              ? facilitatorGrade.join(", ")
+              : facilitatorGrade}
+          </strong>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-          <p className="p-3 border border-gray-300 rounded-lg bg-gray-50">{formattedDate}</p>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Date
+          </label>
+          <p className="p-3 border border-gray-300 rounded-lg bg-gray-50">
+            {formattedDate}
+          </p>
           {!isSunday && (
-            <p className="text-red-500 text-sm mt-1">Attendance can only be marked on Sundays</p>
+            <p className="text-red-500 text-sm mt-1">
+              Attendance can only be marked on Sundays
+            </p>
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Search
+          </label>
           <input
             type="text"
-            placeholder="Search by ID, Name, or Class"
+            placeholder="Search by ID, Name, or Grade"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full p-3 border border-gray-300 rounded-lg"
           />
         </div>
       </div>
-      <form onSubmit={handleSubmit} className="mb-6 flex justify-between items-end">
+
+      <form
+        onSubmit={handleSubmit}
+        className="mb-6 flex justify-between items-end"
+      >
         <div className="w-1/2">
-          <label htmlFor="classFilter" className="block text-sm font-medium text-gray-700 mb-1">
-            Filter by Grade
+          <label
+            htmlFor="classFilter"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Filter by Grade (Optional)
           </label>
           <select
             id="classFilter"
@@ -232,12 +315,14 @@ export default function AttendanceSection() {
             onChange={(e) => setSelectedGrade(e.target.value)}
             className="w-full p-3 border rounded-lg"
           >
-            <option value="">All Grades</option>
-            {[...new Set(currentYearStudents.map((s: Student) => s.Grade))].map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
+            <option value="">All Assigned Grades</option>
+            {[...new Set(currentYearStudents.map((s: Student) => s.Grade))].map(
+              (option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              )
+            )}
           </select>
         </div>
         <button
@@ -248,6 +333,7 @@ export default function AttendanceSection() {
           {loading ? "Submitting..." : "Submit"}
         </button>
       </form>
+
       <div className="overflow-x-auto max-h-[500px]">
         <table className="min-w-full border-collapse border">
           <thead className="bg-gray-100">
@@ -263,7 +349,9 @@ export default function AttendanceSection() {
           <tbody>
             {filteredStudents.map((student: Student) => {
               const record = attendance.find(
-                (r: AttendanceRecord) => r.studentId === student._id?.toString() && r.date === formattedDate
+                (r: AttendanceRecord) =>
+                  r.studentId === student._id?.toString() &&
+                  r.date === formattedDate
               );
               return (
                 <tr key={student._id?.toString()} className="hover:bg-gray-50">
@@ -274,7 +362,9 @@ export default function AttendanceSection() {
                     <input
                       type="checkbox"
                       checked={!!record?.present}
-                      onChange={() => student._id && toggleAttendance(student._id.toString())}
+                      onChange={() =>
+                        student._id && toggleAttendance(student._id.toString())
+                      }
                       disabled={!isSunday || loading}
                     />
                   </td>
@@ -282,7 +372,9 @@ export default function AttendanceSection() {
                     <input
                       type="checkbox"
                       checked={!!record?.hasPermission}
-                      onChange={() => student._id && togglePermission(student._id.toString())}
+                      onChange={() =>
+                        student._id && togglePermission(student._id.toString())
+                      }
                       disabled={!isSunday || loading}
                     />
                   </td>
@@ -290,7 +382,10 @@ export default function AttendanceSection() {
                     <input
                       type="text"
                       value={record?.reason || ""}
-                      onChange={(e) => student._id && updateReason(student._id.toString(), e.target.value)}
+                      onChange={(e) =>
+                        student._id &&
+                        updateReason(student._id.toString(), e.target.value)
+                      }
                       className="w-full p-2 border rounded"
                       disabled={!isSunday || !record?.hasPermission || loading}
                       placeholder="Reason for permission"

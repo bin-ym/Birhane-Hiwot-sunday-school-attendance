@@ -1,16 +1,10 @@
-import NextAuth from "next-auth";
+import NextAuth, { AuthOptions } from "next-auth"; // Import AuthOptions
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { getDb } from '@/lib/mongodb';
+import { User } from "@/lib/models"; // Import the User interface from your models
 
-interface CustomUser {
-  id: string;
-  email: string;
-  role: string;
-  name?: string;
-}
-
-const handler = NextAuth({
+export const authOptions: AuthOptions = { // Use AuthOptions for better type safety
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -18,49 +12,69 @@ const handler = NextAuth({
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials): Promise<CustomUser | null> {
+      // ✅ FIX: Corrected the return type and logic
+      async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
-        try {
-          const db = await getDb();
-          const user = await db
-            .collection("users")
-            .findOne({ email: credentials.email });
-          if (!user) {
-            return null;
-          }
-          const passwordMatch = await bcrypt.compare(
-            credentials.password,
-            user.password
-          );
-          if (!passwordMatch) {
-            return null;
-          }
-          // Include role in the returned user object
-          return { id: user._id.toString(), email: user.email, role: user.role, name: user.name };
-        } catch (error) {
+        
+        const db = await getDb();
+        const userFromDb = await db.collection<User>("users").findOne({ email: credentials.email });
+
+        if (!userFromDb) {
           return null;
         }
+
+        const passwordsMatch = await bcrypt.compare(
+          credentials.password,
+          userFromDb.password
+        );
+
+        if (passwordsMatch) {
+          // Return the user object that matches the 'User' interface in next-auth.d.ts
+          return {
+            id: userFromDb._id!.toString(),
+            email: userFromDb.email,
+            name: userFromDb.name,
+            role: userFromDb.role,
+            grade: userFromDb.grade, // This will be a string or string[]
+          };
+        }
+        
+        return null;
       },
     }),
   ],
   callbacks: {
+    // ✅ FIX: Correctly transfer data from 'user' object to 'token'
     async jwt({ token, user }) {
+      // The 'user' object is available only on the first login.
       if (user) {
-        token.role = (user as CustomUser).role;
-        token.name = (user as CustomUser).name;
+        token.id = user.id;
+        token.role = user.role;
+        token.grade = user.grade;
       }
       return token;
     },
+    // ✅ FIX: Correctly transfer data from 'token' to 'session'
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.role = token.role as string;
-        session.user.name = token.name as string;
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.grade = token.grade; // grade is already correctly typed as string | string[]
       }
       return session;
     },
   },
-});
+  pages: {
+    signIn: '/login', // Specify your custom login page
+  },
+  session: {
+    strategy: 'jwt',
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };

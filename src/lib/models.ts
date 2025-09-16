@@ -3,7 +3,7 @@
 import { ObjectId } from "mongodb";
 
 export interface Student {
-  _id?: ObjectId;
+  _id: ObjectId;
   Unique_ID: string;
   First_Name: string;
   Father_Name: string;
@@ -55,13 +55,13 @@ export interface User {
   password: string;
   name?: string;
   role: UserRole;
-  grade?: string;
+  grade?: string | string[];
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface Facilitator extends User {
-  grade: string;
+  grade: string | string[];
 }
 
 export interface Subject {
