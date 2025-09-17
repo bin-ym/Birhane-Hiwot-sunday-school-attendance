@@ -16,7 +16,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role) {
-      if (session.user.role === "Admin") {
+      if (session.user.role === "admin") {
         router.replace("/admin/dashboard");
       } else if (session.user.role === "Attendance Facilitator") {
         router.replace("/facilitator/attendance");

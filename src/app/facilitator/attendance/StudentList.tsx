@@ -1,7 +1,5 @@
-//src/app/facilitator/attendance/StudentList.tsx
-
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Student } from "@/lib/models";
@@ -20,21 +18,9 @@ export default function StudentList() {
 
   const facilitatorGrades = session?.user?.grade;
 
-  useEffect(() => {
-    // Only fetch if grades are assigned
-    if (facilitatorGrades && facilitatorGrades.length > 0) {
-      fetchStudents();
-    } else if (session) {
-      // if session exists but no grades
-      setLoading(false);
-      setError("No grades assigned to your account.");
-    }
-  }, [facilitatorGrades]); // 👈 ADD facilitatorGrades as a dependency
-
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ FIX: Build the URL with the assigned grades
       const params = new URLSearchParams();
       if (Array.isArray(facilitatorGrades)) {
         facilitatorGrades.forEach((grade) => params.append("grade", grade));
@@ -52,21 +38,26 @@ export default function StudentList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [facilitatorGrades]);
+
+ useEffect(() => {
+  if (Array.isArray(facilitatorGrades) && facilitatorGrades.length > 0) {
+    fetchStudents();
+  } else if (session) {
+    setLoading(false);
+    setError("No grades assigned to your account.");
+  }
+}, [facilitatorGrades, fetchStudents, session]);
 
   const yearOptions = [...new Set(students.map((s) => s.Academic_Year))].sort();
   const gradeOptionsByYear = yearOptions.reduce((acc, year) => {
-    const grades = [
-      ...new Set(
-        students.filter((s) => s.Academic_Year === year).map((s) => s.Grade)
-      ),
-    ].sort();
+    const grades = [...new Set(students.filter((s) => s.Academic_Year === year).map((s) => s.Grade))].sort();
     acc[year] = grades;
     return acc;
   }, {} as Record<string, string[]>);
 
   const toggleYear = (year: string) => {
-    setExpandedYears((prev) =>
+    setExpandedYears((prev) => 
       prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
     );
   };
@@ -76,22 +67,15 @@ export default function StudentList() {
     setSelectedTableGrade(grade);
   };
 
-  const filteredStudents = students.filter(
-    (student) =>
-      (!selectedYear || student.Academic_Year === selectedYear) &&
-      (!selectedTableGrade || student.Grade === selectedTableGrade) &&
-      (selectedGrade === "" || student.Grade === selectedGrade) &&
-      (selectedSex === "" || student.Sex === selectedSex) &&
-      ((student.Unique_ID || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-        (student.First_Name || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        (student.Father_Name || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredStudents = students.filter((student) =>
+    (!selectedYear || student.Academic_Year === selectedYear) &&
+    (!selectedTableGrade || student.Grade === selectedTableGrade) &&
+    (selectedGrade === "" || student.Grade === selectedGrade) &&
+    (selectedSex === "" || student.Sex === selectedSex) &&
+    ((student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+     (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+     (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+     (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const gradeOptions = [...new Set(students.map((s) => s.Grade))].sort();
@@ -108,9 +92,7 @@ export default function StudentList() {
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
             <input
               type="text"
               placeholder="Search by ID, Name, or Grade"
@@ -120,9 +102,7 @@ export default function StudentList() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Grade
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Grade</label>
             <select
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
@@ -130,16 +110,12 @@ export default function StudentList() {
             >
               <option value="">All Grades</option>
               {gradeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
+                <option key={option} value={option}>{option}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Sex
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Sex</label>
             <select
               value={selectedSex}
               onChange={(e) => setSelectedSex(e.target.value)}
@@ -147,9 +123,7 @@ export default function StudentList() {
             >
               <option value="">Both</option>
               {sexOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
+                <option key={option} value={option}>{option}</option>
               ))}
             </select>
           </div>
@@ -158,9 +132,7 @@ export default function StudentList() {
 
       {/* Students by Academic Year */}
       <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">
-          Students by Academic Year
-        </h3>
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">Students by Academic Year</h3>
         {yearOptions.length === 0 ? (
           <p className="text-gray-600">No students found.</p>
         ) : (
@@ -185,8 +157,7 @@ export default function StudentList() {
                           <button
                             onClick={() => handleGradeSelect(year, grade)}
                             className={`w-full text-left p-2 rounded-lg ${
-                              selectedYear === year &&
-                              selectedTableGrade === grade
+                              selectedYear === year && selectedTableGrade === grade
                                 ? "bg-blue-600 text-white"
                                 : "bg-gray-100 hover:bg-gray-200"
                             }`}
@@ -211,9 +182,7 @@ export default function StudentList() {
             Students in {selectedTableGrade} for Academic Year {selectedYear}
           </h3>
           {filteredStudents.length === 0 ? (
-            <p className="text-gray-600">
-              No students found for {selectedTableGrade} in {selectedYear}.
-            </p>
+            <p className="text-gray-600">No students found for {selectedTableGrade} in {selectedYear}.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full border-collapse border">
@@ -228,10 +197,7 @@ export default function StudentList() {
                 </thead>
                 <tbody>
                   {filteredStudents.map((student) => (
-                    <tr
-                      key={student._id.toString()}
-                      className="hover:bg-gray-50"
-                    >
+                    <tr key={student._id.toString()} className="hover:bg-gray-50">
                       <td className="border p-3">{student.Unique_ID}</td>
                       <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
                       <td className="border p-3">{student.Grade}</td>
