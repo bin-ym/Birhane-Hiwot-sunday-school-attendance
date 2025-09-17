@@ -47,7 +47,7 @@ export interface Payment {
   description?: string;
 }
 
-export type UserRole = 'admin' | 'Attendance Facilitator' | 'Education Facilitator';
+export type UserRole = 'Admin' | 'Attendance Facilitator' | 'Education Facilitator';
 
 export interface User {
   _id?: ObjectId;
