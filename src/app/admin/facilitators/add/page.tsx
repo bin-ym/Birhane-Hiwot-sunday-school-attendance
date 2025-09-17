@@ -3,34 +3,14 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ROLE_VALUES, GRADES } from "@/lib/constants";
 
-const ROLE_VALUES = [
-  { value: "Attendance Facilitator", label: "Attendance Facilitator" },
-  { value: "Education Facilitator", label: "Education Facilitator" },
-];
-
-const GRADES = [
-  "Grade 1",
-  "Grade 2",
-  "Grade 3",
-  "Grade 4",
-  "Grade 5",
-  "Grade 6",
-  "Grade 7",
-  "Grade 8",
-  "Grade 9",
-  "Grade 10",
-  "Grade 11",
-  "Grade 12",
-];
-
-// 👇 UPDATED THIS INTERFACE
 interface FacForm {
   name: string;
   email: string;
   password: string;
   role: string;
-  grade?: string | string[]; // ✅ Fixed
+  grade?: string | string[];
 }
 
 export default function AddFacilitatorPage() {
