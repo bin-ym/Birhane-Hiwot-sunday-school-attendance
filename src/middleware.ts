@@ -10,7 +10,7 @@ export default withAuth({
 
       const role = token.role;
 
-      if (path.startsWith("/admin") && role !== "admin") return false;
+      if (path.startsWith("/admin") && role !== "Admin") return false;
 
       if (
         path.startsWith("/facilitator/attendance") &&
