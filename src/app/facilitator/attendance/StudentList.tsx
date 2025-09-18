@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { Student } from "@/lib/models";
 
 export default function StudentList() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
@@ -16,38 +16,50 @@ export default function StudentList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const facilitatorGrades = session?.user?.grade;
+  const facilitatorGrade = session?.user?.grade as string | string[] | undefined;
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const params = new URLSearchParams();
-      if (Array.isArray(facilitatorGrades)) {
-        facilitatorGrades.forEach((grade) => params.append("grade", grade));
-      } else if (facilitatorGrades) {
-        params.append("grade", facilitatorGrades);
+      let url = "/api/students";
+      if (facilitatorGrade) {
+        const params = new URLSearchParams();
+        if (Array.isArray(facilitatorGrade)) {
+          facilitatorGrade.forEach((grade) => params.append("grade", grade));
+        } else {
+          params.append("grade", facilitatorGrade);
+        }
+        if (params.toString()) {
+          url += `?${params.toString()}`;
+        }
       }
 
-      const response = await fetch(`/api/students?${params.toString()}`);
+      const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch students");
       const data = await response.json();
       setStudents(data);
       setError(null);
     } catch (err) {
-      setError("Failed to load students");
+      setError((err as Error).message || "Failed to load students");
+      setStudents([]);
     } finally {
       setLoading(false);
     }
-  }, [facilitatorGrades]);
+  }, [facilitatorGrade]);
 
- useEffect(() => {
-  if (Array.isArray(facilitatorGrades) && facilitatorGrades.length > 0) {
-    fetchStudents();
-  } else if (session) {
-    setLoading(false);
-    setError("No grades assigned to your account.");
-  }
-}, [facilitatorGrades, fetchStudents, session]);
+  useEffect(() => {
+    if (status === "loading") {
+      setLoading(true);
+      setError(null);
+    } else if (facilitatorGrade && facilitatorGrade.length > 0) {
+      fetchStudents();
+    } else if (session) {
+      setLoading(false);
+      setError("No grades assigned to your account.");
+      setStudents([]);
+    }
+  }, [facilitatorGrade, fetchStudents, status, session]);
 
   const yearOptions = [...new Set(students.map((s) => s.Academic_Year))].sort();
   const gradeOptionsByYear = yearOptions.reduce((acc, year) => {
@@ -57,7 +69,7 @@ export default function StudentList() {
   }, {} as Record<string, string[]>);
 
   const toggleYear = (year: string) => {
-    setExpandedYears((prev) => 
+    setExpandedYears((prev) =>
       prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
     );
   };
@@ -81,143 +93,157 @@ export default function StudentList() {
   const gradeOptions = [...new Set(students.map((s) => s.Grade))].sort();
   const sexOptions = [...new Set(students.map((s) => s.Sex))].sort();
 
-  if (loading) return <div className="text-gray-500">Loading students...</div>;
-  if (error) return <div className="text-red-500">{error}</div>;
-
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800">Student Attendance</h2>
+    <main className="flex-1 p-8 bg-gray-50">
+      {loading ? (
+        <div className="text-gray-500 text-responsive">Loading students...</div>
+      ) : error ? (
+        <div className="text-red-500 text-responsive">{error}</div>
+      ) : (
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold text-gray-800">Student List</h2>
+          {facilitatorGrade && (
+            <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-800 text-responsive">
+              Assigned to:{" "}
+              <strong>
+                {Array.isArray(facilitatorGrade)
+                  ? facilitatorGrade.join(", ")
+                  : facilitatorGrade}
+              </strong>
+            </div>
+          )}
+          {/* Search and Filter Controls */}
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <input
+                  type="text"
+                  placeholder="Search by ID, Name, or Grade"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Grade</label>
+                <select
+                  value={selectedGrade}
+                  onChange={(e) => setSelectedGrade(e.target.value)}
+                  className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Assigned Grades</option>
+                  {gradeOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Sex</label>
+                <select
+                  value={selectedSex}
+                  onChange={(e) => setSelectedSex(e.target.value)}
+                  className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Both</option>
+                  {sexOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
 
-      {/* Search and Filter Controls */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-            <input
-              type="text"
-              placeholder="Search by ID, Name, or Grade"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-3 border rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Grade</label>
-            <select
-              value={selectedGrade}
-              onChange={(e) => setSelectedGrade(e.target.value)}
-              className="w-full p-3 border rounded-lg"
-            >
-              <option value="">All Grades</option>
-              {gradeOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Sex</label>
-            <select
-              value={selectedSex}
-              onChange={(e) => setSelectedSex(e.target.value)}
-              className="w-full p-3 border rounded-lg"
-            >
-              <option value="">Both</option>
-              {sexOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Students by Academic Year */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">Students by Academic Year</h3>
-        {yearOptions.length === 0 ? (
-          <p className="text-gray-600">No students found.</p>
-        ) : (
-          yearOptions.map((year) => (
-            <div key={year} className="mb-4">
-              <button
-                onClick={() => toggleYear(year)}
-                className="w-full text-left bg-gray-200 p-3 rounded-lg flex justify-between items-center hover:bg-gray-300"
-                aria-expanded={expandedYears.includes(year)}
-              >
-                <span className="font-medium">Academic Year: {year}</span>
-                <span>{expandedYears.includes(year) ? "▲" : "▼"}</span>
-              </button>
-              {expandedYears.includes(year) && (
-                <div className="pl-4 pt-2">
-                  {gradeOptionsByYear[year].length === 0 ? (
-                    <p className="text-gray-600">No grades found for {year}.</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {gradeOptionsByYear[year].map((grade) => (
-                        <li key={grade}>
-                          <button
-                            onClick={() => handleGradeSelect(year, grade)}
-                            className={`w-full text-left p-2 rounded-lg ${
-                              selectedYear === year && selectedTableGrade === grade
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-100 hover:bg-gray-200"
-                            }`}
-                          >
-                            {grade}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+          {/* Students by Academic Year */}
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-xl font-semibold text-gray-700 mb-4">Students by Academic Year</h3>
+            {yearOptions.length === 0 ? (
+              <p className="text-gray-600 text-responsive">No students found.</p>
+            ) : (
+              yearOptions.map((year) => (
+                <div key={year} className="mb-4">
+                  <button
+                    onClick={() => toggleYear(year)}
+                    className="w-full text-left bg-gray-200 p-3 rounded-lg flex justify-between items-center hover:bg-gray-300 text-responsive"
+                    aria-expanded={expandedYears.includes(year)}
+                  >
+                    <span className="font-medium">Academic Year: {year}</span>
+                    <span>{expandedYears.includes(year) ? "▲" : "▼"}</span>
+                  </button>
+                  {expandedYears.includes(year) && (
+                    <div className="pl-4 pt-2">
+                      {gradeOptionsByYear[year].length === 0 ? (
+                        <p className="text-gray-600 text-responsive">No grades found for {year}.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {gradeOptionsByYear[year].map((grade) => (
+                            <li key={grade}>
+                              <button
+                                onClick={() => handleGradeSelect(year, grade)}
+                                className={`w-full text-left p-2 rounded-lg text-responsive ${
+                                  selectedYear === year && selectedTableGrade === grade
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-gray-100 hover:bg-gray-200"
+                                }`}
+                              >
+                                {grade}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
+              ))
+            )}
+          </div>
 
-      {/* Student Table */}
-      {selectedYear && selectedTableGrade && (
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-xl font-semibold text-gray-700 mb-4">
-            Students in {selectedTableGrade} for Academic Year {selectedYear}
-          </h3>
-          {filteredStudents.length === 0 ? (
-            <p className="text-gray-600">No students found for {selectedTableGrade} in {selectedYear}.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse border">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border p-3 text-left">ID Number</th>
-                    <th className="border p-3 text-left">Name</th>
-                    <th className="border p-3 text-left">Grade</th>
-                    <th className="border p-3 text-left">Sex</th>
-                    <th className="border p-3 text-left">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStudents.map((student) => (
-                    <tr key={student._id.toString()} className="hover:bg-gray-50">
-                      <td className="border p-3">{student.Unique_ID}</td>
-                      <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
-                      <td className="border p-3">{student.Grade}</td>
-                      <td className="border p-3">{student.Sex}</td>
-                      <td className="border p-3 text-center">
-                        <Link
-                          href={`/facilitator/attendance/students/${student._id.toString()}`}
-                          className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700"
-                        >
-                          Details
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Student Table */}
+          {selectedYear && selectedTableGrade && (
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-xl font-semibold text-gray-700 mb-4 text-responsive">
+                Students in {selectedTableGrade} for Academic Year {selectedYear}
+              </h3>
+              {filteredStudents.length === 0 ? (
+                <p className="text-gray-600 text-responsive">No students found for {selectedTableGrade} in {selectedYear}.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse border">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="border p-3 text-left text-responsive font-medium">ID Number</th>
+                        <th className="border p-3 text-left text-responsive font-medium">Name</th>
+                        <th className="border p-3 text-left text-responsive font-medium">Grade</th>
+                        <th className="border p-3 text-left text-responsive font-medium">Sex</th>
+                        <th className="border p-3 text-left text-responsive font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredStudents.map((student) => (
+                        <tr key={student._id.toString()} className="hover:bg-gray-50">
+                          <td className="border p-3 text-responsive">{student.Unique_ID}</td>
+                          <td className="border p-3 text-responsive">{`${student.First_Name} ${student.Father_Name}`}</td>
+                          <td className="border p-3 text-responsive">{student.Grade}</td>
+                          <td className="border p-3 text-responsive">{student.Sex}</td>
+                          <td className="border p-3 text-center">
+                            <Link
+                              href={`/facilitator/attendance/students/${student._id.toString()}`}
+                              className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-responsive"
+                            >
+                              Details
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
-    </div>
+    </main>
   );
 }

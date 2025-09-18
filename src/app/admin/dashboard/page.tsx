@@ -36,54 +36,56 @@ export default function AdminDashboard() {
 
   // Fetch total students
   useEffect(() => {
-  async function fetchStudents() {
-    try {
-      const res = await fetch("/api/students/total");
-      if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch students`);
+    async function fetchStudents() {
+      try {
+        const res = await fetch("/api/students/total");
+        if (!res.ok)
+          throw new Error(`HTTP ${res.status}: Failed to fetch students`);
 
-      const { total } = await res.json(); // ✅ Safe to parse now
-      setStudentsStat({
-        value: total.toLocaleString(),
-        loading: false,
-        error: null,
-      });
-    } catch (err) {
-      console.error("Error fetching total students:", err);
-      setStudentsStat({
-        value: 0,
-        loading: false,
-        error: "Failed to load",
-      });
+        const { total } = await res.json(); // ✅ Safe to parse now
+        setStudentsStat({
+          value: total.toLocaleString(),
+          loading: false,
+          error: null,
+        });
+      } catch (err) {
+        console.error("Error fetching total students:", err);
+        setStudentsStat({
+          value: 0,
+          loading: false,
+          error: "Failed to load",
+        });
+      }
     }
-  }
-  fetchStudents();
-}, []);
+    fetchStudents();
+  }, []);
 
   // Fetch total facilitators
   useEffect(() => {
-  async function fetchFacilitators() {
-    try {
-      console.log("Fetching total facilitators...");
-      const res = await fetch("/api/facilitators/total");
-      if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch facilitators`);
+    async function fetchFacilitators() {
+      try {
+        console.log("Fetching total facilitators...");
+        const res = await fetch("/api/facilitators/total");
+        if (!res.ok)
+          throw new Error(`HTTP ${res.status}: Failed to fetch facilitators`);
 
-      const { total } = await res.json();
-      setFacilitatorsStat({
-        value: total.toLocaleString(),
-        loading: false,
-        error: null,
-      });
-    } catch (err) {
-      console.error("Error fetching total facilitators:", err);
-      setFacilitatorsStat({
-        value: 0,
-        loading: false,
-        error: "Failed to load",
-      });
+        const { total } = await res.json();
+        setFacilitatorsStat({
+          value: total.toLocaleString(),
+          loading: false,
+          error: null,
+        });
+      } catch (err) {
+        console.error("Error fetching total facilitators:", err);
+        setFacilitatorsStat({
+          value: 0,
+          loading: false,
+          error: "Failed to load",
+        });
+      }
     }
-  }
-  fetchFacilitators();
-}, []);
+    fetchFacilitators();
+  }, []);
 
   // Fetch attendance and calculate rate
   useEffect(() => {
@@ -120,11 +122,11 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen p-6">
-      <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+    <div className="space-y-8">
+      <h1 className="heading-responsive text-blue-900">Admin Dashboard</h1>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid-responsive">
         <StatCard title="Total Students" value={studentsStat} color="blue" />
         <StatCard title="Facilitators" value={facilitatorsStat} color="green" />
         <StatCard
@@ -136,29 +138,35 @@ export default function AdminDashboard() {
       </div>
 
       {/* Action Links */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <Link href="/admin/students" className="block">
-          <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
-            <h3 className="text-xl font-semibold">Manage Students</h3>
-            <p className="text-gray-600 mt-2">
+          <div className="card-responsive hover:shadow-lg transition-shadow">
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">
+              Manage Students
+            </h3>
+            <p className="text-gray-600 text-responsive">
               Add, edit, or export student records.
             </p>
           </div>
         </Link>
 
         <Link href="/admin/facilitators" className="block">
-          <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
-            <h3 className="text-xl font-semibold">Manage Facilitators</h3>
-            <p className="text-gray-600 mt-2">
+          <div className="card-responsive hover:shadow-lg transition-shadow">
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">
+              Manage Facilitators
+            </h3>
+            <p className="text-gray-600 text-responsive">
               Assign roles and grades to facilitators.
             </p>
           </div>
         </Link>
 
         <Link href="/admin/reports" className="block">
-          <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
-            <h3 className="text-xl font-semibold">View Reports</h3>
-            <p className="text-gray-600 mt-2">
+          <div className="card-responsive hover:shadow-lg transition-shadow">
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">
+              View Reports
+            </h3>
+            <p className="text-gray-600 text-responsive">
               Attendance, payments, and performance.
             </p>
           </div>
@@ -185,21 +193,21 @@ function StatCard({
   };
 
   return (
-    <div className="bg-white shadow-lg rounded-xl p-6 flex flex-col items-center">
+    <div className="card-responsive flex flex-col items-center text-center">
       {value.loading ? (
-        <span className="text-lg">Loading...</span>
+        <span className="text-responsive">Loading...</span>
       ) : value.error ? (
-        <span className="text-red-500 text-sm">{value.error}</span>
+        <span className="text-red-500 text-responsive">{value.error}</span>
       ) : (
         <span
-          className={`text-2xl font-bold ${
+          className={`text-xl sm:text-2xl lg:text-3xl font-bold ${
             colorClasses[color as keyof typeof colorClasses]
           }`}
         >
           {value.value}
         </span>
       )}
-      <span className="text-gray-600 mt-2">{title}</span>
+      <span className="text-gray-600 mt-2 text-responsive">{title}</span>
     </div>
   );
 }

@@ -1,10 +1,21 @@
+// src/app/facilitator/attendance/layout.tsx
 "use client";
-import React from "react";
+import RoleLayoutShell from "@/components/RoleLayoutShell";
 
-export default function FacilitatorLayout({ children }: { children: React.ReactNode }) {
+const facilitatorLinks = [
+  { label: "Attendance Management", href: "/facilitator/attendance" },
+  { label: "Register New Student", href: "/facilitator/attendance/register" },
+  { label: "Student List", href: "/facilitator/attendance/list" },
+];
+
+export default function FacilitatorLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex min-h-screen">
-      <main className="flex-1 p-8 bg-gray-50">{children}</main>
-    </div>
+    <RoleLayoutShell roleTitle="Attendance Facilitator" links={facilitatorLinks}>
+      {children}
+    </RoleLayoutShell>
   );
-} 
+}

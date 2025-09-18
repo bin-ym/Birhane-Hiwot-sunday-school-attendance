@@ -255,13 +255,15 @@ export default function AttendanceSection() {
   );
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">
+    <div className="card-responsive">
+      <h1 className="heading-responsive text-gray-800 mb-6">
         Attendance Management
       </h1>
-      {error && <div className="text-red-500 mb-4">{error}</div>}
+      {error && (
+        <div className="text-red-500 mb-4 text-responsive">{error}</div>
+      )}
       {facilitatorGrade && (
-        <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-800">
+        <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-800 text-responsive">
           Assigned to:{" "}
           <strong>
             {Array.isArray(facilitatorGrade)
@@ -270,12 +272,12 @@ export default function AttendanceSection() {
           </strong>
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Date
           </label>
-          <p className="p-3 border border-gray-300 rounded-lg bg-gray-50">
+          <p className="p-3 border border-gray-300 rounded-lg bg-gray-50 text-responsive">
             {formattedDate}
           </p>
           {!isSunday && (
@@ -293,16 +295,16 @@ export default function AttendanceSection() {
             placeholder="Search by ID, Name, or Grade"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg"
+            className="w-full p-3 border border-gray-300 rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="mb-6 flex justify-between items-end"
+        className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4"
       >
-        <div className="w-1/2">
+        <div className="flex-1 sm:w-1/2">
           <label
             htmlFor="classFilter"
             className="block text-sm font-medium text-gray-700 mb-1"
@@ -313,7 +315,7 @@ export default function AttendanceSection() {
             id="classFilter"
             value={selectedGrade}
             onChange={(e) => setSelectedGrade(e.target.value)}
-            className="w-full p-3 border rounded-lg"
+            className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Assigned Grades</option>
             {[...new Set(currentYearStudents.map((s: Student) => s.Grade))].map(
@@ -327,23 +329,36 @@ export default function AttendanceSection() {
         </div>
         <button
           type="submit"
-          className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
           disabled={loading}
         >
           {loading ? "Submitting..." : "Submit"}
         </button>
       </form>
 
-      <div className="overflow-x-auto max-h-[500px]">
-        <table className="min-w-full border-collapse border">
-          <thead className="bg-gray-100">
+      {/* Desktop Table */}
+      <div className="hidden sm:block table-responsive max-h-[500px] overflow-y-auto">
+        <table className="min-w-full border-collapse border bg-white rounded-lg overflow-hidden shadow-sm">
+          <thead className="bg-gray-100 sticky top-0">
             <tr>
-              <th className="border p-3 text-left">ID Number</th>
-              <th className="border p-3 text-left">Name</th>
-              <th className="border p-3 text-left">Grade</th>
-              <th className="border p-3 text-left">Present</th>
-              <th className="border p-3 text-left">Permission</th>
-              <th className="border p-3 text-left">Reason</th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                ID Number
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Name
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Grade
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Present
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Permission
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Reason
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -355,9 +370,13 @@ export default function AttendanceSection() {
               );
               return (
                 <tr key={student._id?.toString()} className="hover:bg-gray-50">
-                  <td className="border p-3">{student.Unique_ID}</td>
-                  <td className="border p-3">{`${student.First_Name} ${student.Father_Name}`}</td>
-                  <td className="border p-3">{student.Grade}</td>
+                  <td className="border p-3 text-responsive">
+                    {student.Unique_ID}
+                  </td>
+                  <td className="border p-3 text-responsive">{`${student.First_Name} ${student.Father_Name}`}</td>
+                  <td className="border p-3 text-responsive">
+                    {student.Grade}
+                  </td>
                   <td className="border p-3 text-center">
                     <input
                       type="checkbox"
@@ -366,6 +385,7 @@ export default function AttendanceSection() {
                         student._id && toggleAttendance(student._id.toString())
                       }
                       disabled={!isSunday || loading}
+                      className="w-4 h-4"
                     />
                   </td>
                   <td className="border p-3 text-center">
@@ -376,6 +396,7 @@ export default function AttendanceSection() {
                         student._id && togglePermission(student._id.toString())
                       }
                       disabled={!isSunday || loading}
+                      className="w-4 h-4"
                     />
                   </td>
                   <td className="border p-3">
@@ -386,7 +407,7 @@ export default function AttendanceSection() {
                         student._id &&
                         updateReason(student._id.toString(), e.target.value)
                       }
-                      className="w-full p-2 border rounded"
+                      className="w-full p-2 border rounded text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled={!isSunday || !record?.hasPermission || loading}
                       placeholder="Reason for permission"
                     />
@@ -396,6 +417,84 @@ export default function AttendanceSection() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="sm:hidden space-y-3 max-h-[500px] overflow-y-auto">
+        {filteredStudents.map((student: Student) => {
+          const record = attendance.find(
+            (r: AttendanceRecord) =>
+              r.studentId === student._id?.toString() &&
+              r.date === formattedDate
+          );
+          return (
+            <div key={student._id?.toString()} className="card-responsive">
+              <div className="space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-semibold text-responsive">
+                      {student.Unique_ID}
+                    </div>
+                    <div className="text-responsive">{`${student.First_Name} ${student.Father_Name}`}</div>
+                    <div className="text-sm text-gray-600">
+                      Grade: {student.Grade}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-responsive">
+                      <input
+                        type="checkbox"
+                        checked={!!record?.present}
+                        onChange={() =>
+                          student._id &&
+                          toggleAttendance(student._id.toString())
+                        }
+                        disabled={!isSunday || loading}
+                        className="w-4 h-4"
+                      />
+                      Present
+                    </label>
+                    <label className="flex items-center gap-2 text-responsive">
+                      <input
+                        type="checkbox"
+                        checked={!!record?.hasPermission}
+                        onChange={() =>
+                          student._id &&
+                          togglePermission(student._id.toString())
+                        }
+                        disabled={!isSunday || loading}
+                        className="w-4 h-4"
+                      />
+                      Permission
+                    </label>
+                  </div>
+
+                  {record?.hasPermission && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Reason for permission
+                      </label>
+                      <input
+                        type="text"
+                        value={record?.reason || ""}
+                        onChange={(e) =>
+                          student._id &&
+                          updateReason(student._id.toString(), e.target.value)
+                        }
+                        className="w-full p-2 border rounded text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={!isSunday || loading}
+                        placeholder="Enter reason"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

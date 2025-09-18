@@ -16,13 +16,7 @@ export default function AdminLayout({
 }) {
   return (
     <RoleLayoutShell roleTitle="Admin" links={adminLinks}>
-      <div className="flex md:flex-row w-full h-screen relative">
-        {" "}
-        <main className="flex-1 p-6 overflow-y-auto">
-          {" "}
-          {children}
-        </main>
-      </div>
+      {children}
     </RoleLayoutShell>
   );
 }
