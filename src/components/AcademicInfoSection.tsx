@@ -1,12 +1,15 @@
-// src/components/AcademicInfoSection.tsx
+"use client";
 import { FormField } from "@/components/ui/FormField";
 import { Student } from "@/lib/models";
 import { schools, addresses } from "@/constant";
+import { getCurrentEthiopianYear } from "@/lib/utils";
 
 interface AcademicInfoSectionProps {
   formData: Omit<Student, "_id">;
   errors: Partial<Record<keyof Omit<Student, "_id">, string>>;
-  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  handleChange: (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => void;
   isLoadingUniqueID: boolean;
   student: Student | null;
   academicYears: number[];
@@ -20,133 +23,170 @@ export function AcademicInfoSection({
   student,
   academicYears,
 }: AcademicInfoSectionProps) {
-  const occupationOptions = ["Student", "Worker"];
-  const classOptions = [...Array(12)].map((_, i) => `Grade ${1 + i}`).concat("University");
-  const educationalBackgroundOptions = ["1-8", "9-12", "University"];
-  const placeOfWorkOptions = ["Government", "Private"];
-  const gradeOptions = [...Array(12)].map((_, i) => `Grade ${1 + i}`);
+  const currentEthiopianYear = getCurrentEthiopianYear();
+  const occupationOptions = [
+    { value: "Student", label: "Student" },
+    { value: "Worker", label: "Worker" },
+  ];
+  const classOptions = [...Array(12)]
+    .map((_, i) => ({ value: `Grade ${1 + i}`, label: `Grade ${1 + i}` }))
+    .concat({ value: "University", label: "University" });
+  const educationalBackgroundOptions = [
+    { value: "1-8", label: "Grades 1-8" },
+    { value: "9-12", label: "Grades 9-12" },
+    { value: "University", label: "University" },
+  ];
+  const placeOfWorkOptions = [
+    { value: "Government", label: "Government" },
+    { value: "Private", label: "Private" },
+  ];
+  const gradeOptions = [...Array(12)].map((_, i) => ({
+    value: `Grade ${1 + i}`,
+    label: `Grade ${1 + i}`,
+  }));
 
   return (
-    <>
-      <div className="md:col-span-2">
-        <h4 className="text-lg font-semibold text-blue-700 border-b pb-1 mb-2">Academic & School Information</h4>
-      </div>
-      <FormField
-        label="Occupation"
-        name="Occupation"
-        type="select"
-        value={formData.Occupation}
-        onChange={handleChange}
-        error={errors.Occupation}
-        required
-        options={occupationOptions}
-      />
-      {formData.Occupation === "Student" && (
-        <>
-          <FormField
-            label="Class (World School)"
-            name="Class"
-            type="select"
-            value={formData.Class}
-            onChange={handleChange}
-            error={errors.Class}
-            required
-            options={classOptions}
-          />
-          <FormField
-            label="School"
-            name="School"
-            type="select"
-            value={formData.School}
-            onChange={handleChange}
-            error={errors.School}
-            required
-            options={schools}
-          />
-          {formData.School === "Other" && (
-            <FormField
-              label="Other School"
-              name="School_Other"
-              value={formData.School_Other}
-              onChange={handleChange}
-              error={errors.School_Other}
-              required
-            />
-          )}
-        </>
-      )}
-      {formData.Occupation === "Worker" && (
-        <>
-          <FormField
-            label="Educational Background"
-            name="Educational_Background"
-            type="select"
-            value={formData.Educational_Background}
-            onChange={handleChange}
-            error={errors.Educational_Background}
-            required
-            options={educationalBackgroundOptions}
-          />
-          <FormField
-            label="Place of Work"
-            name="Place_of_Work"
-            type="select"
-            value={formData.Place_of_Work}
-            onChange={handleChange}
-            error={errors.Place_of_Work}
-            required
-            options={placeOfWorkOptions}
-          />
-        </>
-      )}
-      <FormField
-        label="Address"
-        name="Address"
-        type="select"
-        value={formData.Address}
-        onChange={handleChange}
-        error={errors.Address}
-        required
-        options={addresses}
-      />
-      {formData.Address === "Other" && (
+    <section className="space-y-6 bg-white p-6 rounded-lg shadow-md mt-6">
+      <h4 className="text-lg sm:text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">
+        Academic & School Information
+      </h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <FormField
-          label="Other Address"
-          name="Address_Other"
-          value={formData.Address_Other}
+          label="Occupation"
+          name="Occupation"
+          type="select"
+          value={formData.Occupation}
           onChange={handleChange}
-          error={errors.Address_Other}
+          error={errors.Occupation}
           required
+          options={occupationOptions}
+          className="text-responsive"
+          inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         />
-      )}
-      <FormField
-        label="Grade (Sunday School)"
-        name="Grade"
-        type="select"
-        value={formData.Grade}
-        onChange={handleChange}
-        error={errors.Grade}
-        required
-        options={gradeOptions}
-      />
-      <FormField
-        label="Academic Year (Ethiopian Calendar)"
-        name="Academic_Year"
-        type="select"
-        value={formData.Academic_Year}
-        onChange={handleChange}
-        error={errors.Academic_Year}
-        required
-        options={academicYears.map(String)}
-      />
-      <FormField
-        label="Unique ID"
-        name="Unique_ID"
-        value={formData.Unique_ID || ""}
-        readOnly
-        disabled={isLoadingUniqueID || !!student}
-        error={errors.Unique_ID}
-      />
-    </>
+        {formData.Occupation === "Student" && (
+          <>
+            <FormField
+              label="Class (World School)"
+              name="Class"
+              type="select"
+              value={formData.Class}
+              onChange={handleChange}
+              error={errors.Class}
+              required
+              options={classOptions}
+              className="text-responsive"
+              inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+            <FormField
+              label="School"
+              name="School"
+              type="select"
+              value={formData.School}
+              onChange={handleChange}
+              error={errors.School}
+              required
+              options={schools}
+              className="text-responsive"
+              inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+            {formData.School === "Other" && (
+              <FormField
+                label="Other School"
+                name="School_Other"
+                value={formData.School_Other}
+                onChange={handleChange}
+                error={errors.School_Other}
+                required
+                className="text-responsive"
+                inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            )}
+          </>
+        )}
+        {formData.Occupation === "Worker" && (
+          <>
+            <FormField
+              label="Educational Background"
+              name="Educational_Background"
+              type="select"
+              value={formData.Educational_Background}
+              onChange={handleChange}
+              error={errors.Educational_Background}
+              required
+              options={educationalBackgroundOptions}
+              className="text-responsive"
+              inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+            <FormField
+              label="Place of Work"
+              name="Place_of_Work"
+              type="select"
+              value={formData.Place_of_Work}
+              onChange={handleChange}
+              error={errors.Place_of_Work}
+              required
+              options={placeOfWorkOptions}
+              className="text-responsive"
+              inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+          </>
+        )}
+        <FormField
+          label="Address"
+          name="Address"
+          type="select"
+          value={formData.Address}
+          onChange={handleChange}
+          error={errors.Address}
+          required
+          options={addresses}
+          className="text-responsive"
+          inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+        />
+        {formData.Address === "Other" && (
+          <FormField
+            label="Other Address"
+            name="Address_Other"
+            value={formData.Address_Other}
+            onChange={handleChange}
+            error={errors.Address_Other}
+            required
+            className="text-responsive"
+            inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          />
+        )}
+        <FormField
+          label="Grade (Sunday School)"
+          name="Grade"
+          type="select"
+          value={formData.Grade}
+          onChange={handleChange}
+          error={errors.Grade}
+          required
+          options={gradeOptions}
+          className="text-responsive"
+          inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+        />
+        <FormField
+          label="Academic Year (Ethiopian Calendar)"
+          name="Academic_Year"
+          value={String(currentEthiopianYear)}
+          readOnly
+          disabled
+          className="text-responsive"
+          inputClassName="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+        />
+        <FormField
+          label="Unique ID"
+          name="Unique_ID"
+          value={formData.Unique_ID || ""}
+          readOnly
+          disabled={isLoadingUniqueID || !!student}
+          error={errors.Unique_ID}
+          className="text-responsive"
+          inputClassName="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+        />
+      </div>
+    </section>
   );
 }

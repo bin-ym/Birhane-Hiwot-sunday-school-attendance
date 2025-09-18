@@ -101,113 +101,194 @@ export default function AdminFacilitators() {
   const pages = Math.ceil(filtered.length / PAGE_SIZE);
 
   return (
-    <div className="min-h-screen flex flex-col gap-8 p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-extrabold text-blue-900">
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <h1 className="heading-responsive text-blue-900">
           Manage Facilitators
         </h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+            className="btn-responsive bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
             onClick={() => exportToCSV(filtered, "facilitators.csv")}
             disabled={filtered.length === 0}
             aria-label="Export facilitators to CSV"
           >
             Export CSV
           </button>
-          {/* 👇 CHANGE TO LINK */}
           <Link
             href="/admin/facilitators/add"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 inline-block text-center"
             aria-label="Add new facilitator"
           >
             + Add Facilitator
           </Link>
         </div>
       </div>
-      <label className="flex flex-col max-w-xs">
-        <span className="text-sm font-medium">Search Facilitators</span>
-        <input
-          type="text"
-          placeholder="Search facilitators..."
-          className="p-2 border rounded w-full"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          aria-label="Search facilitators"
-        />
-      </label>
+
+      {/* Search Section */}
+      <div className="w-full sm:max-w-md">
+        <label className="flex flex-col">
+          <span className="text-sm font-medium mb-1">Search Facilitators</span>
+          <input
+            type="text"
+            placeholder="Search facilitators..."
+            className="p-2 sm:p-3 border rounded-lg w-full text-responsive"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            aria-label="Search facilitators"
+          />
+        </label>
+      </div>
       {loading ? (
-        <div className="text-gray-500">Loading facilitators...</div>
+        <div className="text-gray-500 text-responsive">
+          Loading facilitators...
+        </div>
       ) : error ? (
-        <div className="text-red-500">{error}</div>
+        <div className="text-red-500 text-responsive">{error}</div>
       ) : (
-        <div className="overflow-x-auto max-h-[600px]">
-          <table className="min-w-full border-collapse border">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border p-3 text-left">Name</th>
-                <th className="border p-3 text-left">Email</th>
-                <th className="border p-3 text-left">Role</th>
-                <th className="border p-3 text-left">Grade</th>
-                <th className="border p-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((fac) => (
-                <tr key={fac._id?.toString()} className="hover:bg-gray-50">
-                  <td className="border p-3">{fac.name || "-"}</td>
-                  <td className="border p-3">{fac.email}</td>
-                  <td className="border p-3 capitalize">{fac.role}</td>
-                  <td className="border p-3">
-                    {Array.isArray(fac.grade)
-                      ? fac.grade.join(", ")
-                      : fac.grade || "-"}
-                  </td>
-                  <td className="border p-3 flex gap-2">
-                    {/* 👇 EDIT AS LINK */}
+        <div className="space-y-4">
+          {/* Desktop Table */}
+          <div className="hidden sm:block table-responsive">
+            <table className="min-w-full border-collapse border bg-white rounded-lg overflow-hidden shadow-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border p-3 text-left text-responsive font-medium">
+                    Name
+                  </th>
+                  <th className="border p-3 text-left text-responsive font-medium">
+                    Email
+                  </th>
+                  <th className="border p-3 text-left text-responsive font-medium">
+                    Role
+                  </th>
+                  <th className="border p-3 text-left text-responsive font-medium">
+                    Grade
+                  </th>
+                  <th className="border p-3 text-left text-responsive font-medium">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {paged.map((fac) => (
+                  <tr key={fac._id?.toString()} className="hover:bg-gray-50">
+                    <td className="border p-3 text-responsive">
+                      {fac.name || "-"}
+                    </td>
+                    <td className="border p-3 text-responsive">{fac.email}</td>
+                    <td className="border p-3 text-responsive capitalize">
+                      {fac.role}
+                    </td>
+                    <td className="border p-3 text-responsive">
+                      {Array.isArray(fac.grade)
+                        ? fac.grade.join(", ")
+                        : fac.grade || "-"}
+                    </td>
+                    <td className="border p-3">
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/admin/facilitators/edit/${fac._id?.toString()}`}
+                          className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 text-sm transition-colors"
+                          aria-label={`Edit ${fac.name || "facilitator"}`}
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm transition-colors"
+                          onClick={() => handleDeleteFac(fac._id!.toString())}
+                          aria-label={`Delete ${fac.name || "facilitator"}`}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="sm:hidden space-y-3">
+            {paged.map((fac) => (
+              <div key={fac._id?.toString()} className="card-responsive">
+                <div className="space-y-2">
+                  <div>
+                    <span className="font-semibold text-responsive">Name:</span>
+                    <span className="ml-2 text-responsive">
+                      {fac.name || "-"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-responsive">
+                      Email:
+                    </span>
+                    <span className="ml-2 text-responsive">{fac.email}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-responsive">Role:</span>
+                    <span className="ml-2 text-responsive capitalize">
+                      {fac.role}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-responsive">
+                      Grade:
+                    </span>
+                    <span className="ml-2 text-responsive">
+                      {Array.isArray(fac.grade)
+                        ? fac.grade.join(", ")
+                        : fac.grade || "-"}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 mt-3">
                     <Link
                       href={`/admin/facilitators/edit/${fac._id?.toString()}`}
-                      className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+                      className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 text-sm transition-colors"
                       aria-label={`Edit ${fac.name || "facilitator"}`}
                     >
                       Edit
                     </Link>
                     <button
-                      className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                      className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm transition-colors"
                       onClick={() => handleDeleteFac(fac._id!.toString())}
                       aria-label={`Delete ${fac.name || "facilitator"}`}
                     >
                       Delete
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="flex gap-2 mt-4 justify-center">
-            <button
-              className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              aria-label="Previous page"
-            >
-              Prev
-            </button>
-            <span className="px-2">
-              Page {page} of {pages}
-            </span>
-            <button
-              className="px-3 py-1 rounded border bg-gray-100 disabled:opacity-50"
-              onClick={() => setPage((p) => Math.min(pages, p + 1))}
-              disabled={page === pages}
-              aria-label="Next page"
-            >
-              Next
-            </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
+          {/* Pagination */}
+          {pages > 1 && (
+            <div className="flex gap-2 mt-6 justify-center items-center">
+              <button
+                className="btn-responsive border bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                aria-label="Previous page"
+              >
+                Prev
+              </button>
+              <span className="px-2 text-responsive">
+                Page {page} of {pages}
+              </span>
+              <button
+                className="btn-responsive border bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                disabled={page === pages}
+                aria-label="Next page"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

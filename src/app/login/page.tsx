@@ -44,28 +44,31 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left side (branding / info) */}
-      <div className="hidden lg:flex w-full lg:w-1/2 bg-gradient-to-br from-blue-600 to-green-600 text-white items-center justify-center p-16">
+      <div className="hidden lg:flex w-full lg:w-1/2 bg-gradient-to-br from-blue-600 to-green-600 text-white items-center justify-center p-8 xl:p-16">
         <div className="max-w-lg text-center">
-          <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 leading-tight">
+          <h1 className="text-3xl xl:text-4xl 2xl:text-5xl font-extrabold mb-6 leading-tight">
             Birhane Hiwot Sunday School
           </h1>
-          <p className="text-base sm:text-lg text-blue-100">
+          <p className="text-base xl:text-lg text-blue-100">
             Manage attendance, results, and activities in one simple platform.
           </p>
         </div>
       </div>
 
       {/* Right side (login form) */}
-      <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 px-6 sm:px-8 py-12">
-        <div className="bg-white shadow-2xl rounded-2xl p-8 sm:p-12 w-full max-w-md sm:max-w-xl border border-gray-100">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-blue-800 mb-8 text-center">
+      <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="bg-white shadow-2xl rounded-2xl p-6 sm:p-8 lg:p-12 w-full max-w-sm sm:max-w-md lg:max-w-lg border border-gray-100">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-blue-800 mb-6 sm:mb-8 text-center">
             Sign In
           </h1>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-4 sm:gap-6"
+          >
             <input
               type="email"
               placeholder="Email"
-              className="p-4 border rounded-lg text-base"
+              className="p-3 sm:p-4 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -73,17 +76,17 @@ export default function LoginPage() {
             <input
               type="password"
               placeholder="Password"
-              className="p-4 border rounded-lg text-base"
+              className="p-3 sm:p-4 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
             {error && (
-              <div className="text-red-500 text-sm">{error}</div>
+              <div className="text-red-500 text-responsive">{error}</div>
             )}
             <button
               type="submit"
-              className="bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 text-base font-medium"
+              className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors"
               disabled={loading}
             >
               {loading ? "Signing in..." : "Sign In"}

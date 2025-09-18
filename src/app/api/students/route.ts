@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { Student } from '@/lib/models';
 
-// ✅ FIX: This GET handler now filters by grade(s)
 export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
@@ -54,7 +53,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const db = await getDb();
-    const { id } = await req.json(); // Assuming ID is in the body
+    const { id } = await req.json();
     
     if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json({ error: 'Valid ID is required' }, { status: 400 });

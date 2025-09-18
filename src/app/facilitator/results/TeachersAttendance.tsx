@@ -261,14 +261,14 @@ export default function TeachersAttendance() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800">Teachers Assignment</h2>
+      <h2 className="heading-responsive text-gray-800">Teachers Assignment</h2>
 
       {/* Navigation Tabs */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <nav className="flex space-x-4 border-b">
+      <div className="card-responsive">
+        <nav className="flex flex-wrap gap-2 sm:gap-4 border-b">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`py-2 px-4 font-medium ${
+            className={`py-2 px-3 sm:px-4 font-medium text-sm sm:text-base transition-colors ${
               activeTab === "overview"
                 ? "border-b-2 border-blue-600 text-blue-600"
                 : "text-gray-600 hover:text-blue-600"
@@ -278,7 +278,7 @@ export default function TeachersAttendance() {
           </button>
           <button
             onClick={() => setActiveTab("teachers")}
-            className={`py-2 px-4 font-medium ${
+            className={`py-2 px-3 sm:px-4 font-medium text-sm sm:text-base transition-colors ${
               activeTab === "teachers"
                 ? "border-b-2 border-blue-600 text-blue-600"
                 : "text-gray-600 hover:text-blue-600"
@@ -288,7 +288,7 @@ export default function TeachersAttendance() {
           </button>
           <button
             onClick={() => setActiveTab("assignments")}
-            className={`py-2 px-4 font-medium ${
+            className={`py-2 px-3 sm:px-4 font-medium text-sm sm:text-base transition-colors ${
               activeTab === "assignments"
                 ? "border-b-2 border-blue-600 text-blue-600"
                 : "text-gray-600 hover:text-blue-600"
@@ -303,70 +303,153 @@ export default function TeachersAttendance() {
       {activeTab === "overview" && (
         <div className="space-y-6">
           {/* Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-semibold text-gray-800">
+          <div className="grid-responsive">
+            <div className="card-responsive text-center">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
                 Total Teachers
               </h3>
-              <p className="text-3xl font-bold text-blue-600">
+              <p className="text-2xl sm:text-3xl font-bold text-blue-600">
                 {teachers.length}
               </p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-semibold text-gray-800">
+            <div className="card-responsive text-center">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
                 Active Assignments
               </h3>
-              <p className="text-3xl font-bold text-green-600">
+              <p className="text-2xl sm:text-3xl font-bold text-green-600">
                 {assignments.filter((a) => a.status === "active").length}
               </p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-semibold text-gray-800">
+            <div className="card-responsive text-center">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
                 Available Subjects
               </h3>
-              <p className="text-3xl font-bold text-purple-600">
+              <p className="text-2xl sm:text-3xl font-bold text-purple-600">
                 {subjects.length}
               </p>
             </div>
           </div>
 
           {/* Recent Assignments */}
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="card-responsive">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
               Recent Assignments
             </h3>
             {assignments.length === 0 ? (
-              <p className="text-gray-600">No assignments found.</p>
+              <p className="text-gray-600 text-responsive">
+                No assignments found.
+              </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-collapse border">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="border p-3 text-left">Teacher</th>
-                      <th className="border p-3 text-left">Subject</th>
-                      <th className="border p-3 text-left">Grade</th>
-                      <th className="border p-3 text-left">Academic Year</th>
-                      <th className="border p-3 text-left">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assignments.slice(0, 5).map((assignment) => (
-                      <tr
-                        key={
-                          assignment._id ||
-                          `${assignment.teacherId}-${assignment.subjectId}`
-                        }
-                        className="hover:bg-gray-50"
-                      >
-                        <td className="border p-3">{assignment.teacherName}</td>
-                        <td className="border p-3">{assignment.subjectName}</td>
-                        <td className="border p-3">{assignment.grade}</td>
-                        <td className="border p-3">
-                          {assignment.academicYear}
-                        </td>
-                        <td className="border p-3">
+              <div className="space-y-4">
+                {/* Desktop Table */}
+                <div className="hidden sm:block table-responsive">
+                  <table className="min-w-full border-collapse border bg-white rounded-lg overflow-hidden shadow-sm">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="border p-3 text-left text-responsive font-medium">
+                          Teacher
+                        </th>
+                        <th className="border p-3 text-left text-responsive font-medium">
+                          Subject
+                        </th>
+                        <th className="border p-3 text-left text-responsive font-medium">
+                          Grade
+                        </th>
+                        <th className="border p-3 text-left text-responsive font-medium">
+                          Academic Year
+                        </th>
+                        <th className="border p-3 text-left text-responsive font-medium">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assignments.slice(0, 5).map((assignment) => (
+                        <tr
+                          key={
+                            assignment._id ||
+                            `${assignment.teacherId}-${assignment.subjectId}`
+                          }
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="border p-3 text-responsive">
+                            {assignment.teacherName}
+                          </td>
+                          <td className="border p-3 text-responsive">
+                            {assignment.subjectName}
+                          </td>
+                          <td className="border p-3 text-responsive">
+                            {assignment.grade}
+                          </td>
+                          <td className="border p-3 text-responsive">
+                            {assignment.academicYear}
+                          </td>
+                          <td className="border p-3">
+                            <span
+                              className={`px-2 py-1 rounded text-sm ${
+                                assignment.status === "active"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {assignment.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="sm:hidden space-y-3">
+                  {assignments.slice(0, 5).map((assignment) => (
+                    <div
+                      key={
+                        assignment._id ||
+                        `${assignment.teacherId}-${assignment.subjectId}`
+                      }
+                      className="card-responsive"
+                    >
+                      <div className="space-y-2">
+                        <div>
+                          <span className="font-semibold text-responsive">
+                            Teacher:
+                          </span>
+                          <span className="ml-2 text-responsive">
+                            {assignment.teacherName}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-responsive">
+                            Subject:
+                          </span>
+                          <span className="ml-2 text-responsive">
+                            {assignment.subjectName}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-responsive">
+                            Grade:
+                          </span>
+                          <span className="ml-2 text-responsive">
+                            {assignment.grade}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-responsive">
+                            Academic Year:
+                          </span>
+                          <span className="ml-2 text-responsive">
+                            {assignment.academicYear}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-responsive">
+                            Status:
+                          </span>
                           <span
-                            className={`px-2 py-1 rounded text-sm ${
+                            className={`ml-2 px-2 py-1 rounded text-sm ${
                               assignment.status === "active"
                                 ? "bg-green-100 text-green-800"
                                 : "bg-red-100 text-red-800"
@@ -374,11 +457,11 @@ export default function TeachersAttendance() {
                           >
                             {assignment.status}
                           </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -388,14 +471,14 @@ export default function TeachersAttendance() {
       {/* Teachers Tab */}
       {activeTab === "teachers" && (
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-gray-800">
+          <div className="card-responsive">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
                 Teachers List
               </h3>
               <button
                 onClick={() => setShowAddTeacher(!showAddTeacher)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="btn-responsive bg-blue-600 text-white hover:bg-blue-700"
               >
                 {showAddTeacher ? "Cancel" : "Add Teacher"}
               </button>
