@@ -109,3 +109,17 @@ export function getSundaysInEthiopianYear(eYear: number): string[] {
 
   return sundays;
 }
+
+export function getCurrentEthiopianYear(): number {
+  const gregorianDate = new Date();
+  const gregorianYear = gregorianDate.getFullYear();
+  const gregorianMonth = gregorianDate.getMonth(); // 0-based (0 = January, 8 = September)
+  const gregorianDay = gregorianDate.getDate();
+
+  // Ethiopian Calendar is 7–8 years behind due to calendar differences
+  let ecYear = gregorianYear - 8;
+  if (gregorianMonth > 8 || (gregorianMonth === 8 && gregorianDay >= 12)) {
+    ecYear = gregorianYear - 7;
+  }
+  return ecYear;
+}

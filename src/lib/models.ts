@@ -1,7 +1,7 @@
 //src/lib/models.ts
 
 import { ObjectId } from "mongodb";
-
+import { GRADES } from "./constants";
 export interface Student {
   _id: ObjectId;
   Unique_ID: string;
@@ -25,7 +25,7 @@ export interface Student {
   Address: string;
   Address_Other?: string;
   Academic_Year: string;
-  Grade: string;
+  Grade: typeof GRADES[number];
 }
 
 export interface Attendance {
@@ -59,7 +59,6 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
 }
-
 export interface Facilitator extends User {
   grade: string | string[];
 }

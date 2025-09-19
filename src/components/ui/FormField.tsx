@@ -1,68 +1,73 @@
 // src/components/ui/FormField.tsx
-import { ChangeEvent } from "react";
-
-export interface FormFieldProps {
+interface FormFieldProps {
   label: string;
   name: string;
-  value: string | undefined;
-  type?: "text" | "select" | "number";
-  onChange?: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void; // Made optional
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   error?: string;
   required?: boolean;
-  options?: string[];
+  type?: "text" | "number" | "select";
+  options?: { value: string; label: string }[] | string[];
   readOnly?: boolean;
   disabled?: boolean;
+  className?: string;
+  inputClassName?: string;
 }
 
 export function FormField({
   label,
   name,
-  value = "",
-  type = "text",
+  value,
   onChange,
   error,
   required,
+  type = "text",
   options,
   readOnly,
   disabled,
+  className,
+  inputClassName,
 }: FormFieldProps) {
   return (
-    <div className="flex flex-col">
-      <label htmlFor={name} className="text-sm font-medium text-gray-700 mb-1">
-        {label}
-        {required && <span className="text-red-500">*</span>}
+    <div className={`space-y-1 ${className}`}>
+      <label htmlFor={name} className="block text-sm font-medium text-gray-700">
+        {label} {required && <span className="text-red-500">*</span>}
       </label>
       {type === "select" ? (
         <select
           id={name}
           name={name}
-          value={value ?? ""}
+          value={value}
           onChange={onChange}
-          className={`p-3 border rounded-lg ${error ? "border-red-500" : "border-gray-300"}`}
-          required={required}
           disabled={disabled}
+          className={`w-full ${inputClassName} ${error ? "border-red-500" : ""}`}
         >
           <option value="">Select {label}</option>
-          {options?.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
+          {(options || []).map((opt) =>
+            typeof opt === "string" ? (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ) : (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            )
+          )}
         </select>
       ) : (
         <input
           id={name}
           name={name}
           type={type}
-          value={value ?? ""}
+          value={value}
           onChange={onChange}
-          className={`p-3 border rounded-lg ${error ? "border-red-500" : "border-gray-300"}`}
-          required={required}
           readOnly={readOnly}
           disabled={disabled}
+          className={`w-full ${inputClassName} ${error ? "border-red-500" : ""}`}
         />
       )}
-      {error && <span className="text-red-500 text-sm mt-1">{error}</span>}
+      {error && <p className="text-red-500 text-sm">{error}</p>}
     </div>
   );
 }

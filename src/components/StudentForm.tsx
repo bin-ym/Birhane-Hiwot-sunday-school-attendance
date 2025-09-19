@@ -1,20 +1,28 @@
-// src/components/StudentForm.tsx
 "use client";
-
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Student } from "@/lib/models";
+import { Student, UserRole } from "@/lib/models";
 import { PersonalInfoSection } from "@/components/PersonalInfoSection";
 import { AcademicInfoSection } from "@/components/AcademicInfoSection";
 import { useStudentForm } from "@/lib/hooks/useStudentForm";
+import { getCurrentEthiopianYear } from "@/lib/utils";
 
 interface StudentFormProps {
   student: Student | null;
   onSave: (data: Omit<Student, "_id">) => Promise<void>;
   onCancel: () => void;
   title?: string;
+  userRole: UserRole;
 }
 
-export function StudentForm({ student, onSave, onCancel, title }: StudentFormProps) {
+export function StudentForm({
+  student,
+  onSave,
+  onCancel,
+  title,
+  userRole,
+}: StudentFormProps) {
+  const currentEthiopianYear = getCurrentEthiopianYear();
   const {
     formData,
     handleChange,
@@ -24,49 +32,98 @@ export function StudentForm({ student, onSave, onCancel, title }: StudentFormPro
     isLoadingUniqueID,
     error,
     academicYears,
-  } = useStudentForm(student, onSave);
+    validateSection,
+  } = useStudentForm(student, onSave, userRole);
+  const [currentSection, setCurrentSection] = useState<"personal" | "academic">("personal");
+
+  const handleNext = () => {
+    const personalFields: (keyof Omit<Student, "_id">)[] = [
+      "First_Name",
+      "Father_Name",
+      "Grandfather_Name",
+      "Mothers_Name",
+      "Christian_Name",
+      "DOB_Date",
+      "DOB_Month",
+      "DOB_Year",
+      "Sex",
+      "Phone_Number",
+    ];
+    const sectionErrors = validateSection(formData, personalFields);
+    if (Object.keys(sectionErrors).length === 0) {
+      setCurrentSection("academic");
+    }
+  };
 
   return (
-    <div className="max-w-5xl mx-auto bg-white shadow-md rounded-lg p-6 md:p-8">
-      {title && (
-        <h1 className="text-2xl md:text-3xl font-bold text-blue-900 mb-6">
-          {title}
-        </h1>
-      )}
-
-      <form
-        onSubmit={handleSubmit}
-        className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4"
-      >
-        <PersonalInfoSection formData={formData} errors={errors} handleChange={handleChange} />
-        <AcademicInfoSection
-          formData={formData}
-          errors={errors}
-          handleChange={handleChange}
-          isLoadingUniqueID={isLoadingUniqueID}
-          student={student}
-          academicYears={academicYears}
-        />
-
-        {isLoadingUniqueID && (
-          <p className="md:col-span-2 text-gray-500">Generating ID...</p>
+    <main className="flex-1 p-8 bg-gray-50">
+      <div className="w-full">
+        {title && (
+          <h1 className="text-responsive text-blue-900 mb-6 font-bold text-2xl sm:text-3xl">
+            {title}
+          </h1>
         )}
-        {error && <p className="md:col-span-2 text-red-500">{error}</p>}
-
-        <div className="md:col-span-2 flex justify-end gap-4 mt-4">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onCancel}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" disabled={loading}>
-            {loading ? "Saving..." : student ? "Update Student" : "Add Student"}
-          </Button>
-        </div>
-      </form>
-    </div>
+        <form onSubmit={handleSubmit}>
+          {currentSection === "personal" && (
+            <PersonalInfoSection
+              formData={formData}
+              errors={errors}
+              handleChange={handleChange}
+              onNext={handleNext}
+              userRole={userRole}
+            />
+          )}
+          {currentSection === "academic" && (
+            <AcademicInfoSection
+              formData={formData}
+              errors={errors}
+              handleChange={handleChange}
+              isLoadingUniqueID={isLoadingUniqueID}
+              student={student}
+              academicYears={[currentEthiopianYear]}
+              userRole={userRole}
+            />
+          )}
+          {isLoadingUniqueID && (
+            <p className="mt-4 text-gray-500 text-responsive">
+              Generating ID...
+            </p>
+          )}
+          {error && (
+            <p className="mt-4 text-red-500 text-responsive">{error}</p>
+          )}
+          {currentSection === "academic" && (
+            <div className="flex flex-col sm:flex-row justify-end gap-4 mt-6">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setCurrentSection("personal")}
+                disabled={loading || userRole !== "Admin"}
+                className="btn-responsive bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-all"
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onCancel}
+                disabled={loading || userRole !== "Admin"}
+                className="btn-responsive bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-all"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={loading || userRole !== "Admin"}
+                className="btn-responsive bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all"
+              >
+                {loading ? "Saving..." : student ? "Update Student" : "Add Student"}
+              </Button>
+            </div>
+          )}
+        </form>
+      </div>
+    </main>
   );
 }
