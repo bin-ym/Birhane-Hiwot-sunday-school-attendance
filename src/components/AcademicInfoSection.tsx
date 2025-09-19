@@ -1,7 +1,7 @@
 "use client";
 import { FormField } from "@/components/ui/FormField";
-import { Student } from "@/lib/models";
-import { schools, addresses } from "@/constant";
+import { Student, UserRole } from "@/lib/models";
+import { schools, addresses, GRADES } from "@/lib/constants";
 import { getCurrentEthiopianYear } from "@/lib/utils";
 
 interface AcademicInfoSectionProps {
@@ -13,6 +13,7 @@ interface AcademicInfoSectionProps {
   isLoadingUniqueID: boolean;
   student: Student | null;
   academicYears: number[];
+  userRole: UserRole;
 }
 
 export function AcademicInfoSection({
@@ -22,6 +23,7 @@ export function AcademicInfoSection({
   isLoadingUniqueID,
   student,
   academicYears,
+  userRole,
 }: AcademicInfoSectionProps) {
   const currentEthiopianYear = getCurrentEthiopianYear();
   const occupationOptions = [
@@ -32,18 +34,25 @@ export function AcademicInfoSection({
     .map((_, i) => ({ value: `Grade ${1 + i}`, label: `Grade ${1 + i}` }))
     .concat({ value: "University", label: "University" });
   const educationalBackgroundOptions = [
-    { value: "1-8", label: "Grades 1-8" },
-    { value: "9-12", label: "Grades 9-12" },
-    { value: "University", label: "University" },
+    { value: "1-12", label: "Grades 1-12" },
+    { value: "ኮሌጅ/ዩኒቨርስቲ", label: "ኮሌጅ/ዩኒቨርስቲ" },
+    { value: "ዲፕሎማ", label: "ዲፕሎማ" },
+    { value: "ድግሪ", label: "ድግሪ" },
+    { value: "ማስትርስ", label: "ማስትርስ" },
   ];
   const placeOfWorkOptions = [
     { value: "Government", label: "Government" },
     { value: "Private", label: "Private" },
   ];
-  const gradeOptions = [...Array(12)].map((_, i) => ({
-    value: `Grade ${1 + i}`,
-    label: `Grade ${1 + i}`,
-  }));
+  const gradeOptions =
+    userRole === "Admin" && formData.Age >= 17 && formData.Age <= 20
+      ? [
+          { value: GRADES[7], label: GRADES[7] }, // ሰባተኛ ክፍል ጥዋት
+          { value: GRADES[8], label: GRADES[8] }, // ሰባተኛ ክፍል ከሰዓት
+        ]
+      : userRole === "Admin"
+      ? GRADES.map((grade) => ({ value: grade, label: grade }))
+      : [{ value: formData.Grade || "", label: formData.Grade || "None" }];
 
   return (
     <section className="space-y-6 bg-white p-6 rounded-lg shadow-md mt-6">
@@ -61,7 +70,13 @@ export function AcademicInfoSection({
           required
           options={occupationOptions}
           className="text-responsive"
-          inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
+            userRole !== "Admin"
+              ? "bg-gray-100 cursor-not-allowed"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          }`}
+          readOnly={userRole !== "Admin"}
+          disabled={userRole !== "Admin"}
         />
         {formData.Occupation === "Student" && (
           <>
@@ -75,7 +90,13 @@ export function AcademicInfoSection({
               required
               options={classOptions}
               className="text-responsive"
-              inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
+                userRole !== "Admin"
+                  ? "bg-gray-100 cursor-not-allowed"
+                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              }`}
+              readOnly={userRole !== "Admin"}
+              disabled={userRole !== "Admin"}
             />
             <FormField
               label="School"
@@ -87,7 +108,13 @@ export function AcademicInfoSection({
               required
               options={schools}
               className="text-responsive"
-              inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
+                userRole !== "Admin"
+                  ? "bg-gray-100 cursor-not-allowed"
+                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              }`}
+              readOnly={userRole !== "Admin"}
+              disabled={userRole !== "Admin"}
             />
             {formData.School === "Other" && (
               <FormField
@@ -98,7 +125,13 @@ export function AcademicInfoSection({
                 error={errors.School_Other}
                 required
                 className="text-responsive"
-                inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
+                  userRole !== "Admin"
+                    ? "bg-gray-100 cursor-not-allowed"
+                    : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                }`}
+                readOnly={userRole !== "Admin"}
+                disabled={userRole !== "Admin"}
               />
             )}
           </>
@@ -115,7 +148,13 @@ export function AcademicInfoSection({
               required
               options={educationalBackgroundOptions}
               className="text-responsive"
-              inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
+                userRole !== "Admin"
+                  ? "bg-gray-100 cursor-not-allowed"
+                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              }`}
+              readOnly={userRole !== "Admin"}
+              disabled={userRole !== "Admin"}
             />
             <FormField
               label="Place of Work"
@@ -127,7 +166,13 @@ export function AcademicInfoSection({
               required
               options={placeOfWorkOptions}
               className="text-responsive"
-              inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
+                userRole !== "Admin"
+                  ? "bg-gray-100 cursor-not-allowed"
+                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              }`}
+              readOnly={userRole !== "Admin"}
+              disabled={userRole !== "Admin"}
             />
           </>
         )}
@@ -141,7 +186,13 @@ export function AcademicInfoSection({
           required
           options={addresses}
           className="text-responsive"
-          inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
+            userRole !== "Admin"
+              ? "bg-gray-100 cursor-not-allowed"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          }`}
+          readOnly={userRole !== "Admin"}
+          disabled={userRole !== "Admin"}
         />
         {formData.Address === "Other" && (
           <FormField
@@ -152,7 +203,13 @@ export function AcademicInfoSection({
             error={errors.Address_Other}
             required
             className="text-responsive"
-            inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
+              userRole !== "Admin"
+                ? "bg-gray-100 cursor-not-allowed"
+                : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            }`}
+            readOnly={userRole !== "Admin"}
+            disabled={userRole !== "Admin"}
           />
         )}
         <FormField
@@ -164,8 +221,14 @@ export function AcademicInfoSection({
           error={errors.Grade}
           required
           options={gradeOptions}
+          readOnly={userRole !== "Admin"}
+          disabled={userRole !== "Admin"}
           className="text-responsive"
-          inputClassName="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
+            userRole !== "Admin"
+              ? "bg-gray-100 cursor-not-allowed"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          }`}
         />
         <FormField
           label="Academic Year (Ethiopian Calendar)"
@@ -181,7 +244,7 @@ export function AcademicInfoSection({
           name="Unique_ID"
           value={formData.Unique_ID || ""}
           readOnly
-          disabled={isLoadingUniqueID || !!student}
+          disabled={isLoadingUniqueID || !!student || userRole !== "Admin"}
           error={errors.Unique_ID}
           className="text-responsive"
           inputClassName="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"

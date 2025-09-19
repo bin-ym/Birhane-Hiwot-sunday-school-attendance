@@ -1,10 +1,16 @@
-// src/lib/hooks/useStudentForm.ts
-import { useState, useEffect, useMemo } from "react";
-import { Student } from "@/lib/models";
+//src/lib/hooks/useStudentForm.ts
+import { useState, useEffect, Dispatch, SetStateAction } from "react";
+import { Student, UserRole } from "@/lib/models";
 import { calculateAge, validateStudentForm } from "@/lib/formUtils";
-import { getTodayEthiopianDateISO } from "@/lib/utils";
+import { getCurrentEthiopianYear, isEthiopianLeapYear } from "@/lib/utils";
+import { GRADES } from "@/lib/constants";
 
-export function useStudentForm(student: Student | null, onSave: (studentData: Omit<Student, "_id">) => Promise<void>) {
+export function useStudentForm(
+  student: Student | null,
+  onSave: (studentData: Omit<Student, "_id">) => Promise<void>,
+  userRole: UserRole
+) {
+  const currentEthiopianYear = getCurrentEthiopianYear();
   const [formData, setFormData] = useState<Omit<Student, "_id">>({
     Unique_ID: "",
     First_Name: "",
@@ -26,19 +32,14 @@ export function useStudentForm(student: Student | null, onSave: (studentData: Om
     Place_of_Work: "",
     Address: "",
     Address_Other: "",
-    Academic_Year: "",
+    Academic_Year: String(currentEthiopianYear),
     Grade: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isLoadingUniqueID, setIsLoadingUniqueID] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof Omit<Student, "_id">, string>>>({});
-
-  const academicYears = useMemo(() => {
-    const dateStr = getTodayEthiopianDateISO(); // e.g., "2018-01-01"
-    const year = parseInt(dateStr.split("-")[0], 10); // Extract year
-    return Array.from({ length: 6 }, (_, i) => year - 2 + i);
-  }, []);
+  const academicYears = [currentEthiopianYear];
 
   useEffect(() => {
     if (student) {
@@ -63,32 +64,84 @@ export function useStudentForm(student: Student | null, onSave: (studentData: Om
         Place_of_Work: student.Place_of_Work || "",
         Address: student.Address || "",
         Address_Other: student.Address_Other || "",
-        Academic_Year: student.Academic_Year || "",
+        Academic_Year: String(currentEthiopianYear),
         Grade: student.Grade || "",
       });
-    } else if (academicYears.length > 0) {
-      setFormData((prev) => ({
-        ...prev,
-        Academic_Year: academicYears[2].toString(),
-      }));
     }
-  }, [student, academicYears]);
+  }, [student, currentEthiopianYear]);
 
   useEffect(() => {
     if (formData.DOB_Date && formData.DOB_Month && formData.DOB_Year) {
-      const age = calculateAge(
-        parseInt(formData.DOB_Date),
-        parseInt(formData.DOB_Month),
-        parseInt(formData.DOB_Year)
-      );
-      if (age >= 0) {
-        setFormData((prev) => ({ ...prev, Age: age }));
+      const date = parseInt(formData.DOB_Date);
+      const month = parseInt(formData.DOB_Month);
+      const year = parseInt(formData.DOB_Year);
+
+      // Validate DOB
+      const isPagume = month === 13;
+      const maxDay = isEthiopianLeapYear(year) ? (isPagume ? 6 : 30) : (isPagume ? 5 : 30);
+      const dobErrors: Partial<Record<keyof Omit<Student, "_id">, string>> = {};
+      if (month < 1 || month > 13) {
+        dobErrors.DOB_Month = "Invalid month";
       }
+      if (date < 1 || date > maxDay) {
+        dobErrors.DOB_Date = `Invalid date for ${isPagume ? "Pagumē" : "month"}`;
+      }
+      if (year < 1900 || year > currentEthiopianYear) {
+        dobErrors.DOB_Year = "Invalid year";
+      }
+
+      setErrors((prev) => ({
+        ...prev,
+        DOB_Date: dobErrors.DOB_Date || "",
+        DOB_Month: dobErrors.DOB_Month || "",
+        DOB_Year: dobErrors.DOB_Year || "",
+      }));
+
+      if (Object.keys(dobErrors).length === 0) {
+        const age = calculateAge(date, month, year);
+        if (age !== formData.Age) {
+          setFormData((prev) => ({ ...prev, Age: age }));
+        }
+      } else if (formData.Age !== 0) {
+        setFormData((prev) => ({ ...prev, Age: 0 }));
+      }
+    } else if (formData.Age !== 0) {
+      setFormData((prev) => ({ ...prev, Age: 0 }));
     }
-  }, [formData.DOB_Date, formData.DOB_Month, formData.DOB_Year]);
+  }, [formData.DOB_Date, formData.DOB_Month, formData.DOB_Year, currentEthiopianYear, formData.Age]);
+
+  // Grade assignment based on Age
+  useEffect(() => {
+    if (userRole !== "Admin" || formData.Age <= 0) {
+      if (formData.Grade !== "") {
+        setFormData((prev) => ({ ...prev, Grade: "" }));
+      }
+      return;
+    }
+
+    let grade: string;
+    if (formData.Age < 7) {
+      grade = GRADES[0]; // ቅድመ መደበኛ
+    } else if (formData.Age === 7 || formData.Age === 8) {
+      grade = GRADES[1]; // አንደኛ ክፍል
+    } else if (formData.Age === 9 || formData.Age === 11) {
+      grade = GRADES[2]; // ሁለተኛ ክፍል
+    } else if (formData.Age === 12 || formData.Age === 13) {
+      grade = GRADES[3]; // ሦስተኛ ክፍል
+    } else if (formData.Age === 14 || formData.Age === 15 || formData.Age === 16) {
+      grade = GRADES[5]; // አምስተኛ ክፍል
+    } else if (formData.Age >= 17 && formData.Age <= 20) {
+      grade = formData.Grade === GRADES[7] || formData.Grade === GRADES[8] ? formData.Grade : GRADES[7]; // Default to ሰባተኛ ክፍል ጥዋት
+    } else {
+      grade = GRADES[8]; // ሰባተኛ ክፍል ከሰዓት for age >= 20
+    }
+    if (grade !== formData.Grade) {
+      setFormData((prev) => ({ ...prev, Grade: grade }));
+    }
+  }, [formData.Age, formData.Grade, userRole]);
 
   useEffect(() => {
-    if (!student && formData.Grade && formData.Academic_Year && /^\d{4}$/.test(formData.Academic_Year)) {
+    if (!student && formData.Grade && formData.Academic_Year && /^\d{4}$/.test(formData.Academic_Year) && userRole === "Admin") {
       setIsLoadingUniqueID(true);
       fetch("/api/students/count", {
         method: "POST",
@@ -105,7 +158,24 @@ export function useStudentForm(student: Student | null, onSave: (studentData: Om
         .then((data) => {
           const newCount = data.count + 1;
           const year = formData.Academic_Year.slice(-2);
-          const gradeNum = formData.Grade.match(/\d+/)?.[0]?.padStart(2, "0") || "01";
+          const gradeNumMap: Record<typeof GRADES[number], string> = {
+            [GRADES[0]]: "01", // ቅድመ መደበኛ
+            [GRADES[1]]: "01", // አንደኛ ክፍል
+            [GRADES[2]]: "02", // ሁለተኛ ክፍል
+            [GRADES[3]]: "03", // ሦስተኛ ክፍል
+            [GRADES[4]]: "04", // አራተኛ ክፍል
+            [GRADES[5]]: "05", // አምስተኛ ክፍል
+            [GRADES[6]]: "06", // ስድስተኛ ክፍል
+            [GRADES[7]]: "07", // ሰባተኛ ክፍል ጥዋት
+            [GRADES[8]]: "07", // ሰባተኛ ክፍል ከሰዓት
+            [GRADES[9]]: "08", // ስምንተኛ ክፍል
+            [GRADES[10]]: "09", // ዘጠኝ ክፍል
+            [GRADES[11]]: "10", // አስረኛ ክፍል
+            [GRADES[12]]: "11", // አስራኛ ክፍል
+            [GRADES[13]]: "12", // አስራ አንደኛ ክፍል
+            [GRADES[14]]: "13", // አስራ ሁለተኛ ክፍል
+          };
+          const gradeNum = gradeNumMap[formData.Grade] || "01";
           const newUniqueID = `ብሕ/${year}/${gradeNum}/${String(newCount).padStart(2, "0")}`;
           setFormData((prev) => ({ ...prev, Unique_ID: newUniqueID }));
         })
@@ -120,10 +190,10 @@ export function useStudentForm(student: Student | null, onSave: (studentData: Om
           setIsLoadingUniqueID(false);
         });
     }
-  }, [student, formData.Academic_Year, formData.Grade]);
+  }, [student, formData.Academic_Year, formData.Grade, userRole]);
 
   const checkDuplicate = async () => {
-    if (student) return false;
+    if (student || userRole !== "Admin") return false;
     try {
       const res = await fetch("/api/students/check-duplicate", {
         method: "POST",
@@ -144,8 +214,39 @@ export function useStudentForm(student: Student | null, onSave: (studentData: Om
     }
   };
 
+  const validateSection = (data: Omit<Student, "_id">, fields: (keyof Omit<Student, "_id">)[]): Partial<Record<keyof Omit<Student, "_id">, string>> => {
+    const errors: Partial<Record<keyof Omit<Student, "_id">, string>> = {};
+    fields.forEach((field) => {
+      if (!data[field]) {
+        errors[field] = `${field.replace("_", " ")} is required`;
+      }
+    });
+    if (data.DOB_Date && data.DOB_Month && data.DOB_Year) {
+      const year = parseInt(data.DOB_Year);
+      const month = parseInt(data.DOB_Month);
+      const date = parseInt(data.DOB_Date);
+      const isPagume = month === 13;
+      const maxDay = isEthiopianLeapYear(year) ? (isPagume ? 6 : 30) : (isPagume ? 5 : 30);
+      if (month < 1 || month > 13) {
+        errors.DOB_Month = "Invalid month";
+      }
+      if (date < 1 || date > maxDay) {
+        errors.DOB_Date = `Invalid date for ${isPagume ? "Pagumē" : "month"}`;
+      }
+      if (year < 1900 || year > getCurrentEthiopianYear()) {
+        errors.DOB_Year = "Invalid year";
+      }
+    }
+    setErrors((prev) => ({ ...prev, ...errors }));
+    return errors;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (userRole !== "Admin") {
+      setError("Only Admins can submit student data");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -187,8 +288,11 @@ export function useStudentForm(student: Student | null, onSave: (studentData: Om
       "DOB_Month",
       "DOB_Year",
       "Phone_Number",
-      "Academic_Year",
     ];
+    if (name === "Grade" && userRole !== "Admin") {
+      setError("Only Admins can edit Grade");
+      return;
+    }
     setFormData((prev) => ({
       ...prev,
       [name]: numberFields.includes(name as keyof Omit<Student, "_id">)
@@ -210,5 +314,6 @@ export function useStudentForm(student: Student | null, onSave: (studentData: Om
     academicYears,
     handleChange,
     handleSubmit,
+    validateSection,
   };
 }

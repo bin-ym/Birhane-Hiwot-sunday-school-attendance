@@ -1,15 +1,17 @@
-// src/app/admin/students/[id]/edit/page.tsx
+//src/app/admin/students/%5Bid%5D/edit/page.tsx
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Student } from "@/lib/models";
 import { StudentForm } from "@/components/StudentForm";
+import { useAuth } from "@/lib/auth";
 
 export default function EditStudentPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { user, status } = useAuth();
 
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +23,8 @@ export default function EditStudentPage() {
         if (!res.ok) throw new Error("Failed to fetch student");
         const data = await res.json();
         setStudent(data);
+      } catch (error) {
+        console.error("Error fetching student:", error);
       } finally {
         setLoading(false);
       }
@@ -28,8 +32,18 @@ export default function EditStudentPage() {
     fetchStudent();
   }, [id]);
 
-  if (loading) {
+  if (status === "loading" || loading) {
     return <main className="container-responsive py-6"><div className="card-responsive">Loading...</div></main>;
+  }
+
+  if (status === "unauthenticated" || !user) {
+    router.push("/login");
+    return null;
+  }
+
+  if (user.role !== "Admin") {
+    router.push("/403");
+    return null;
   }
 
   return (
@@ -50,6 +64,7 @@ export default function EditStudentPage() {
           }
           router.push("/admin/students");
         }}
+        userRole={user.role}
       />
     </main>
   );

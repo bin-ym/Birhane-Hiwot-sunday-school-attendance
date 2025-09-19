@@ -1,104 +1,105 @@
-// src/lib/formUtils.ts
 import { Student } from "@/lib/models";
-import { isEthiopianLeapYear, ETHIOPIAN_MONTHS, getTodayEthiopianDateISO } from "@/lib/utils";
+import { getCurrentEthiopianYear, ethiopianToGregorian, gregorianToEthiopian, isEthiopianLeapYear } from "@/lib/utils";
 
-export function calculateAge(day: number, month: number, year: number): number {
-  const { [year]: currentYear } = getTodayEthiopianDateISO().split("-").map(Number);
-  return currentYear - year;
+export function calculateAge(date: number, month: number, year: number): number {
+  // Validate inputs
+  if (!year || isNaN(year) || !month || isNaN(month) || !date || isNaN(date)) {
+    return 0;
+  }
+
+  // Validate Ethiopian date
+  const isPagume = month === 13;
+  const maxDay = isEthiopianLeapYear(year) ? (isPagume ? 6 : 30) : (isPagume ? 5 : 30);
+  if (month < 1 || month > 13 || date < 1 || date > maxDay) {
+    return 0;
+  }
+
+  try {
+    // Convert Ethiopian DOB to Gregorian
+    const birthDate = ethiopianToGregorian(year, month, date);
+    const today = new Date();
+    
+    // Convert today's date to Ethiopian for comparison
+    const { year: currentYear, month: currentMonth, day: currentDay } = gregorianToEthiopian(today);
+    
+    let age = currentYear - year;
+    // Adjust age if birthday hasn't occurred this year
+    if (month > currentMonth || (month === currentMonth && date > currentDay)) {
+      age--;
+    }
+    
+    return age >= 0 ? age : 0;
+  } catch (error) {
+    console.error("Error calculating age:", error);
+    return 0;
+  }
 }
 
-export function validateStudentForm(
-  formData: Omit<Student, "_id">,
-  isNew: boolean
-): Partial<Record<keyof Omit<Student, "_id">, string>> {
+export function validateStudentForm(formData: Omit<Student, "_id">, isNew: boolean): Partial<Record<keyof Omit<Student, "_id">, string>> {
   const errors: Partial<Record<keyof Omit<Student, "_id">, string>> = {};
-  const textFields: (keyof Omit<Student, "_id">)[] = [
+  const requiredFields: (keyof Omit<Student, "_id">)[] = [
     "First_Name",
     "Father_Name",
     "Grandfather_Name",
     "Mothers_Name",
     "Christian_Name",
-    "Sex",
-    "Occupation",
-    "Address",
-  ];
-  const numberFields: (keyof Omit<Student, "_id">)[] = [
     "DOB_Date",
     "DOB_Month",
     "DOB_Year",
+    "Sex",
     "Phone_Number",
+    "Occupation",
+    "Grade",
     "Academic_Year",
+    "Address",
   ];
 
-  (Object.keys(formData) as (keyof Omit<Student, "_id">)[]).forEach((key) => {
-    if (
-      !formData[key] &&
-      key !== "School_Other" &&
-      key !== "Address_Other" &&
-      key !== "Educational_Background" &&
-      key !== "Place_of_Work" &&
-      key !== "School" &&
-      key !== "Age" &&
-      key !== "Class" &&
-      key !== "Unique_ID"
-    ) {
-      errors[key] = `${key.replace("_", " ")} is required`;
+  requiredFields.forEach((field) => {
+    if (!formData[field]) {
+      errors[field] = `${field.replace("_", " ")} is required`;
     }
   });
 
-  if (formData.Occupation === "Student" && !formData.Class) {
-    errors.Class = "Class is required for students";
-  }
-
-  textFields.forEach((key) => {
-    if (formData[key] && /\d/.test(formData[key] as string)) {
-      errors[key] = `${key.replace("_", " ")} cannot contain numbers`;
+  if (formData.Occupation === "Student") {
+    if (!formData.Class) errors.Class = "Class is required";
+    if (!formData.School) errors.School = "School is required";
+    if (formData.School === "Other" && !formData.School_Other) {
+      errors.School_Other = "Other School is required";
     }
-  });
-
-  numberFields.forEach((key) => {
-    if (formData[key] && !/^\d+$/.test(formData[key] as string)) {
-      errors[key] = `${key.replace("_", " ")} must contain numbers only`;
-    }
-  });
-
-  if (formData.Academic_Year && !/^\d{4}$/.test(formData.Academic_Year)) {
-    errors.Academic_Year = "Academic Year must be a 4-digit number";
   }
 
-  if (formData.Occupation === "Student" && !formData.School) {
-    errors.School = "School is required for students";
-  }
   if (formData.Occupation === "Worker") {
     if (!formData.Educational_Background) {
-      errors.Educational_Background = "Educational Background is required for workers";
+      errors.Educational_Background = "Educational Background is required";
     }
     if (!formData.Place_of_Work) {
-      errors.Place_of_Work = "Place of Work is required for workers";
+      errors.Place_of_Work = "Place of Work is required";
     }
   }
+
   if (formData.Address === "Other" && !formData.Address_Other) {
-    errors.Address_Other = "Please specify address";
+    errors.Address_Other = "Other Address is required";
   }
-  if (formData.School === "Other" && !formData.School_Other) {
-    errors.School_Other = "Please specify school";
-  }
+
   if (isNew && !formData.Unique_ID) {
-    errors.Unique_ID = "ID Number is required";
+    errors.Unique_ID = "Unique ID is required";
   }
 
   // Validate DOB
-  if (formData.DOB_Year && formData.DOB_Month && formData.DOB_Date) {
+  if (formData.DOB_Date && formData.DOB_Month && formData.DOB_Year) {
     const year = parseInt(formData.DOB_Year);
     const month = parseInt(formData.DOB_Month);
-    const day = parseInt(formData.DOB_Date);
-    const isLeap = isEthiopianLeapYear(year);
-    const maxDay = month === 13 ? (isLeap ? 6 : 5) : 30;
+    const date = parseInt(formData.DOB_Date);
+    const isPagume = month === 13;
+    const maxDay = isEthiopianLeapYear(year) ? (isPagume ? 6 : 30) : (isPagume ? 5 : 30);
     if (month < 1 || month > 13) {
-      errors.DOB_Month = `Month must be between 1 and 13 (${ETHIOPIAN_MONTHS.join(", ")})`;
+      errors.DOB_Month = "Invalid month";
     }
-    if (day < 1 || day > maxDay) {
-      errors.DOB_Date = `Day must be between 1 and ${maxDay} for ${ETHIOPIAN_MONTHS[month - 1]}`;
+    if (date < 1 || date > maxDay) {
+      errors.DOB_Date = `Invalid date for ${isPagume ? "Pagumē" : "month"}`;
+    }
+    if (year < 1900 || year > getCurrentEthiopianYear()) {
+      errors.DOB_Year = "Invalid year";
     }
   }
 
