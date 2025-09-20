@@ -1,4 +1,7 @@
+//src/components/AcademicInfoSection.tsx
+
 "use client";
+
 import { FormField } from "@/components/ui/FormField";
 import { Student, UserRole } from "@/lib/models";
 import { schools, addresses, GRADES } from "@/lib/constants";
@@ -14,6 +17,7 @@ interface AcademicInfoSectionProps {
   student: Student | null;
   academicYears: number[];
   userRole: UserRole;
+  canEdit: boolean;
 }
 
 export function AcademicInfoSection({
@@ -24,6 +28,7 @@ export function AcademicInfoSection({
   student,
   academicYears,
   userRole,
+  canEdit,
 }: AcademicInfoSectionProps) {
   const currentEthiopianYear = getCurrentEthiopianYear();
   const occupationOptions = [
@@ -50,7 +55,7 @@ export function AcademicInfoSection({
           { value: GRADES[7], label: GRADES[7] }, // ሰባተኛ ክፍል ጥዋት
           { value: GRADES[8], label: GRADES[8] }, // ሰባተኛ ክፍል ከሰዓት
         ]
-      : userRole === "Admin"
+      : userRole === "Admin" || (userRole === "Attendance Facilitator" && !student)
       ? GRADES.map((grade) => ({ value: grade, label: grade }))
       : [{ value: formData.Grade || "", label: formData.Grade || "None" }];
 
@@ -71,12 +76,12 @@ export function AcademicInfoSection({
           options={occupationOptions}
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-100 cursor-not-allowed"
               : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           }`}
-          readOnly={userRole !== "Admin"}
-          disabled={userRole !== "Admin"}
+          readOnly={!canEdit}
+          disabled={!canEdit}
         />
         {formData.Occupation === "Student" && (
           <>
@@ -91,12 +96,12 @@ export function AcademicInfoSection({
               options={classOptions}
               className="text-responsive"
               inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-                userRole !== "Admin"
+                !canEdit
                   ? "bg-gray-100 cursor-not-allowed"
                   : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               }`}
-              readOnly={userRole !== "Admin"}
-              disabled={userRole !== "Admin"}
+              readOnly={!canEdit}
+              disabled={!canEdit}
             />
             <FormField
               label="School"
@@ -109,12 +114,12 @@ export function AcademicInfoSection({
               options={schools}
               className="text-responsive"
               inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-                userRole !== "Admin"
+                !canEdit
                   ? "bg-gray-100 cursor-not-allowed"
                   : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               }`}
-              readOnly={userRole !== "Admin"}
-              disabled={userRole !== "Admin"}
+              readOnly={!canEdit}
+              disabled={!canEdit}
             />
             {formData.School === "Other" && (
               <FormField
@@ -126,12 +131,12 @@ export function AcademicInfoSection({
                 required
                 className="text-responsive"
                 inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-                  userRole !== "Admin"
+                  !canEdit
                     ? "bg-gray-100 cursor-not-allowed"
                     : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 }`}
-                readOnly={userRole !== "Admin"}
-                disabled={userRole !== "Admin"}
+                readOnly={!canEdit}
+                disabled={!canEdit}
               />
             )}
           </>
@@ -149,12 +154,12 @@ export function AcademicInfoSection({
               options={educationalBackgroundOptions}
               className="text-responsive"
               inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-                userRole !== "Admin"
+                !canEdit
                   ? "bg-gray-100 cursor-not-allowed"
                   : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               }`}
-              readOnly={userRole !== "Admin"}
-              disabled={userRole !== "Admin"}
+              readOnly={!canEdit}
+              disabled={!canEdit}
             />
             <FormField
               label="Place of Work"
@@ -167,12 +172,12 @@ export function AcademicInfoSection({
               options={placeOfWorkOptions}
               className="text-responsive"
               inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-                userRole !== "Admin"
+                !canEdit
                   ? "bg-gray-100 cursor-not-allowed"
                   : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               }`}
-              readOnly={userRole !== "Admin"}
-              disabled={userRole !== "Admin"}
+              readOnly={!canEdit}
+              disabled={!canEdit}
             />
           </>
         )}
@@ -187,12 +192,12 @@ export function AcademicInfoSection({
           options={addresses}
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-100 cursor-not-allowed"
               : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           }`}
-          readOnly={userRole !== "Admin"}
-          disabled={userRole !== "Admin"}
+          readOnly={!canEdit}
+          disabled={!canEdit}
         />
         {formData.Address === "Other" && (
           <FormField
@@ -204,12 +209,12 @@ export function AcademicInfoSection({
             required
             className="text-responsive"
             inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-              userRole !== "Admin"
+              !canEdit
                 ? "bg-gray-100 cursor-not-allowed"
                 : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            }`}
-            readOnly={userRole !== "Admin"}
-            disabled={userRole !== "Admin"}
+              }`}
+            readOnly={!canEdit}
+            disabled={!canEdit}
           />
         )}
         <FormField
@@ -221,11 +226,11 @@ export function AcademicInfoSection({
           error={errors.Grade}
           required
           options={gradeOptions}
-          readOnly={userRole !== "Admin"}
-          disabled={userRole !== "Admin"}
+          readOnly={!canEdit}
+          disabled={!canEdit}
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-100 cursor-not-allowed"
               : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           }`}
@@ -244,7 +249,7 @@ export function AcademicInfoSection({
           name="Unique_ID"
           value={formData.Unique_ID || ""}
           readOnly
-          disabled={isLoadingUniqueID || !!student || userRole !== "Admin"}
+          disabled={isLoadingUniqueID || !!student || !canEdit}
           error={errors.Unique_ID}
           className="text-responsive"
           inputClassName="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"

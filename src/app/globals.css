@@ -167,3 +167,39 @@
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* Mobile alignment fixes */
+@media (max-width: 639px) {
+  /* Ensure left alignment on small screens */
+  .container-responsive,
+  .card-responsive,
+  .table-responsive,
+  .grid-responsive,
+  .text-responsive,
+  .heading-responsive,
+  main,
+  section,
+  header,
+  nav {
+    text-align: left;
+  }
+
+  /* Avoid centered blocks from utility classes in compiled styles */
+  .mx-auto {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  /* Make buttons and inputs fill width when in stacked layouts */
+  button,
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+
+  /* Prevent flex containers from centering items in common headers */
+  .flex {
+    align-items: stretch;
+  }
+}

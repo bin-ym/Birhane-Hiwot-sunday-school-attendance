@@ -20,16 +20,16 @@ interface AttendanceTabProps {
   student: Student;
   attendanceRecords: Attendance[];
   currentDate: Date;
+  handleGenerateReport?: (format: "CSV" | "PDF") => void;
 }
 
 export default function AttendanceTab({
   student,
   attendanceRecords,
   currentDate,
+  handleGenerateReport,
 }: AttendanceTabProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(10); // Default: Sene
-  const [selectedYear, setSelectedYear] = useState(2017); // Default: 2017 EC
 
   // Parse academic year into a number (e.g., "2017-2018" -> 2017)
   const numericYear = parseInt(student.Academic_Year.split("-")[0], 10);
@@ -128,15 +128,6 @@ export default function AttendanceTab({
     doc.save(`${student.First_Name}_Attendance_Report.pdf`);
   };
 
-  const handleGenerateReport = (format: "CSV" | "PDF") => {
-    if (format === "CSV") {
-      exportToCSV();
-    } else {
-      generatePDF();
-    }
-    setIsModalOpen(false);
-  };
-
   function formatDateForDisplay(
     timestamp: string,
     { includeTime }: { includeTime: boolean }
@@ -162,12 +153,14 @@ export default function AttendanceTab({
         <h2 className="text-2xl font-semibold text-gray-700">
           Attendance for Academic Year {student.Academic_Year}
         </h2>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-        >
-          Generate Report
-        </button>
+        {handleGenerateReport && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+          >
+            Generate Report
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-4 text-sm text-gray-800 font-medium mb-6">
@@ -227,59 +220,51 @@ export default function AttendanceTab({
                         : "Absent";
                       statusStyles =
                         status === "Present"
-                          ? "bg-green-500 text-white"
+                          ? "text-green-600"
                           : status === "Permission"
-                          ? "bg-yellow-500 text-white"
-                          : "bg-red-500 text-white";
+                          ? "text-yellow-600"
+                          : "text-red-600";
                       statusIcon =
                         status === "Present" ? (
-                          <CheckCircleIcon className="w-5 h-5 inline-block mr-1" />
+                          <CheckCircleIcon className="w-5 h-5 text-green-600" />
                         ) : status === "Permission" ? (
-                          <MinusCircleIcon className="w-5 h-5 inline-block mr-1" />
+                          <MinusCircleIcon className="w-5 h-5 text-yellow-600" />
                         ) : (
-                          <XCircleIcon className="w-5 h-5 inline-block mr-1" />
+                          <XCircleIcon className="w-5 h-5 text-red-600" />
                         );
                     } else {
                       status = "Absent";
-                      statusStyles = "bg-red-500 text-white";
+                      statusStyles = "text-red-600";
                       statusIcon = (
-                        <XCircleIcon className="w-5 h-5 inline-block mr-1" />
+                        <XCircleIcon className="w-5 h-5 text-red-600" />
                       );
                     }
-
-                    const tooltip = `Marked by: ${
-                      record?.markedBy || "Birhaun Hiwot"
-                    }\nTime: ${
-                      record?.timestamp
-                        ? formatDateForDisplay(record.timestamp, {
-                            includeTime: true,
-                          })
-                        : formatDateForDisplay(new Date().toISOString(), {
-                            includeTime: true,
-                          })
-                    }\nReason: ${
-                      status === "Permission" ? record?.reason || "—" : "N/A"
-                    }`;
 
                     return (
                       <div
                         key={dateStr}
-                        className="border border-gray-200 rounded-lg p-3 bg-white hover:bg-gray-50 transition duration-150 ease-in-out"
+                        className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200"
                       >
-                        <p className="text-sm font-medium text-gray-800">
-                          {dateStr}
-                        </p>
-                        {status ? (
-                          <p
-                            className={`text-sm font-semibold ${statusStyles} inline-flex items-center px-2 py-1 rounded-full`}
-                            title={tooltip}
-                          >
-                            {statusIcon}
-                            {status}
-                          </p>
-                        ) : (
-                          <p className="text-sm text-gray-400">No status</p>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {statusIcon}
+                          <div>
+                            <div className="font-medium text-gray-800">
+                              {dateStr}
+                            </div>
+                            {attendanceMap[dateStr]?.timestamp && (
+                              <div className="text-xs text-gray-500">
+                                Marked at:{" "}
+                                {formatDateForDisplay(
+                                  attendanceMap[dateStr].timestamp!,
+                                  { includeTime: true }
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className={`font-semibold ${statusStyles}`}>
+                          {status}
+                        </div>
                       </div>
                     );
                   })}
@@ -290,37 +275,37 @@ export default function AttendanceTab({
         )}
       </div>
 
-      {/* Modal for Report Options */}
-      {isModalOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
-          onClick={() => setIsModalOpen(false)}
-        >
-          <div
-            className="bg-white p-6 rounded shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-4">Choose Report Format</h3>
-            <div className="flex justify-around">
+      {/* Modal */}
+      {handleGenerateReport && isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h4 className="text-lg font-semibold mb-4">Generate Report</h4>
+            <div className="flex gap-3">
               <button
-                onClick={() => handleGenerateReport("CSV")}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Export as CSV
-              </button>
-              <button
-                onClick={() => handleGenerateReport("PDF")}
+                onClick={() => {
+                  exportToCSV();
+                  setIsModalOpen(false);
+                }}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                Generate PDF
+                Export CSV
+              </button>
+              <button
+                onClick={() => {
+                  generatePDF();
+                  setIsModalOpen(false);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Export PDF
+              </button>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 border rounded"
+              >
+                Cancel
               </button>
             </div>
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Cancel
-            </button>
           </div>
         </div>
       )}
