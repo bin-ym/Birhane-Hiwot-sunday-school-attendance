@@ -1,4 +1,7 @@
+//src/components/PersonalInfoSection.tsx
+
 "use client";
+
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/FormField";
 import { Student, UserRole } from "@/lib/models";
@@ -12,6 +15,7 @@ interface PersonalInfoSectionProps {
   ) => void;
   onNext: () => void;
   userRole: UserRole;
+  canEdit: boolean;
 }
 
 export function PersonalInfoSection({
@@ -20,6 +24,7 @@ export function PersonalInfoSection({
   handleChange,
   onNext,
   userRole,
+  canEdit,
 }: PersonalInfoSectionProps) {
   const sexOptions = [
     { value: "Male", label: "Male" },
@@ -45,12 +50,12 @@ export function PersonalInfoSection({
           required
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-100 cursor-not-allowed"
               : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           }`}
-          readOnly={userRole !== "Admin"}
-          disabled={userRole !== "Admin"}
+          readOnly={!canEdit}
+          disabled={!canEdit}
         />
         <FormField
           label="Father Name"
@@ -61,12 +66,12 @@ export function PersonalInfoSection({
           required
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-100 cursor-not-allowed"
               : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           }`}
-          readOnly={userRole !== "Admin"}
-          disabled={userRole !== "Admin"}
+          readOnly={!canEdit}
+          disabled={!canEdit}
         />
         <FormField
           label="Grandfather Name"
@@ -77,12 +82,12 @@ export function PersonalInfoSection({
           required
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-100 cursor-not-allowed"
               : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           }`}
-          readOnly={userRole !== "Admin"}
-          disabled={userRole !== "Admin"}
+          readOnly={!canEdit}
+          disabled={!canEdit}
         />
         <FormField
           label="Mother's Name"
@@ -93,12 +98,12 @@ export function PersonalInfoSection({
           required
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-100 cursor-not-allowed"
               : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           }`}
-          readOnly={userRole !== "Admin"}
-          disabled={userRole !== "Admin"}
+          readOnly={!canEdit}
+          disabled={!canEdit}
         />
         <FormField
           label="Christian Name"
@@ -109,12 +114,12 @@ export function PersonalInfoSection({
           required
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-100 cursor-not-allowed"
               : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           }`}
-          readOnly={userRole !== "Admin"}
-          disabled={userRole !== "Admin"}
+          readOnly={!canEdit}
+          disabled={!canEdit}
         />
         <FormField
           label="Sex"
@@ -127,12 +132,12 @@ export function PersonalInfoSection({
           options={sexOptions}
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-100 cursor-not-allowed"
               : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           }`}
-          readOnly={userRole !== "Admin"}
-          disabled={userRole !== "Admin"}
+          readOnly={!canEdit}
+          disabled={!canEdit}
         />
         <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <FormField
@@ -144,12 +149,12 @@ export function PersonalInfoSection({
             required
             className="text-responsive"
             inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-              userRole !== "Admin"
+              !canEdit
                 ? "bg-gray-100 cursor-not-allowed"
                 : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             }`}
-            readOnly={userRole !== "Admin"}
-            disabled={userRole !== "Admin"}
+            readOnly={!canEdit}
+            disabled={!canEdit}
           />
           <FormField
             label="DOB Month"
@@ -162,12 +167,12 @@ export function PersonalInfoSection({
             options={monthOptions}
             className="text-responsive"
             inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-              userRole !== "Admin"
+              !canEdit
                 ? "bg-gray-100 cursor-not-allowed"
                 : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             }`}
-            readOnly={userRole !== "Admin"}
-            disabled={userRole !== "Admin"}
+            readOnly={!canEdit}
+            disabled={!canEdit}
           />
           <FormField
             label="DOB Year"
@@ -178,12 +183,12 @@ export function PersonalInfoSection({
             required
             className="text-responsive"
             inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-              userRole !== "Admin"
+              !canEdit
                 ? "bg-gray-100 cursor-not-allowed"
                 : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             }`}
-            readOnly={userRole !== "Admin"}
-            disabled={userRole !== "Admin"}
+            readOnly={!canEdit}
+            disabled={!canEdit}
           />
         </div>
         <FormField
@@ -205,12 +210,12 @@ export function PersonalInfoSection({
           required
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-100 cursor-not-allowed"
               : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           }`}
-          readOnly={userRole !== "Admin"}
-          disabled={userRole !== "Admin"}
+          readOnly={!canEdit}
+          disabled={!canEdit}
         />
       </div>
       <div className="flex justify-end mt-6">
@@ -218,9 +223,9 @@ export function PersonalInfoSection({
           type="button"
           variant="primary"
           onClick={onNext}
-          disabled={userRole !== "Admin"}
+          disabled={!canEdit}
           className={`btn-responsive px-4 py-2 rounded-lg transition-all ${
-            userRole !== "Admin"
+            !canEdit
               ? "bg-gray-300 cursor-not-allowed"
               : "bg-blue-600 hover:bg-blue-700 text-white"
           }`}

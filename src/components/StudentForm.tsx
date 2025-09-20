@@ -1,4 +1,7 @@
+//src/components/StudentForm.tsx
+
 "use client";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Student, UserRole } from "@/lib/models";
@@ -55,6 +58,8 @@ export function StudentForm({
     }
   };
 
+  const canEdit = userRole === "Admin" || (userRole === "Attendance Facilitator" && !student);
+
   return (
     <main className="flex-1 p-8 bg-gray-50">
       <div className="w-full">
@@ -71,6 +76,7 @@ export function StudentForm({
               handleChange={handleChange}
               onNext={handleNext}
               userRole={userRole}
+              canEdit={canEdit}
             />
           )}
           {currentSection === "academic" && (
@@ -82,6 +88,7 @@ export function StudentForm({
               student={student}
               academicYears={[currentEthiopianYear]}
               userRole={userRole}
+              canEdit={canEdit}
             />
           )}
           {isLoadingUniqueID && (
@@ -98,7 +105,7 @@ export function StudentForm({
                 type="button"
                 variant="secondary"
                 onClick={() => setCurrentSection("personal")}
-                disabled={loading || userRole !== "Admin"}
+                disabled={loading || !canEdit}
                 className="btn-responsive bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-all"
               >
                 Back
@@ -107,7 +114,7 @@ export function StudentForm({
                 type="button"
                 variant="secondary"
                 onClick={onCancel}
-                disabled={loading || userRole !== "Admin"}
+                disabled={loading || !canEdit}
                 className="btn-responsive bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-all"
               >
                 Cancel
@@ -115,7 +122,7 @@ export function StudentForm({
               <Button
                 type="submit"
                 variant="primary"
-                disabled={loading || userRole !== "Admin"}
+                disabled={loading || !canEdit}
                 className="btn-responsive bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all"
               >
                 {loading ? "Saving..." : student ? "Update Student" : "Add Student"}

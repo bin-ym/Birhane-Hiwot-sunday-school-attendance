@@ -3,9 +3,10 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Student, Attendance } from "@/lib/models";
+import { Student, Attendance, UserRole } from "@/lib/models";
+import StudentDetails from "@/components/StudentDetails";
 
-export default function StudentDetails() {
+export default function StudentDetailsPage() {
   const params = useParams();
   const studentId = params.studentId as string;
   const [student, setStudent] = useState<Student | null>(null);
@@ -21,59 +22,76 @@ export default function StudentDetails() {
           fetch(`/api/students/${studentId}`),
           fetch(`/api/attendance/${studentId}`),
         ]);
+
         if (!studentRes.ok || !attendanceRes.ok) {
           throw new Error("Failed to load data");
         }
+
         const studentData = await studentRes.json();
         const attendanceData = await attendanceRes.json();
+
         setStudent(studentData);
         setAttendance(attendanceData);
         setError(null);
       } catch (err) {
-        setError((err as Error).message);
+        console.error(err);
+        setError("Failed to load student data");
       } finally {
         setLoading(false);
       }
     }
-    fetchData();
+
+    if (studentId) {
+      fetchData();
+    }
   }, [studentId]);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div className="text-red-500">{error}</div>;
-  if (!student) return <div>Student not found</div>;
+  if (loading) {
+    return (
+      <main className="container-responsive py-6">
+        <div className="card-responsive">
+          <div className="animate-pulse bg-muted h-8 rounded w-full mb-4" />
+          <div className="animate-pulse bg-muted h-8 rounded w-3/4" />
+        </div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="container-responsive py-6">
+        <div className="card-responsive">
+          <p className="text-destructive text-responsive">{error}</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!student) {
+    return (
+      <main className="container-responsive py-6">
+        <div className="card-responsive">
+          <h1 className="heading-responsive font-serif text-primary mb-6">
+            Student Not Found
+          </h1>
+          <p className="text-muted-foreground mb-4">
+            No student found with ID: {studentId}
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">{`${student.First_Name} ${student.Father_Name}`}</h1>
-      <div className="bg-white p-6 rounded-lg shadow">
-        <p><strong>ID:</strong> {student.Unique_ID}</p>
-        <p><strong>Grade:</strong> {student.Grade}</p>
-        <p><strong>Sex:</strong> {student.Sex}</p>
-        <p><strong>Academic Year:</strong> {student.Academic_Year}</p>
-      </div>
-      <h2 className="text-xl font-semibold mt-6 mb-4">Attendance History</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse border">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border p-3 text-left">Date</th>
-              <th className="border p-3 text-left">Status</th>
-              <th className="border p-3 text-left">Reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            {attendance.map((record) => (
-              <tr key={`${record.studentId}-${record.date}`} className="hover:bg-gray-50">
-                <td className="border p-3">{record.date}</td>
-                <td className="border p-3">
-                  {record.present ? "Present" : record.hasPermission ? "Permission" : "Absent"}
-                </td>
-                <td className="border p-3">{record.reason || "-"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <main className="container-responsive py-6">
+      <StudentDetails
+        student={student}
+        attendanceRecords={attendance}
+        userRole="Attendance Facilitator"
+        currentDate={new Date()}
+        handleGenerateReport={undefined}
+        allowedTabs={["details", "attendance", "payment"]}
+      />
+    </main>
   );
 }

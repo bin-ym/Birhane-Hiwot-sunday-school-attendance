@@ -20,7 +20,7 @@ export default function RegisterStudentPage() {
     return null;
   }
 
-  if (user.role !== "Admin" && user.role !== "Attendance Facilitator") {
+  if (user.role !== "Attendance Facilitator") {
     router.push("/403");
     return null;
   }

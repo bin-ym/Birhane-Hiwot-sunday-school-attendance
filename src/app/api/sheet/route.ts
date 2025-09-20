@@ -5,7 +5,10 @@ import path from "path";
 
 // const spreadsheetId = "1WqEqOfqkuzZj1itPSglpZBoVmenHVUxwDQ3X5WWGKMc";
 const spreadsheetId = "11kZZXZrpBTK9aaZ5zckkLLh2vgG6Amy0MAn09Zyj9n0";
-const KEYFILEPATH = path.join(process.cwd(), "service-account.json");
+const KEYFILEPATH =
+  process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+  process.env.SUN_SERVICE_ACCOUNT ||
+  path.join(process.cwd(), "sun.json");
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
 
 // Amharic header tokens we expect — used to locate the real header row
@@ -73,10 +76,14 @@ export async function GET(req: NextRequest) {
     if (all) {
       const meta = await sheetsApi.spreadsheets.get({ spreadsheetId });
       sheetNames =
-        meta.data.sheets?.map((s) => s.properties?.title || "").filter(Boolean) ||
-        [];
+        meta.data.sheets
+          ?.map((s) => s.properties?.title || "")
+          .filter(Boolean) || [];
     } else if (sheetsParam) {
-      sheetNames = sheetsParam.split(",").map((s) => s.trim()).filter(Boolean);
+      sheetNames = sheetsParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
     } else if (sheetParam) {
       sheetNames = [sheetParam.trim()];
     } else {
@@ -148,7 +155,9 @@ export async function GET(req: NextRequest) {
 
       // Map row arrays to objects keyed by trimmed header names
       const mapped = dataRows
-        .filter((r: any[]) => Array.isArray(r) && r.some((c) => normalize(c) !== ""))
+        .filter(
+          (r: any[]) => Array.isArray(r) && r.some((c) => normalize(c) !== "")
+        )
         .map((row: any[]) => {
           const obj: Record<string, string> = {};
           rawHeaders.forEach((h: string, i: number) => {
@@ -163,7 +172,10 @@ export async function GET(req: NextRequest) {
           const sex =
             sexAm === "ወንድ" ? "Male" : sexAm === "ሴት" ? "Female" : sexAm || "";
 
-          const dobYear = getValueByPossibleKeys(obj, ["የልደት ዓ/ም", "የልደት ዓ/ም "]);
+          const dobYear = getValueByPossibleKeys(obj, [
+            "የልደት ዓ/ም",
+            "የልደት ዓ/ም ",
+          ]);
 
           const mappedRow = {
             Unique_ID: uniqueId,
@@ -213,6 +225,9 @@ export async function GET(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("Error in /api/sheet:", err);
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || String(err) },
+      { status: 500 }
+    );
   }
 }
