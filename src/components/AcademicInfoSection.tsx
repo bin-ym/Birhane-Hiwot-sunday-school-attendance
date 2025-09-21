@@ -49,21 +49,58 @@ export function AcademicInfoSection({
     { value: "Government", label: "Government" },
     { value: "Private", label: "Private" },
   ];
-  const gradeOptions =
-    userRole === "Admin" && formData.Age >= 17 && formData.Age <= 20
-      ? [
-          { value: GRADES[7], label: GRADES[7] }, // ሰባተኛ ክፍል ጥዋት
-          { value: GRADES[8], label: GRADES[8] }, // ሰባተኛ ክፍል ከሰዓት
-        ]
-      : userRole === "Admin" || (userRole === "Attendance Facilitator" && !student)
-      ? GRADES.map((grade) => ({ value: grade, label: grade }))
-      : [{ value: formData.Grade || "", label: formData.Grade || "None" }];
+
+  // Define allowed grades for each role
+  const getAllowedGrades = (role: UserRole, isEditing: boolean, age: number): { value: string; label: string }[] => {
+    // For editing existing students, show current grade only
+    if (isEditing) {
+      return [{ value: formData.Grade || "", label: formData.Grade || "None" }];
+    }
+
+    // For Admin role - only allow Grade 4, 6, and grades > 8
+    if (role === "Admin") {
+      return GRADES
+        .filter(grade => {
+          const gradeNumber = parseInt(grade.match(/\d+/)?.[0] || '0');
+          return gradeNumber === 4 || gradeNumber === 6 || gradeNumber > 8;
+        })
+        .map(grade => ({ value: grade, label: grade }));
+    }
+
+    // For Attendance Facilitator role - allow all grades
+    if (role === "Attendance Facilitator") {
+      return GRADES.map(grade => ({ value: grade, label: grade }));
+    }
+
+    // Default: all grades
+    return GRADES.map(grade => ({ value: grade, label: grade }));
+  };
+
+  const gradeOptions = getAllowedGrades(userRole, !!student, formData.Age);
 
   return (
     <section className="space-y-6 bg-white p-6 rounded-lg shadow-md mt-6">
       <h4 className="text-lg sm:text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">
         Academic & School Information
       </h4>
+      
+      {/* Role-based grade restriction info */}
+      {userRole === "Admin" && !student && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> As an Admin, you can only register students for Grade 4, Grade 6, and grades above 8.
+          </p>
+        </div>
+      )}
+      
+      {userRole === "Attendance Facilitator" && !student && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          <p className="text-sm text-green-800">
+            You can register students for all grades.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <FormField
           label="Occupation"
