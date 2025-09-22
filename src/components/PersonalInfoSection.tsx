@@ -16,6 +16,8 @@ interface PersonalInfoSectionProps {
   onNext: () => void;
   userRole: UserRole;
   canEdit: boolean;
+  isReadOnly?: boolean;
+  loading?: boolean;
 }
 
 export function PersonalInfoSection({
@@ -25,6 +27,8 @@ export function PersonalInfoSection({
   onNext,
   userRole,
   canEdit,
+  isReadOnly = false,
+  loading = false,
 }: PersonalInfoSectionProps) {
   const sexOptions = [
     { value: "Male", label: "Male" },
@@ -35,8 +39,13 @@ export function PersonalInfoSection({
     label: month,
   }));
 
+  // Determine if field is disabled (either can't edit or read-only mode)
+  const isFieldDisabled = !canEdit || isReadOnly;
+
   return (
-    <section className="space-y-6 bg-white p-6 rounded-lg shadow-md">
+    <section className={`space-y-6 bg-white p-6 rounded-lg shadow-md ${
+      isReadOnly ? 'border-2 border-gray-200' : ''
+    }`}>
       <h4 className="text-lg sm:text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">
         Personal Information
       </h4>
@@ -49,13 +58,13 @@ export function PersonalInfoSection({
           error={errors.First_Name}
           required
           className="text-responsive"
-          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            !canEdit
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isFieldDisabled
               ? "bg-gray-100 cursor-not-allowed"
-              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           }`}
-          readOnly={!canEdit}
-          disabled={!canEdit}
+          readOnly={isFieldDisabled}
+          disabled={isFieldDisabled}
         />
         <FormField
           label="Father Name"
@@ -65,13 +74,13 @@ export function PersonalInfoSection({
           error={errors.Father_Name}
           required
           className="text-responsive"
-          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            !canEdit
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isFieldDisabled
               ? "bg-gray-100 cursor-not-allowed"
-              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           }`}
-          readOnly={!canEdit}
-          disabled={!canEdit}
+          readOnly={isFieldDisabled}
+          disabled={isFieldDisabled}
         />
         <FormField
           label="Grandfather Name"
@@ -81,13 +90,13 @@ export function PersonalInfoSection({
           error={errors.Grandfather_Name}
           required
           className="text-responsive"
-          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            !canEdit
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isFieldDisabled
               ? "bg-gray-100 cursor-not-allowed"
-              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           }`}
-          readOnly={!canEdit}
-          disabled={!canEdit}
+          readOnly={isFieldDisabled}
+          disabled={isFieldDisabled}
         />
         <FormField
           label="Mother's Name"
@@ -97,13 +106,13 @@ export function PersonalInfoSection({
           error={errors.Mothers_Name}
           required
           className="text-responsive"
-          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            !canEdit
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isFieldDisabled
               ? "bg-gray-100 cursor-not-allowed"
-              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           }`}
-          readOnly={!canEdit}
-          disabled={!canEdit}
+          readOnly={isFieldDisabled}
+          disabled={isFieldDisabled}
         />
         <FormField
           label="Christian Name"
@@ -113,13 +122,13 @@ export function PersonalInfoSection({
           error={errors.Christian_Name}
           required
           className="text-responsive"
-          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            !canEdit
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isFieldDisabled
               ? "bg-gray-100 cursor-not-allowed"
-              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           }`}
-          readOnly={!canEdit}
-          disabled={!canEdit}
+          readOnly={isFieldDisabled}
+          disabled={isFieldDisabled}
         />
         <FormField
           label="Sex"
@@ -131,13 +140,13 @@ export function PersonalInfoSection({
           required
           options={sexOptions}
           className="text-responsive"
-          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            !canEdit
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isFieldDisabled
               ? "bg-gray-100 cursor-not-allowed"
-              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           }`}
-          readOnly={!canEdit}
-          disabled={!canEdit}
+          readOnly={isFieldDisabled}
+          disabled={isFieldDisabled}
         />
         <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <FormField
@@ -148,13 +157,13 @@ export function PersonalInfoSection({
             error={errors.DOB_Date}
             required
             className="text-responsive"
-            inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-              !canEdit
+            inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+              isFieldDisabled
                 ? "bg-gray-100 cursor-not-allowed"
-                : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             }`}
-            readOnly={!canEdit}
-            disabled={!canEdit}
+            readOnly={isFieldDisabled}
+            disabled={isFieldDisabled}
           />
           <FormField
             label="DOB Month"
@@ -166,13 +175,13 @@ export function PersonalInfoSection({
             required
             options={monthOptions}
             className="text-responsive"
-            inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-              !canEdit
+            inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+              isFieldDisabled
                 ? "bg-gray-100 cursor-not-allowed"
-                : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             }`}
-            readOnly={!canEdit}
-            disabled={!canEdit}
+            readOnly={isFieldDisabled}
+            disabled={isFieldDisabled}
           />
           <FormField
             label="DOB Year"
@@ -182,13 +191,13 @@ export function PersonalInfoSection({
             error={errors.DOB_Year}
             required
             className="text-responsive"
-            inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-              !canEdit
+            inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+              isFieldDisabled
                 ? "bg-gray-100 cursor-not-allowed"
-                : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             }`}
-            readOnly={!canEdit}
-            disabled={!canEdit}
+            readOnly={isFieldDisabled}
+            disabled={isFieldDisabled}
           />
         </div>
         <FormField
@@ -209,30 +218,32 @@ export function PersonalInfoSection({
           error={errors.Phone_Number}
           required
           className="text-responsive"
-          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            !canEdit
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isFieldDisabled
               ? "bg-gray-100 cursor-not-allowed"
-              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           }`}
-          readOnly={!canEdit}
-          disabled={!canEdit}
+          readOnly={isFieldDisabled}
+          disabled={isFieldDisabled}
         />
       </div>
-      <div className="flex justify-end mt-6">
-        <Button
-          type="button"
-          variant="primary"
-          onClick={onNext}
-          disabled={!canEdit}
-          className={`btn-responsive px-4 py-2 rounded-lg transition-all ${
-            !canEdit
-              ? "bg-gray-300 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700 text-white"
-          }`}
-        >
-          Next
-        </Button>
-      </div>
+      {!isReadOnly && canEdit && (
+        <div className="flex justify-end mt-6">
+          <Button
+            type="button"
+            variant="primary"
+            onClick={onNext}
+            disabled={loading}
+            className={`btn-responsive px-6 py-2 rounded-lg transition-all ${
+              !canEdit
+                ? "bg-gray-300 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 text-white"
+            }`}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </section>
   );
 }

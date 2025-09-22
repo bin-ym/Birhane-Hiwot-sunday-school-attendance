@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type SheetRow = {
-  // mapped row fields (English) may exist
   Unique_ID?: string;
   First_Name?: string;
   Father_Name?: string;
@@ -21,7 +20,6 @@ type SheetRow = {
   Address?: string;
   Place_of_Work?: string;
   Academic_Year?: string;
-  // original raw row (keys = Amharic header strings trimmed)
   __rawRow?: Record<string, string>;
   [k: string]: any;
 };
@@ -53,7 +51,6 @@ export default function SheetImportPage() {
   const [sheets, setSheets] = useState<SheetResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [activeSheet, setActiveSheet] = useState<string | "Combined">("Combined");
   const [sheetData, setSheetData] = useState<SheetRow[]>([]);
   const [exporting, setExporting] = useState(false);
@@ -63,7 +60,7 @@ export default function SheetImportPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/sheet?all=true");
+        const res = await fetch("/api/sheet/?sheet");
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.error || `HTTP ${res.status}`);
@@ -91,7 +88,6 @@ export default function SheetImportPage() {
     loadAllSheets();
   }, []);
 
-  // Update sheetData when activeSheet or sheets change
   useEffect(() => {
     if (activeSheet === "Combined") {
       setSheetData(sheets.flatMap((s) => s.rows || []));
@@ -101,7 +97,6 @@ export default function SheetImportPage() {
     }
   }, [activeSheet, sheets]);
 
-  // Group for viewing (Academic Year -> Grade)
   const grouped = useMemo(() => {
     const m = new Map<string, Map<string, SheetRow[]>>();
     sheetData.forEach((r) => {
@@ -116,16 +111,13 @@ export default function SheetImportPage() {
     return m;
   }, [sheetData]);
 
-  // helper: tolerant lookups into raw row (trimmed header keys; consider trailing-space variants)
   function getCellValue(r: SheetRow, header: string): string {
     const key = header.trim();
     const raw = r.__rawRow || (Object.keys(r).length ? (r as any) : {});
-    // try candidates: exact, with trailing space(s), full original header variants
     const candidates = [key, key + " ", key + "  ", key + "\u00A0"];
     for (const c of candidates) {
       if (raw && raw[c] !== undefined && raw[c] !== "") return String(raw[c]);
     }
-    // fallback to common English mapped keys
     const englishMap: Record<string, string[]> = {
       "ተ/ቁ": ["index", "No", "No."],
       "ኮድ": ["Unique_ID", "UniqueId", "code"],
@@ -146,12 +138,10 @@ export default function SheetImportPage() {
     for (const ek of engKeys) {
       if ((r as any)[ek] !== undefined && (r as any)[ek] !== "") return String((r as any)[ek]);
     }
-    // last fallback: if r has Unique_ID or First_Name for simple display
     if (header === "ተ/ቁ" && (r as any).Unique_ID) return String((r as any).Unique_ID);
     return "";
   }
 
-  // Export current view (visible sheetData) to CSV using AMHARIC_HEADERS
   async function exportToCSV(filename = "sheet-export.csv", rowsToExport?: SheetRow[]) {
     setExporting(true);
     try {
@@ -161,9 +151,7 @@ export default function SheetImportPage() {
         return;
       }
 
-      // Build CSV lines
       const csvRows: string[] = [];
-      // Header row (Amharic)
       csvRows.push(AMHARIC_HEADERS.map((h) => `"${h.replace(/"/g, '""')}"`).join(","));
 
       for (const r of rows) {
@@ -189,13 +177,11 @@ export default function SheetImportPage() {
     }
   }
 
-  // Export combined across all sheets
   function handleExportCombined() {
     const combined = sheets.flatMap((s) => s.rows || []);
     exportToCSV("combined-sheets.csv", combined);
   }
 
-  // Export current visible rows (based on active sheet)
   function handleExportCurrent() {
     exportToCSV(`${activeSheet === "Combined" ? "combined" : activeSheet}-export.csv`, sheetData);
   }
@@ -212,7 +198,31 @@ export default function SheetImportPage() {
       {loading ? (
         <div>Loading sheet data…</div>
       ) : error ? (
-        <div className="text-red-600">{error}</div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start space-x-2">
+            <div className="text-red-500">🚨</div>
+            <div>
+              <h3 className="font-semibold text-red-800 mb-1">Import Error</h3>
+              <p className="text-red-700 mb-2">{error}</p>
+              {error.includes('environment') && (
+                <p className="text-sm text-red-600">
+                  Please check your Google Service Account configuration in Vercel environment variables.
+                </p>
+              )}
+              {error.includes('authentication') && (
+                <p className="text-sm text-red-600">
+                  Ensure your Google Sheet is shared with the service account email.
+                </p>
+              )}
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 text-blue-600 hover:underline text-sm"
+              >
+                Retry Loading
+              </button>
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           <div className="mb-4 flex gap-2 flex-wrap">
