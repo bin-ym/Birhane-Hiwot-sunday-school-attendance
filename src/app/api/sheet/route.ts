@@ -1,17 +1,11 @@
 // src/app/api/sheet/route.ts
 import { google } from "googleapis";
 import { NextRequest, NextResponse } from "next/server";
-import path from "path";
+import { JWT } from "google-auth-library";
 
-// const spreadsheetId = "1WqEqOfqkuzZj1itPSglpZBoVmenHVUxwDQ3X5WWGKMc";
-const spreadsheetId = "11kZZXZrpBTK9aaZ5zckkLLh2vgG6Amy0MAn09Zyj9n0";
-const KEYFILEPATH =
-  process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-  process.env.SUN_SERVICE_ACCOUNT ||
-  path.join(process.cwd(), "sun.json");
+const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
 
-// Amharic header tokens we expect — used to locate the real header row
 const KNOWN_HEADERS = [
   "ተ/ቁ",
   "ኮድ",
@@ -26,7 +20,75 @@ const KNOWN_HEADERS = [
   "የመኖርያ አድራሻ",
   "አገልግሎት ክፍል",
   "አገልግሎት የጀመሩበት ዓ/ም",
+  "ምርመራ",
 ];
+
+type SheetRow = {
+  Unique_ID?: string;
+  First_Name?: string;
+  Father_Name?: string;
+  Grandfather_Name?: string;
+  Sex?: string;
+  Christian_Name?: string;
+  Phone_Number?: string;
+  DOB_Year?: string;
+  Age?: number;
+  Class?: string;
+  Grade?: string;
+  Occupation?: string;
+  Address?: string;
+  Place_of_Work?: string;
+  Academic_Year?: string;
+  __rawRow?: Record<string, string>;
+  [k: string]: any;
+};
+
+type SheetResponse = {
+  name: string;
+  headers: string[];
+  rows: SheetRow[];
+  error?: string; // Added for error handling
+};
+
+// Helper function to create JWT auth from environment variables
+export async function createAuth() {
+  try {
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+      const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+
+      const jwt = new JWT({
+        email: serviceAccount.client_email,
+        key: serviceAccount.private_key.replace(/\\n/g, "\n"),
+        keyId: serviceAccount.private_key_id,
+        scopes: SCOPES,
+      });
+
+      return jwt;
+    }
+
+    const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL;
+    const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    const privateKeyId = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_ID;
+
+    if (clientEmail && privateKey && privateKeyId) {
+      const jwt = new JWT({
+        email: clientEmail,
+        key: privateKey.replace(/\\n/g, "\n"),
+        keyId: privateKeyId,
+        scopes: SCOPES,
+      });
+
+      return jwt;
+    }
+
+    throw new Error("Missing Google Service Account credentials in environment variables");
+  } catch (error) {
+    console.error("Failed to create Google Auth:", error);
+    throw new Error(
+      `Authentication setup failed: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+}
 
 function normalize(s: any) {
   return (s || "").toString().trim();
@@ -38,18 +100,16 @@ function detectHeaderIndex(rows: any[][]): number | null {
     const row = rows[i];
     if (!Array.isArray(row)) continue;
     // if row contains any known header token (trimmed), pick it
-    const foundKnown = row.some((cell) =>
-      KNOWN_HEADERS.includes(normalize(cell))
-    );
+    const foundKnown = row.some((cell) => KNOWN_HEADERS.includes(normalize(cell)));
     if (foundKnown) return i;
-    // otherwise if the row has >= 2 non-empty cells, it's likely a header row
+    // otherwise if row has >= 2 non-empty cells, it's likely a header row
     const nonEmpty = row.filter((c) => normalize(c) !== "").length;
     if (nonEmpty >= 2) return i;
   }
   return null;
 }
 
-// Map Amharic header names (trimmed) to the standardized English keys
+// Map Amharic header names (trimmed) to standardized English keys
 function getValueByPossibleKeys(obj: Record<string, string>, keys: string[]) {
   for (const k of keys) {
     if (obj[k] !== undefined) return obj[k];
@@ -58,32 +118,29 @@ function getValueByPossibleKeys(obj: Record<string, string>, keys: string[]) {
 }
 
 export async function GET(req: NextRequest) {
+
   try {
     const { searchParams } = new URL(req.url);
     const sheetParam = searchParams.get("sheet");
     const sheetsParam = searchParams.get("sheets");
     const all = searchParams.get("all") === "true";
 
-    const auth = new google.auth.GoogleAuth({
-      keyFile: KEYFILEPATH,
-      scopes: SCOPES,
-    });
-
+    const auth = await createAuth();
     const sheetsApi = google.sheets({ version: "v4", auth });
 
-    // Determine which sheet names to fetch
     let sheetNames: string[] = [];
-    if (all) {
+    if (all || sheetParam || sheetsParam) {
       const meta = await sheetsApi.spreadsheets.get({ spreadsheetId });
+      if (!spreadsheetId) {
+    return NextResponse.json(
+      { error: "GOOGLE_SHEET_ID environment variable is not configured" },
+      { status: 500 }
+    );
+  }
       sheetNames =
-        meta.data.sheets
-          ?.map((s) => s.properties?.title || "")
-          .filter(Boolean) || [];
+        meta.data.sheets?.map((s) => s.properties?.title || "").filter(Boolean) || [];
     } else if (sheetsParam) {
-      sheetNames = sheetsParam
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      sheetNames = sheetsParam.split(",").map((s) => s.trim()).filter(Boolean);
     } else if (sheetParam) {
       sheetNames = [sheetParam.trim()];
     } else {
@@ -97,136 +154,128 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const sheetResults: any[] = [];
+    console.log(`📊 Fetching ${sheetNames.length} sheet(s):`, sheetNames);
+
+    const sheetResults: SheetResponse[] = [];
 
     for (const sheetName of sheetNames) {
-      const range = `${sheetName}!A1:Z1000`;
-      console.log("Fetching sheet:", sheetName, "range:", range);
-      const res = await sheetsApi.spreadsheets.values.get({
-        spreadsheetId,
-        range,
-      });
+      try {
+        const range = `${sheetName}!A1:Z1000`;
+        console.log(`📄 Fetching sheet: "${sheetName}" (range: ${range})`);
 
-      const rows = res.data.values || [];
+        const res = await sheetsApi.spreadsheets.values.get({
+          spreadsheetId,
+          range,
+        });
 
-      if (!rows.length) {
+        const rows = res.data.values || [];
+
+        if (!rows.length) {
+          console.warn(`⚠️  No data found in sheet: ${sheetName}`);
+          sheetResults.push({ name: sheetName, headers: [], rows: [] });
+          continue;
+        }
+
+        const headerIndex = detectHeaderIndex(rows);
+        const effectiveHeaderIndex = headerIndex ?? 0;
+        const rawHeaders = rows[effectiveHeaderIndex].map((h: any) => normalize(h));
+
+        let dataStart = effectiveHeaderIndex + 1;
+        while (
+          dataStart < rows.length &&
+          (!Array.isArray(rows[dataStart]) ||
+            rows[dataStart].every((c: any) => normalize(c) === ""))
+        ) {
+          dataStart++;
+        }
+
+        const dataRows = rows.slice(dataStart);
+
+        const mapped = dataRows
+          .filter((r) => Array.isArray(r) && r.some((c) => normalize(c) !== ""))
+          .map((row) => {
+            const obj: Record<string, string> = {};
+            rawHeaders.forEach((h, i) => {
+              obj[h] = normalize(row[i] ?? "");
+            });
+
+            const uniqueId = getValueByPossibleKeys(obj, ["ኮድ", "ኮድ "]);
+            const fullname = getValueByPossibleKeys(obj, ["ስም እስከ አያት"]);
+            const nameParts = fullname.split(/\s+/).filter(Boolean);
+            const sexAm = getValueByPossibleKeys(obj, ["ፆታ"]);
+            const sex = sexAm === "ወንድ" ? "Male" : sexAm === "ሴት" ? "Female" : sexAm || "";
+
+            const dobYear = getValueByPossibleKeys(obj, ["የልደት ዓ/ም", "የልደት ዓ/ም "]);
+            const academicYear = getValueByPossibleKeys(obj, [
+              "አገልግሎት የጀመሩበት ዓ/ም",
+              "አገልግሎት የጀመሩበት ዓ/ም ",
+            ]);
+            const grade = getValueByPossibleKeys(obj, ["የት/ት ደረጃ"]);
+
+            const mappedRow: SheetRow = {
+              Unique_ID: uniqueId,
+              First_Name: nameParts[0] || "",
+              Father_Name: nameParts[1] || "",
+              Grandfather_Name: nameParts.slice(2).join(" ") || "",
+              Sex: sex,
+              Christian_Name: getValueByPossibleKeys(obj, ["ክርስትና ስም"]),
+              Phone_Number: getValueByPossibleKeys(obj, ["ስልክ ቁጥር"]),
+              DOB_Year: dobYear,
+              Age: dobYear ? new Date().getFullYear() - parseInt(dobYear, 10) : undefined,
+              Class: getValueByPossibleKeys(obj, ["መርሃ ግብር"]),
+              Grade: grade,
+              Occupation: getValueByPossibleKeys(obj, ["የስራ ዓይነት (ሙያ )"]),
+              Address: getValueByPossibleKeys(obj, ["የመኖርያ አድራሻ"]),
+              Place_of_Work: getValueByPossibleKeys(obj, ["አገልግሎት ክፍል"]),
+              Academic_Year: academicYear,
+              __rawRow: obj,
+            };
+
+            return mappedRow;
+          });
+
+        sheetResults.push({ name: sheetName, headers: rawHeaders, rows: mapped });
+
+        console.log(`✅ Processed sheet "${sheetName}": ${mapped.length} rows`);
+      } catch (sheetError) {
+        console.error(`❌ Error processing sheet "${sheetName}":`, sheetError);
         sheetResults.push({
           name: sheetName,
           headers: [],
           rows: [],
-          raw: { fetchedRange: res.data.range || range, values: rows },
+          error: sheetError instanceof Error ? sheetError.message : "Unknown error",
         });
-        continue;
       }
-
-      const headerIndex = detectHeaderIndex(rows);
-      if (headerIndex === null) {
-        // fallback: take the first non-empty row
-        const idx = rows.findIndex(
-          (r: any[]) => Array.isArray(r) && r.some((c) => normalize(c) !== "")
-        );
-        if (idx === -1) {
-          sheetResults.push({
-            name: sheetName,
-            headers: [],
-            rows: [],
-            raw: { fetchedRange: res.data.range || range, values: rows },
-          });
-          continue;
-        }
-      }
-
-      const effectiveHeaderIndex = headerIndex ?? 0;
-      const rawHeaders = rows[effectiveHeaderIndex].map((h: any) =>
-        normalize(h)
-      );
-
-      // find first non-empty data row after header
-      let dataStart = effectiveHeaderIndex + 1;
-      while (
-        dataStart < rows.length &&
-        (!Array.isArray(rows[dataStart]) ||
-          rows[dataStart].every((c: any) => normalize(c) === ""))
-      ) {
-        dataStart++;
-      }
-
-      const dataRows = rows.slice(dataStart);
-
-      // Map row arrays to objects keyed by trimmed header names
-      const mapped = dataRows
-        .filter(
-          (r: any[]) => Array.isArray(r) && r.some((c) => normalize(c) !== "")
-        )
-        .map((row: any[]) => {
-          const obj: Record<string, string> = {};
-          rawHeaders.forEach((h: string, i: number) => {
-            obj[h] = normalize(row[i] ?? "");
-          });
-
-          // Map Amharic→English. Use trimmed header names for lookup.
-          const uniqueId = getValueByPossibleKeys(obj, ["ኮድ", "ኮድ "]); // tolerate trailing spaces
-          const fullname = getValueByPossibleKeys(obj, ["ስም እስከ አያት"]);
-          const nameParts = fullname.split(/\s+/).filter(Boolean);
-          const sexAm = getValueByPossibleKeys(obj, ["ፆታ"]);
-          const sex =
-            sexAm === "ወንድ" ? "Male" : sexAm === "ሴት" ? "Female" : sexAm || "";
-
-          const dobYear = getValueByPossibleKeys(obj, [
-            "የልደት ዓ/ም",
-            "የልደት ዓ/ም ",
-          ]);
-
-          const mappedRow = {
-            Unique_ID: uniqueId,
-            First_Name: nameParts[0] || "",
-            Father_Name: nameParts[1] || "",
-            Grandfather_Name: nameParts.slice(2).join(" ") || "",
-            Sex: sex,
-            Christian_Name: getValueByPossibleKeys(obj, ["ክርስትና ስም"]),
-            Phone_Number: getValueByPossibleKeys(obj, ["ስልክ ቁጥር"]),
-            DOB_Year: dobYear,
-            Age: dobYear ? new Date().getFullYear() - parseInt(dobYear, 10) : 0,
-            Class: getValueByPossibleKeys(obj, ["መርሃ ግብር"]),
-            Grade: getValueByPossibleKeys(obj, ["የት/ት ደረጃ"]),
-            Occupation: getValueByPossibleKeys(obj, ["የስራ ዓይነት (ሙያ )"]),
-            Address: getValueByPossibleKeys(obj, ["የመኖርያ አድራሻ"]),
-            Place_of_Work: getValueByPossibleKeys(obj, ["አገልግሎት ክፍል"]),
-            Academic_Year: getValueByPossibleKeys(obj, [
-              "አገልግሎት የጀመሩበት ዓ/ም",
-              "አገልግሎት የጀመሩበት ዓ/ም ",
-            ]),
-            // Keep the original row object handy (if needed by client)
-            __rawRow: obj,
-          };
-
-          return mappedRow;
-        });
-
-      sheetResults.push({
-        name: sheetName,
-        headers: rawHeaders,
-        rows: mapped,
-        meta: {
-          headerIndex: effectiveHeaderIndex,
-          dataStart,
-          fetchedRange: res.data.range || range,
-        },
-      });
     }
 
-    // combined flattened array across sheets
-    const combined = sheetResults.flatMap((s) => s.rows);
+    const validSheets = sheetResults.filter((s) => !s.error);
+    const combined = validSheets.flatMap((s) => s.rows);
 
-    return NextResponse.json({
+    const response = {
       spreadsheetId,
       sheets: sheetResults,
       combined,
-    });
+      meta: {
+        totalSheets: sheetNames.length,
+        processedSheets: validSheets.length,
+        totalRows: combined.length,
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    console.log(
+      `📊 Sheet import completed: ${validSheets.length}/${sheetNames.length} sheets processed, ${combined.length} total rows`
+    );
+
+    return NextResponse.json(response);
   } catch (err: any) {
-    console.error("Error in /api/sheet:", err);
+    console.error("❌ Error in /api/sheet:", err);
+
     return NextResponse.json(
-      { error: err?.message || String(err) },
+      {
+        error: err?.message || String(err),
+        details: process.env.NODE_ENV === "development" ? err : undefined,
+      },
       { status: 500 }
     );
   }

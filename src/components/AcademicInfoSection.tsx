@@ -18,6 +18,8 @@ interface AcademicInfoSectionProps {
   academicYears: number[];
   userRole: UserRole;
   canEdit: boolean;
+  isReadOnly?: boolean;
+  loading?: boolean;
 }
 
 export function AcademicInfoSection({
@@ -29,6 +31,8 @@ export function AcademicInfoSection({
   academicYears,
   userRole,
   canEdit,
+  isReadOnly = false,
+  loading = false,
 }: AcademicInfoSectionProps) {
   const currentEthiopianYear = getCurrentEthiopianYear();
   const occupationOptions = [
@@ -50,54 +54,61 @@ export function AcademicInfoSection({
     { value: "Private", label: "Private" },
   ];
 
-  // Define allowed grades for each role
-  const getAllowedGrades = (role: UserRole, isEditing: boolean, age: number): { value: string; label: string }[] => {
-    // For editing existing students, show current grade only
+  // Define restricted grades for Attendance Facilitators
+  const restrictedGradesForFacilitator = [4, 6, 8, 12];
+  
+  // Get allowed grades based on role
+  const getAllowedGrades = (role: UserRole, isEditing: boolean): { value: string; label: string }[] => {
     if (isEditing) {
-      return [{ value: formData.Grade || "", label: formData.Grade || "None" }];
+      // For editing existing students, show only current grade
+      return [{ value: formData.Grade || "", label: formData.Grade || "Select Grade" }];
     }
 
-    // For Admin role - only allow Grade 4, 6, and grades > 8
-    if (role === "Admin") {
+    if (role === "Attendance Facilitator") {
+      // Filter out restricted grades for facilitators
       return GRADES
         .filter(grade => {
           const gradeNumber = parseInt(grade.match(/\d+/)?.[0] || '0');
-          return gradeNumber === 4 || gradeNumber === 6 || gradeNumber > 8;
+          return !restrictedGradesForFacilitator.includes(gradeNumber);
         })
         .map(grade => ({ value: grade, label: grade }));
     }
 
-    // For Attendance Facilitator role - allow all grades
-    if (role === "Attendance Facilitator") {
-      return GRADES.map(grade => ({ value: grade, label: grade }));
-    }
-
-    // Default: all grades
+    // Admin can access all grades
     return GRADES.map(grade => ({ value: grade, label: grade }));
   };
 
-  const gradeOptions = getAllowedGrades(userRole, !!student, formData.Age);
+  const gradeOptions = getAllowedGrades(userRole, !!student);
+
+  // Determine if field is disabled
+  const isFieldDisabled = !canEdit || isReadOnly;
 
   return (
-    <section className="space-y-6 bg-white p-6 rounded-lg shadow-md mt-6">
+    <section className={`space-y-6 bg-white p-6 rounded-lg shadow-md mt-6 ${
+      isReadOnly ? 'border-2 border-gray-200' : ''
+    }`}>
       <h4 className="text-lg sm:text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">
         Academic & School Information
       </h4>
-      
-      {/* Role-based grade restriction info */}
-      {userRole === "Admin" && !student && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-          <p className="text-sm text-blue-800">
-            <strong>Note:</strong> As an Admin, you can only register students for Grade 4, Grade 6, and grades above 8.
-          </p>
-        </div>
-      )}
-      
-      {userRole === "Attendance Facilitator" && !student && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-          <p className="text-sm text-green-800">
-            You can register students for all grades.
-          </p>
+
+      {/* Role-based grade restriction info for new registrations */}
+      {!student && userRole === "Attendance Facilitator" && (
+        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3 mb-4">
+          <div className="flex items-start space-x-2">
+            <div className="text-yellow-600 mt-0.5">⚠️</div>
+            <div>
+              <p className="text-sm font-semibold text-yellow-800 mb-1">
+                Grade Restrictions
+              </p>
+              <p className="text-sm text-yellow-700">
+                As an Attendance Facilitator, you cannot register students for Grades 4, 6, 8, or 12. 
+                Please contact an administrator for these grades.
+              </p>
+              <p className="text-xs text-yellow-600 mt-1 font-medium">
+                Available: Grades 1, 2, 3, 5, 7, 9, 10, 11, 13, 14
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -112,14 +123,15 @@ export function AcademicInfoSection({
           required
           options={occupationOptions}
           className="text-responsive"
-          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            !canEdit
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isFieldDisabled
               ? "bg-gray-100 cursor-not-allowed"
-              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           }`}
-          readOnly={!canEdit}
-          disabled={!canEdit}
+          readOnly={isFieldDisabled}
+          disabled={isFieldDisabled}
         />
+        
         {formData.Occupation === "Student" && (
           <>
             <FormField
@@ -132,13 +144,13 @@ export function AcademicInfoSection({
               required
               options={classOptions}
               className="text-responsive"
-              inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-                !canEdit
+              inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+                isFieldDisabled
                   ? "bg-gray-100 cursor-not-allowed"
-                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               }`}
-              readOnly={!canEdit}
-              disabled={!canEdit}
+              readOnly={isFieldDisabled}
+              disabled={isFieldDisabled}
             />
             <FormField
               label="School"
@@ -150,13 +162,13 @@ export function AcademicInfoSection({
               required
               options={schools}
               className="text-responsive"
-              inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-                !canEdit
+              inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+                isFieldDisabled
                   ? "bg-gray-100 cursor-not-allowed"
-                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               }`}
-              readOnly={!canEdit}
-              disabled={!canEdit}
+              readOnly={isFieldDisabled}
+              disabled={isFieldDisabled}
             />
             {formData.School === "Other" && (
               <FormField
@@ -167,17 +179,18 @@ export function AcademicInfoSection({
                 error={errors.School_Other}
                 required
                 className="text-responsive"
-                inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-                  !canEdit
+                inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+                  isFieldDisabled
                     ? "bg-gray-100 cursor-not-allowed"
-                    : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 }`}
-                readOnly={!canEdit}
-                disabled={!canEdit}
+                readOnly={isFieldDisabled}
+                disabled={isFieldDisabled}
               />
             )}
           </>
         )}
+        
         {formData.Occupation === "Worker" && (
           <>
             <FormField
@@ -190,13 +203,13 @@ export function AcademicInfoSection({
               required
               options={educationalBackgroundOptions}
               className="text-responsive"
-              inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-                !canEdit
+              inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+                isFieldDisabled
                   ? "bg-gray-100 cursor-not-allowed"
-                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               }`}
-              readOnly={!canEdit}
-              disabled={!canEdit}
+              readOnly={isFieldDisabled}
+              disabled={isFieldDisabled}
             />
             <FormField
               label="Place of Work"
@@ -208,16 +221,17 @@ export function AcademicInfoSection({
               required
               options={placeOfWorkOptions}
               className="text-responsive"
-              inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-                !canEdit
+              inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+                isFieldDisabled
                   ? "bg-gray-100 cursor-not-allowed"
-                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               }`}
-              readOnly={!canEdit}
-              disabled={!canEdit}
+              readOnly={isFieldDisabled}
+              disabled={isFieldDisabled}
             />
           </>
         )}
+        
         <FormField
           label="Address"
           name="Address"
@@ -228,13 +242,13 @@ export function AcademicInfoSection({
           required
           options={addresses}
           className="text-responsive"
-          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            !canEdit
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isFieldDisabled
               ? "bg-gray-100 cursor-not-allowed"
-              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           }`}
-          readOnly={!canEdit}
-          disabled={!canEdit}
+          readOnly={isFieldDisabled}
+          disabled={isFieldDisabled}
         />
         {formData.Address === "Other" && (
           <FormField
@@ -245,15 +259,16 @@ export function AcademicInfoSection({
             error={errors.Address_Other}
             required
             className="text-responsive"
-            inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-              !canEdit
+            inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+              isFieldDisabled
                 ? "bg-gray-100 cursor-not-allowed"
-                : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              }`}
-            readOnly={!canEdit}
-            disabled={!canEdit}
+                : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            }`}
+            readOnly={isFieldDisabled}
+            disabled={isFieldDisabled}
           />
         )}
+        
         <FormField
           label="Grade (Sunday School)"
           name="Grade"
@@ -263,15 +278,16 @@ export function AcademicInfoSection({
           error={errors.Grade}
           required
           options={gradeOptions}
-          readOnly={!canEdit}
-          disabled={!canEdit}
           className="text-responsive"
-          inputClassName={`w-full p-3 border border-gray-300 rounded-lg ${
-            !canEdit
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isFieldDisabled
               ? "bg-gray-100 cursor-not-allowed"
-              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           }`}
+          readOnly={isFieldDisabled}
+          disabled={isFieldDisabled}
         />
+        
         <FormField
           label="Academic Year (Ethiopian Calendar)"
           name="Academic_Year"
@@ -281,17 +297,43 @@ export function AcademicInfoSection({
           className="text-responsive"
           inputClassName="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
         />
+        
         <FormField
           label="Unique ID"
           name="Unique_ID"
           value={formData.Unique_ID || ""}
           readOnly
-          disabled={isLoadingUniqueID || !!student || !canEdit}
+          disabled={isLoadingUniqueID || isFieldDisabled}
           error={errors.Unique_ID}
           className="text-responsive"
-          inputClassName="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+          inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
+            isLoadingUniqueID || isFieldDisabled
+              ? "bg-gray-100 cursor-not-allowed"
+              : "bg-green-50 border-green-300"
+          }`}
         />
       </div>
+
+      {/* Show restricted grades warning if facilitator tries to access restricted grade */}
+      {userRole === "Attendance Facilitator" && 
+       !student && 
+       formData.Grade && 
+       restrictedGradesForFacilitator.includes(parseInt(formData.Grade.match(/\d+/)?.[0] || '0')) && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 mt-4">
+          <div className="flex items-start space-x-2">
+            <div className="text-red-600 mt-0.5">🚫</div>
+            <div>
+              <p className="text-sm font-semibold text-red-800">
+                Access Restricted
+              </p>
+              <p className="text-sm text-red-700">
+                You cannot register students for Grade {formData.Grade.match(/\d+/)?.[0]}. 
+                Please select a different grade or contact an administrator.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
