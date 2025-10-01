@@ -56,61 +56,54 @@ export function AcademicInfoSection({
 
   // Define restricted grades for Attendance Facilitators
   const restrictedGradesForFacilitator = [4, 6, 8, 12];
-  
+
   // Get allowed grades based on role
-  const getAllowedGrades = (role: UserRole, isEditing: boolean): { value: string; label: string }[] => {
+  const getAllowedGrades = (
+    role: UserRole,
+    isEditing: boolean
+  ): { value: string; label: string }[] => {
     if (isEditing) {
       // For editing existing students, show only current grade
-      return [{ value: formData.Grade || "", label: formData.Grade || "Select Grade" }];
+      return [
+        {
+          value: formData.Grade || "",
+          label: formData.Grade || "Select Grade",
+        },
+      ];
     }
 
     if (role === "Attendance Facilitator") {
       // Filter out restricted grades for facilitators
-      return GRADES
-        .filter(grade => {
-          const gradeNumber = parseInt(grade.match(/\d+/)?.[0] || '0');
-          return !restrictedGradesForFacilitator.includes(gradeNumber);
-        })
-        .map(grade => ({ value: grade, label: grade }));
+      return GRADES.filter((grade) => {
+        const gradeNumber = parseInt(grade.match(/\d+/)?.[0] || "0");
+        return !restrictedGradesForFacilitator.includes(gradeNumber);
+      }).map((grade) => ({ value: grade, label: grade }));
     }
 
     // Admin can access all grades
-    return GRADES.map(grade => ({ value: grade, label: grade }));
+    return GRADES.map((grade) => ({ value: grade, label: grade }));
   };
 
-  const gradeOptions = getAllowedGrades(userRole, !!student);
+  const gradeOptions =
+    userRole === "Admin"
+      ? GRADES
+      : GRADES.filter((grade) => {
+          const gradeNumber = parseInt(grade.match(/\d+/)?.[0] || "0");
+          return !restrictedGradesForFacilitator.includes(gradeNumber);
+        });
 
   // Determine if field is disabled
   const isFieldDisabled = !canEdit || isReadOnly;
 
   return (
-    <section className={`space-y-6 bg-white p-6 rounded-lg shadow-md mt-6 ${
-      isReadOnly ? 'border-2 border-gray-200' : ''
-    }`}>
+    <section
+      className={`space-y-6 bg-white p-6 rounded-lg shadow-md mt-6 ${
+        isReadOnly ? "border-2 border-gray-200" : ""
+      }`}
+    >
       <h4 className="text-lg sm:text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">
         Academic & School Information
       </h4>
-
-      {/* Role-based grade restriction info for new registrations */}
-      {!student && userRole === "Attendance Facilitator" && (
-        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3 mb-4">
-          <div className="flex items-start space-x-2">
-            <div className="text-yellow-600 mt-0.5">⚠️</div>
-            <div>
-              <p className="text-sm font-semibold text-yellow-800 mb-1">
-                Grade Restrictions
-              </p>
-              <p className="text-sm text-yellow-700">
-                As an Attendance Facilitator, you cannot register students for Grades 4, 6, 8, or 12. 
-                Please contact an administrator for these grades.
-              </p>
-              <p className="text-xs text-yellow-600 mt-1 font-medium">
-                Available: Grades 1, 2, 3, 5, 7, 9, 10, 11, 13, 14
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <FormField
@@ -131,7 +124,7 @@ export function AcademicInfoSection({
           readOnly={isFieldDisabled}
           disabled={isFieldDisabled}
         />
-        
+
         {formData.Occupation === "Student" && (
           <>
             <FormField
@@ -190,7 +183,7 @@ export function AcademicInfoSection({
             )}
           </>
         )}
-        
+
         {formData.Occupation === "Worker" && (
           <>
             <FormField
@@ -231,7 +224,7 @@ export function AcademicInfoSection({
             />
           </>
         )}
-        
+
         <FormField
           label="Address"
           name="Address"
@@ -268,16 +261,16 @@ export function AcademicInfoSection({
             disabled={isFieldDisabled}
           />
         )}
-        
+
         <FormField
           label="Grade (Sunday School)"
           name="Grade"
           type="select"
-          value={formData.Grade}
+          value={formData.Grade || ""}
           onChange={handleChange}
           error={errors.Grade}
           required
-          options={gradeOptions}
+          options={getAllowedGrades(userRole, !!student)}
           className="text-responsive"
           inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
             isFieldDisabled
@@ -287,7 +280,7 @@ export function AcademicInfoSection({
           readOnly={isFieldDisabled}
           disabled={isFieldDisabled}
         />
-        
+
         <FormField
           label="Academic Year (Ethiopian Calendar)"
           name="Academic_Year"
@@ -297,7 +290,7 @@ export function AcademicInfoSection({
           className="text-responsive"
           inputClassName="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
         />
-        
+
         <FormField
           label="Unique ID"
           name="Unique_ID"
@@ -315,25 +308,28 @@ export function AcademicInfoSection({
       </div>
 
       {/* Show restricted grades warning if facilitator tries to access restricted grade */}
-      {userRole === "Attendance Facilitator" && 
-       !student && 
-       formData.Grade && 
-       restrictedGradesForFacilitator.includes(parseInt(formData.Grade.match(/\d+/)?.[0] || '0')) && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 mt-4">
-          <div className="flex items-start space-x-2">
-            <div className="text-red-600 mt-0.5">🚫</div>
-            <div>
-              <p className="text-sm font-semibold text-red-800">
-                Access Restricted
-              </p>
-              <p className="text-sm text-red-700">
-                You cannot register students for Grade {formData.Grade.match(/\d+/)?.[0]}. 
-                Please select a different grade or contact an administrator.
-              </p>
+      {userRole === "Attendance Facilitator" &&
+        !student &&
+        formData.Grade &&
+        restrictedGradesForFacilitator.includes(
+          parseInt(formData.Grade.match(/\d+/)?.[0] || "0")
+        ) && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 mt-4">
+            <div className="flex items-start space-x-2">
+              <div className="text-red-600 mt-0.5">🚫</div>
+              <div>
+                <p className="text-sm font-semibold text-red-800">
+                  Access Restricted
+                </p>
+                <p className="text-sm text-red-700">
+                  You cannot register students for Grade{" "}
+                  {formData.Grade.match(/\d+/)?.[0]}. Please select a different
+                  grade or contact an administrator.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </section>
   );
 }
