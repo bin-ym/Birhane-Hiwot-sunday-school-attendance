@@ -1,6 +1,6 @@
 // src/lib/utils.ts
 import { addDays, startOfDay } from 'date-fns';
-
+import { GRADES } from './constants';
 
 export function cn(...classes: (string | undefined | null | false)[]) {
   return classes.filter(Boolean).join(" ");
@@ -122,4 +122,26 @@ export function getCurrentEthiopianYear(): number {
     ecYear = gregorianYear - 7;
   }
   return ecYear;
+}
+
+export function mapAgeToGrade(age: number): string {
+  if (age < 7) {
+    return GRADES[0]; // ቅድመ መደበኛ
+  } else if (age === 7 || age === 8) {
+    return GRADES[1]; // አንደኛ ክፍል
+  } else if (age === 9 || age === 10) {
+    return GRADES[2]; // ሁለተኛ ክፍል
+  } else if (age === 11 || age === 12) {
+    return GRADES[3]; // ሦስተኛ ክፍል
+  } else if (age === 13 || age === 14) {
+    return GRADES[4]; // አራተኛ ክፍል
+  } else if (age === 15 || age === 16) {
+    return GRADES[5]; // አምስተኛ ክፍል
+  } else if (age === 17 || age === 18) {
+    return GRADES[6]; // ስድስተኛ ክፍል
+  } else if (age >= 19 && age <= 25) {
+    return GRADES[7]; // ሰባተኛ ክፍል ጥዋት
+  } else {
+    return GRADES[8]; // ሰባተኛ ክፍል ከሰዓት
+  }
 }

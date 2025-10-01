@@ -2,15 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-
-interface Student {
-  _id?: ObjectId;
-  First_Name: string;
-  Father_Name: string;
-  Grandfather_Name: string;
-  Mothers_Name: string;
-  Sex: string;
-}
+import { Student } from '@/lib/models';
 
 export async function POST(req: NextRequest) {
   try {

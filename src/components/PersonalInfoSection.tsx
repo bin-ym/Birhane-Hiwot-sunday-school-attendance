@@ -227,23 +227,6 @@ export function PersonalInfoSection({
           disabled={isFieldDisabled}
         />
       </div>
-      {!isReadOnly && canEdit && (
-        <div className="flex justify-end mt-6">
-          <Button
-            type="button"
-            variant="primary"
-            onClick={onNext}
-            disabled={loading}
-            className={`btn-responsive px-6 py-2 rounded-lg transition-all ${
-              !canEdit
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 text-white"
-            }`}
-          >
-            Next
-          </Button>
-        </div>
-      )}
     </section>
   );
 }

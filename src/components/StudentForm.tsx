@@ -2,13 +2,13 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Student, UserRole } from "@/lib/models";
 import { PersonalInfoSection } from "@/components/PersonalInfoSection";
 import { AcademicInfoSection } from "@/components/AcademicInfoSection";
 import { useStudentForm } from "@/lib/hooks/useStudentForm";
-import { getCurrentEthiopianYear } from "@/lib/utils";
+import { getCurrentEthiopianYear, mapAgeToGrade } from "@/lib/utils";
 
 interface StudentFormProps {
   student: Student | null;
@@ -28,6 +28,7 @@ export function StudentForm({
   const currentEthiopianYear = getCurrentEthiopianYear();
   const {
     formData,
+    setFormData, // ✅ ensure useStudentForm returns setFormData
     handleChange,
     handleSubmit,
     errors,
@@ -37,7 +38,19 @@ export function StudentForm({
     academicYears,
     validateSection,
   } = useStudentForm(student, onSave, userRole);
-  const [currentSection, setCurrentSection] = useState<"personal" | "academic">("personal");
+
+  const [currentSection, setCurrentSection] = useState<"personal" | "academic">(
+    "personal"
+  );
+  const hasErrors = Object.values(errors).some((err) => !!err);
+
+  // ✅ Auto-assign Grade when Age changes (but allow override)
+  useEffect(() => {
+    if (!formData.Grade && formData.Age) {
+      const grade = mapAgeToGrade(formData.Age);
+      setFormData((prev) => ({ ...prev, Grade: grade }));
+    }
+  }, [formData.Age, formData.Grade, setFormData]);
 
   const handleNext = () => {
     const personalFields: (keyof Omit<Student, "_id">)[] = [
@@ -83,48 +96,6 @@ export function StudentForm({
             {title}
           </h1>
         )}
-
-        {/* Role-based information for new student registration */}
-        {showRoleInfo && (
-          <div className={`p-4 rounded-lg mb-6 ${
-            userRole === "Admin" 
-              ? "bg-blue-50 border-2 border-blue-200" 
-              : "bg-green-50 border-2 border-green-200"
-          }`}>
-            <div className="flex items-start space-x-3">
-              <div className={`flex-shrink-0 p-2 rounded-full ${
-                userRole === "Admin" 
-                  ? "bg-blue-100 text-blue-600" 
-                  : "bg-green-100 text-green-600"
-              }`}>
-                {userRole === "Admin" ? "👑" : "📋"}
-              </div>
-              <div className="flex-1">
-                <h3 className={`font-semibold text-sm ${
-                  userRole === "Admin" ? "text-blue-800" : "text-green-800"
-                }`}>
-                  {userRole} Registration Access
-                </h3>
-                <p className={`text-sm mt-1 ${
-                  userRole === "Admin" 
-                    ? "text-blue-700" 
-                    : "text-green-700"
-                }`}>
-                  {userRole === "Admin" 
-                    ? "You have full access to register students for all grades."
-                    : "You can register students for most grades. Age-based suggestions available. Note: Grades 4, 6, 8, and 12 are admin-only."
-                  }
-                </p>
-                {userRole === "Attendance Facilitator" && (
-                  <p className="text-xs text-green-600 mt-1 font-medium bg-green-100 px-2 py-1 rounded inline-block">
-                    Available: All grades except 4, 6, 8, 12
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit}>
           {currentSection === "personal" && (
             <PersonalInfoSection
@@ -135,10 +106,10 @@ export function StudentForm({
               userRole={userRole}
               canEdit={canEdit}
               isReadOnly={!canEdit}
-              loading={loading} // Pass loading prop
+              loading={loading}
             />
           )}
-          
+
           {currentSection === "academic" && (
             <AcademicInfoSection
               formData={formData}
@@ -150,7 +121,7 @@ export function StudentForm({
               userRole={userRole}
               canEdit={canEdit}
               isReadOnly={!canEdit}
-              loading={loading} // Pass loading prop
+              loading={loading}
             />
           )}
 
@@ -160,7 +131,9 @@ export function StudentForm({
               {isLoadingUniqueID && (
                 <div className="flex items-center space-x-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  <span className="text-blue-700 text-responsive">Generating Unique ID for {userRole}...</span>
+                  <span className="text-blue-700 text-responsive">
+                    Generating Unique ID for {userRole}...
+                  </span>
                 </div>
               )}
               {error && (
@@ -201,14 +174,22 @@ export function StudentForm({
                     ← Back
                   </Button>
                 )}
-                
-                {/* Progress indicator - Fixed logic */}
+
+                {/* Progress indicator */}
                 <div className="flex items-center hidden sm:flex">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${getProgressState("personal")}`}>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${getProgressState(
+                      "personal"
+                    )}`}
+                  >
                     1
                   </div>
                   <div className="mx-2 w-8 h-1 bg-blue-200"></div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${getProgressState("academic")}`}>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${getProgressState(
+                      "academic"
+                    )}`}
+                  >
                     2
                   </div>
                 </div>
@@ -225,14 +206,14 @@ export function StudentForm({
                 >
                   Cancel
                 </Button>
-                
+
                 {canEdit && (
                   <Button
                     type="submit"
                     variant="primary"
-                    disabled={loading || Object.keys(errors).length > 0}
+                    disabled={loading || hasErrors}
                     className={`btn-responsive px-8 py-3 rounded-lg transition-all shadow-md flex items-center space-x-2 ${
-                      loading || Object.keys(errors).length > 0
+                      loading || hasErrors
                         ? "bg-gray-400 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700 text-white"
                     }`}
@@ -249,14 +230,16 @@ export function StudentForm({
                     )}
                   </Button>
                 )}
-                
+
                 {/* Role indicator */}
                 {!student && (
-                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    userRole === "Admin"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-green-100 text-green-800"
-                  }`}>
+                  <div
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      userRole === "Admin"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-green-100 text-green-800"
+                    }`}
+                  >
                     {userRole} Mode
                   </div>
                 )}
@@ -265,17 +248,14 @@ export function StudentForm({
           )}
 
           {/* Error summary for academic section */}
-          {currentSection === "academic" && Object.keys(errors).length > 0 && canEdit && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <h4 className="text-red-800 font-semibold mb-2 text-sm">Please fix these errors:</h4>
-              <div className="grid grid-cols-1 gap-1 text-sm text-red-700">
-                {Object.entries(errors).map(([field, errorMsg]) => (
-                  <div key={field} className="flex items-center space-x-2">
-                    <span className="text-red-500">•</span>
-                    <span>{errorMsg}</span>
-                  </div>
-                ))}
-              </div>
+          {error && (
+            <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4">
+              <p className="font-semibold">Please fix these errors:</p>
+              <ul className="list-disc list-inside">
+                {Object.entries(errors).map(([field, msg]) =>
+                  msg ? <li key={field}>{msg}</li> : null
+                )}
+              </ul>
             </div>
           )}
         </form>
