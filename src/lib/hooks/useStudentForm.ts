@@ -44,7 +44,10 @@ export function useStudentForm(
     Partial<Record<keyof Omit<Student, "_id">, string>>
   >({});
 
-  const academicYears = useMemo(() => [currentEthiopianYear], [currentEthiopianYear]);
+  const academicYears = useMemo(
+    () => [currentEthiopianYear],
+    [currentEthiopianYear]
+  );
 
   // Grades restricted for facilitators
   const restrictedGradesForFacilitator = useMemo(() => [4, 6, 8, 12], []);
@@ -52,10 +55,12 @@ export function useStudentForm(
   const validateGradeByRole = useCallback(
     (grade: string, role: UserRole, isEditing = false): string | null => {
       if (!grade || isEditing) return null;
-      const gradeNumber = parseInt(grade.match(/\d+/)?.[0] || "0");
 
-      if (role === "Attendance Facilitator" &&
-          restrictedGradesForFacilitator.includes(gradeNumber)) {
+      const gradeNumber = parseInt(grade.match(/\d+/)?.[0] || "0");
+      if (
+        role === "Attendance Facilitator" &&
+        restrictedGradesForFacilitator.includes(gradeNumber)
+      ) {
         return `Attendance Facilitators cannot register students for Grade ${gradeNumber}. Please contact an administrator.`;
       }
       return null;
@@ -82,13 +87,19 @@ export function useStudentForm(
 
       const isPagume = month === 13;
       const maxDay = isEthiopianLeapYear(year)
-        ? isPagume ? 6 : 30
-        : isPagume ? 5 : 30;
+        ? isPagume
+          ? 6
+          : 30
+        : isPagume
+        ? 5
+        : 30;
 
       const dobErrors: Partial<Record<keyof Omit<Student, "_id">, string>> = {};
       if (month < 1 || month > 13) dobErrors.DOB_Month = "Invalid month";
       if (date < 1 || date > maxDay)
-        dobErrors.DOB_Date = `Invalid date for ${isPagume ? "Pagumē" : "month"}`;
+        dobErrors.DOB_Date = `Invalid date for ${
+          isPagume ? "Pagumē" : "month"
+        }`;
       if (year < 1900 || year > currentEthiopianYear)
         dobErrors.DOB_Year = "Invalid year";
 
@@ -105,7 +116,13 @@ export function useStudentForm(
     } else if (formData.Age !== 0) {
       setFormData((prev) => ({ ...prev, Age: 0 }));
     }
-  }, [formData.DOB_Date, formData.DOB_Month, formData.DOB_Year, formData.Age, currentEthiopianYear]);
+  }, [
+    formData.DOB_Date,
+    formData.DOB_Month,
+    formData.DOB_Year,
+    formData.Age,
+    currentEthiopianYear,
+  ]);
 
   // Age → Grade suggestion
   useEffect(() => {
@@ -128,17 +145,30 @@ export function useStudentForm(
     }
 
     setFormData((prev) => ({ ...prev, Grade: grade }));
-  }, [formData.Age, formData.Grade, userRole, student, restrictedGradesForFacilitator]);
+  }, [
+    formData.Age,
+    formData.Grade,
+    userRole,
+    student,
+    restrictedGradesForFacilitator,
+  ]);
 
   // Unique ID generation
   useEffect(() => {
     if (student) return;
 
-    if (formData.Grade && formData.Academic_Year && /^\d{4}$/.test(formData.Academic_Year)) {
+    if (
+      formData.Grade &&
+      formData.Academic_Year &&
+      /^\d{4}$/.test(formData.Academic_Year)
+    ) {
       setIsLoadingUniqueID(true);
 
       const year = formData.Academic_Year.slice(-2);
-      const gradeNum = String(GRADES.indexOf(formData.Grade) + 1).padStart(2, "0");
+      const gradeNum = String(GRADES.indexOf(formData.Grade) + 1).padStart(
+        2,
+        "0"
+      );
 
       const gradeError = validateGradeByRole(formData.Grade, userRole);
       if (gradeError) {
@@ -160,14 +190,20 @@ export function useStudentForm(
           if (!res.ok) throw new Error(`Failed to get count: ${res.status}`);
           const data = await res.json();
           const newCount = data.count + 1;
-          const newUniqueID = `ብሕ/${year}/${gradeNum}/${String(newCount).padStart(3, "0")}`;
+          const newUniqueID = `ብሕ/${year}/${gradeNum}/${String(
+            newCount
+          ).padStart(3, "0")}`;
 
           setFormData((prev) => ({ ...prev, Unique_ID: newUniqueID }));
           setErrors((prev) => ({ ...prev, Unique_ID: "" }));
         } catch (error) {
-          const msg = error instanceof Error ? error.message : "Failed to generate ID";
+          const msg =
+            error instanceof Error ? error.message : "Failed to generate ID";
           setFormData((prev) => ({ ...prev, Unique_ID: "" }));
-          setErrors((prev) => ({ ...prev, Unique_ID: `Error generating ID: ${msg}` }));
+          setErrors((prev) => ({
+            ...prev,
+            Unique_ID: `Error generating ID: ${msg}`,
+          }));
         } finally {
           setIsLoadingUniqueID(false);
         }
@@ -175,7 +211,13 @@ export function useStudentForm(
 
       generateID();
     }
-  }, [student, formData.Academic_Year, formData.Grade, userRole, validateGradeByRole]);
+  }, [
+    student,
+    formData.Academic_Year,
+    formData.Grade,
+    userRole,
+    validateGradeByRole,
+  ]);
 
   // Duplicate check
   const checkDuplicate = async () => {
@@ -203,9 +245,11 @@ export function useStudentForm(
   // Validation helper
   const validateSection = useCallback(
     (data: Omit<Student, "_id">, fields: (keyof Omit<Student, "_id">)[]) => {
-      const sectionErrors: Partial<Record<keyof Omit<Student, "_id">, string>> = {};
+      const sectionErrors: Partial<Record<keyof Omit<Student, "_id">, string>> =
+        {};
       fields.forEach((field) => {
-        if (!data[field]) sectionErrors[field] = `${field.replace("_", " ")} is required`;
+        if (!data[field])
+          sectionErrors[field] = `${field.replace("_", " ")} is required`;
       });
 
       if (data.DOB_Date && data.DOB_Month && data.DOB_Year) {
@@ -213,11 +257,19 @@ export function useStudentForm(
         const month = parseInt(data.DOB_Month);
         const date = parseInt(data.DOB_Date);
         const isPagume = month === 13;
-        const maxDay = isEthiopianLeapYear(year) ? (isPagume ? 6 : 30) : (isPagume ? 5 : 30);
+        const maxDay = isEthiopianLeapYear(year)
+          ? isPagume
+            ? 6
+            : 30
+          : isPagume
+          ? 5
+          : 30;
 
         if (month < 1 || month > 13) sectionErrors.DOB_Month = "Invalid month";
         if (date < 1 || date > maxDay)
-          sectionErrors.DOB_Date = `Invalid date for ${isPagume ? "Pagumē" : "month"}`;
+          sectionErrors.DOB_Date = `Invalid date for ${
+            isPagume ? "Pagumē" : "month"
+          }`;
         if (year < 1900 || year > getCurrentEthiopianYear())
           sectionErrors.DOB_Year = "Invalid year";
       }
@@ -270,13 +322,23 @@ export function useStudentForm(
     try {
       const dataToSubmit: Omit<Student, "_id"> = {
         ...formData,
-        School: formData.School === "Other" ? formData.School_Other || "" : formData.School,
-        Address: formData.Address === "Other" ? formData.Address_Other || "" : formData.Address,
+        School:
+          formData.School === "Other"
+            ? formData.School_Other || ""
+            : formData.School,
+        Address:
+          formData.Address === "Other"
+            ? formData.Address_Other || ""
+            : formData.Address,
         Academic_Year: String(formData.Academic_Year),
       };
 
       if (!student && dataToSubmit.Grade) {
-        const finalGradeError = validateGradeByRole(dataToSubmit.Grade, userRole, false);
+        const finalGradeError = validateGradeByRole(
+          dataToSubmit.Grade,
+          userRole,
+          false
+        );
         if (finalGradeError) {
           setError(finalGradeError);
           setLoading(false);
@@ -287,7 +349,8 @@ export function useStudentForm(
       await onSave(dataToSubmit);
       setError(null);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to save student data";
+      const msg =
+        err instanceof Error ? err.message : "Failed to save student data";
       setError(msg);
     } finally {
       setLoading(false);

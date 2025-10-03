@@ -1,4 +1,7 @@
 // src/components/ui/FormField.tsx
+
+import React from "react";
+
 interface FormFieldProps {
   label: string;
   name: string;
@@ -12,6 +15,9 @@ interface FormFieldProps {
   disabled?: boolean;
   className?: string;
   inputClassName?: string;
+  min?: number;
+  max?: number;
+  maxLength?: number;
 }
 
 export function FormField({
@@ -27,20 +33,35 @@ export function FormField({
   disabled,
   className,
   inputClassName,
+  min,
+  max,
+  maxLength,
 }: FormFieldProps) {
+  // Wrapper to enforce maxLength on numbers too
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (type === "number" && maxLength) {
+      const input = e.target as HTMLInputElement;
+      if (input.value.length > maxLength) {
+        input.value = input.value.slice(0, maxLength); // trim value
+      }
+    }
+    onChange?.(e);
+  };
+
   return (
-    <div className={`space-y-1 ${className}`}>
+    <div className={`space-y-1 ${className || ""}`}>
       <label htmlFor={name} className="block text-sm font-medium text-gray-700">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
+
       {type === "select" ? (
         <select
           id={name}
           name={name}
           value={value}
-          onChange={onChange}
+          onChange={handleChange}
           disabled={disabled}
-          className={`w-full ${inputClassName} ${error ? "border-red-500" : ""}`}
+          className={`w-full ${inputClassName || ""} ${error ? "border-red-500" : ""}`}
         >
           <option value="">Select {label}</option>
           {(options || []).map((opt) =>
@@ -61,12 +82,16 @@ export function FormField({
           name={name}
           type={type}
           value={value}
-          onChange={onChange}
+          onChange={handleChange}
           readOnly={readOnly}
           disabled={disabled}
-          className={`w-full ${inputClassName} ${error ? "border-red-500" : ""}`}
+          min={min}
+          max={max}
+          maxLength={maxLength} // works on text; for numbers we enforce in handleChange
+          className={`w-full ${inputClassName || ""} ${error ? "border-red-500" : ""}`}
         />
       )}
+
       {error && <p className="text-red-500 text-sm">{error}</p>}
     </div>
   );
