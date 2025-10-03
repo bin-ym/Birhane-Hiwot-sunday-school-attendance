@@ -1,11 +1,11 @@
-//src/components/PersonalInfoSection.tsx
+// src/components/PersonalInfoSection.tsx
 
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/FormField";
 import { Student, UserRole } from "@/lib/models";
-import { ETHIOPIAN_MONTHS } from "@/lib/utils";
+import { ETHIOPIAN_MONTHS, getCurrentEthiopianYear } from "@/lib/utils";
 
 interface PersonalInfoSectionProps {
   formData: Omit<Student, "_id">;
@@ -39,13 +39,15 @@ export function PersonalInfoSection({
     label: month,
   }));
 
-  // Determine if field is disabled (either can't edit or read-only mode)
+  // Determine if field is disabled
   const isFieldDisabled = !canEdit || isReadOnly;
 
   return (
-    <section className={`space-y-6 bg-white p-6 rounded-lg shadow-md ${
-      isReadOnly ? 'border-2 border-gray-200' : ''
-    }`}>
+    <section
+      className={`space-y-6 bg-white p-6 rounded-lg shadow-md ${
+        isReadOnly ? "border-2 border-gray-200" : ""
+      }`}
+    >
       <h4 className="text-lg sm:text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">
         Personal Information
       </h4>
@@ -66,6 +68,7 @@ export function PersonalInfoSection({
           readOnly={isFieldDisabled}
           disabled={isFieldDisabled}
         />
+
         <FormField
           label="Father Name"
           name="Father_Name"
@@ -82,6 +85,7 @@ export function PersonalInfoSection({
           readOnly={isFieldDisabled}
           disabled={isFieldDisabled}
         />
+
         <FormField
           label="Grandfather Name"
           name="Grandfather_Name"
@@ -98,6 +102,7 @@ export function PersonalInfoSection({
           readOnly={isFieldDisabled}
           disabled={isFieldDisabled}
         />
+
         <FormField
           label="Mother's Name"
           name="Mothers_Name"
@@ -114,6 +119,7 @@ export function PersonalInfoSection({
           readOnly={isFieldDisabled}
           disabled={isFieldDisabled}
         />
+
         <FormField
           label="Christian Name"
           name="Christian_Name"
@@ -130,6 +136,7 @@ export function PersonalInfoSection({
           readOnly={isFieldDisabled}
           disabled={isFieldDisabled}
         />
+
         <FormField
           label="Sex"
           name="Sex"
@@ -148,14 +155,20 @@ export function PersonalInfoSection({
           readOnly={isFieldDisabled}
           disabled={isFieldDisabled}
         />
+
         <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* ✅ DOB Date restricted to 1–30, 2-digit only */}
           <FormField
             label="DOB Date"
             name="DOB_Date"
+            type="number"
             value={formData.DOB_Date}
             onChange={handleChange}
             error={errors.DOB_Date}
             required
+            min={1}
+            max={30}
+            maxLength={2}
             className="text-responsive"
             inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
               isFieldDisabled
@@ -165,6 +178,7 @@ export function PersonalInfoSection({
             readOnly={isFieldDisabled}
             disabled={isFieldDisabled}
           />
+
           <FormField
             label="DOB Month"
             name="DOB_Month"
@@ -183,13 +197,18 @@ export function PersonalInfoSection({
             readOnly={isFieldDisabled}
             disabled={isFieldDisabled}
           />
+
           <FormField
             label="DOB Year"
             name="DOB_Year"
+            type="number"
             value={formData.DOB_Year}
             onChange={handleChange}
             error={errors.DOB_Year}
             required
+            min={1900}
+            max={getCurrentEthiopianYear()}
+            maxLength={4}
             className="text-responsive"
             inputClassName={`w-full p-3 border border-gray-300 rounded-lg transition-all ${
               isFieldDisabled
@@ -200,6 +219,7 @@ export function PersonalInfoSection({
             disabled={isFieldDisabled}
           />
         </div>
+
         <FormField
           label="Age (Calculated)"
           name="Age"
@@ -210,6 +230,7 @@ export function PersonalInfoSection({
           className="text-responsive"
           inputClassName="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
         />
+
         <FormField
           label="Phone Number"
           name="Phone_Number"
