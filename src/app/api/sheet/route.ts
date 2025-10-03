@@ -1,10 +1,9 @@
 // src/app/api/sheet/route.ts
 import { google } from "googleapis";
 import { NextRequest, NextResponse } from "next/server";
-import { JWT } from "google-auth-library";
+import { createAuth } from "@/lib/googleAuth";
 
 const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-const SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
 
 const KNOWN_HEADERS = [
   "ተ/ቁ",
@@ -50,46 +49,6 @@ type SheetResponse = {
   error?: string; // Added for error handling
 };
 
-// Helper function to create JWT auth from environment variables
-export async function createAuth() {
-  try {
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-      const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-
-      const jwt = new JWT({
-        email: serviceAccount.client_email,
-        key: serviceAccount.private_key.replace(/\\n/g, "\n"),
-        keyId: serviceAccount.private_key_id,
-        scopes: SCOPES,
-      });
-
-      return jwt;
-    }
-
-    const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL;
-    const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-    const privateKeyId = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_ID;
-
-    if (clientEmail && privateKey && privateKeyId) {
-      const jwt = new JWT({
-        email: clientEmail,
-        key: privateKey.replace(/\\n/g, "\n"),
-        keyId: privateKeyId,
-        scopes: SCOPES,
-      });
-
-      return jwt;
-    }
-
-    throw new Error("Missing Google Service Account credentials in environment variables");
-  } catch (error) {
-    console.error("Failed to create Google Auth:", error);
-    throw new Error(
-      `Authentication setup failed: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
-}
-
 function normalize(s: any) {
   return (s || "").toString().trim();
 }
@@ -100,7 +59,9 @@ function detectHeaderIndex(rows: any[][]): number | null {
     const row = rows[i];
     if (!Array.isArray(row)) continue;
     // if row contains any known header token (trimmed), pick it
-    const foundKnown = row.some((cell) => KNOWN_HEADERS.includes(normalize(cell)));
+    const foundKnown = row.some((cell) =>
+      KNOWN_HEADERS.includes(normalize(cell))
+    );
     if (foundKnown) return i;
     // otherwise if row has >= 2 non-empty cells, it's likely a header row
     const nonEmpty = row.filter((c) => normalize(c) !== "").length;
@@ -118,7 +79,6 @@ function getValueByPossibleKeys(obj: Record<string, string>, keys: string[]) {
 }
 
 export async function GET(req: NextRequest) {
-
   try {
     const { searchParams } = new URL(req.url);
     const sheetParam = searchParams.get("sheet");
@@ -132,15 +92,20 @@ export async function GET(req: NextRequest) {
     if (all || sheetParam || sheetsParam) {
       const meta = await sheetsApi.spreadsheets.get({ spreadsheetId });
       if (!spreadsheetId) {
-    return NextResponse.json(
-      { error: "GOOGLE_SHEET_ID environment variable is not configured" },
-      { status: 500 }
-    );
-  }
+        return NextResponse.json(
+          { error: "GOOGLE_SHEET_ID environment variable is not configured" },
+          { status: 500 }
+        );
+      }
       sheetNames =
-        meta.data.sheets?.map((s) => s.properties?.title || "").filter(Boolean) || [];
+        meta.data.sheets
+          ?.map((s) => s.properties?.title || "")
+          .filter(Boolean) || [];
     } else if (sheetsParam) {
-      sheetNames = sheetsParam.split(",").map((s) => s.trim()).filter(Boolean);
+      sheetNames = sheetsParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
     } else if (sheetParam) {
       sheetNames = [sheetParam.trim()];
     } else {
@@ -178,7 +143,9 @@ export async function GET(req: NextRequest) {
 
         const headerIndex = detectHeaderIndex(rows);
         const effectiveHeaderIndex = headerIndex ?? 0;
-        const rawHeaders = rows[effectiveHeaderIndex].map((h: any) => normalize(h));
+        const rawHeaders = rows[effectiveHeaderIndex].map((h: any) =>
+          normalize(h)
+        );
 
         let dataStart = effectiveHeaderIndex + 1;
         while (
@@ -203,9 +170,17 @@ export async function GET(req: NextRequest) {
             const fullname = getValueByPossibleKeys(obj, ["ስም እስከ አያት"]);
             const nameParts = fullname.split(/\s+/).filter(Boolean);
             const sexAm = getValueByPossibleKeys(obj, ["ፆታ"]);
-            const sex = sexAm === "ወንድ" ? "Male" : sexAm === "ሴት" ? "Female" : sexAm || "";
+            const sex =
+              sexAm === "ወንድ"
+                ? "Male"
+                : sexAm === "ሴት"
+                ? "Female"
+                : sexAm || "";
 
-            const dobYear = getValueByPossibleKeys(obj, ["የልደት ዓ/ም", "የልደት ዓ/ም "]);
+            const dobYear = getValueByPossibleKeys(obj, [
+              "የልደት ዓ/ም",
+              "የልደት ዓ/ም ",
+            ]);
             const academicYear = getValueByPossibleKeys(obj, [
               "አገልግሎት የጀመሩበት ዓ/ም",
               "አገልግሎት የጀመሩበት ዓ/ም ",
@@ -221,7 +196,9 @@ export async function GET(req: NextRequest) {
               Christian_Name: getValueByPossibleKeys(obj, ["ክርስትና ስም"]),
               Phone_Number: getValueByPossibleKeys(obj, ["ስልክ ቁጥር"]),
               DOB_Year: dobYear,
-              Age: dobYear ? new Date().getFullYear() - parseInt(dobYear, 10) : undefined,
+              Age: dobYear
+                ? new Date().getFullYear() - parseInt(dobYear, 10)
+                : undefined,
               Class: getValueByPossibleKeys(obj, ["መርሃ ግብር"]),
               Grade: grade,
               Occupation: getValueByPossibleKeys(obj, ["የስራ ዓይነት (ሙያ )"]),
@@ -234,7 +211,11 @@ export async function GET(req: NextRequest) {
             return mappedRow;
           });
 
-        sheetResults.push({ name: sheetName, headers: rawHeaders, rows: mapped });
+        sheetResults.push({
+          name: sheetName,
+          headers: rawHeaders,
+          rows: mapped,
+        });
 
         console.log(`✅ Processed sheet "${sheetName}": ${mapped.length} rows`);
       } catch (sheetError) {
@@ -243,7 +224,8 @@ export async function GET(req: NextRequest) {
           name: sheetName,
           headers: [],
           rows: [],
-          error: sheetError instanceof Error ? sheetError.message : "Unknown error",
+          error:
+            sheetError instanceof Error ? sheetError.message : "Unknown error",
         });
       }
     }

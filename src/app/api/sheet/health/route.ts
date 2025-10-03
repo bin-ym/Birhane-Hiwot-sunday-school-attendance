@@ -1,6 +1,6 @@
 // src/app/api/sheet/health/route.ts
 import { NextResponse } from 'next/server';
-import { createAuth } from '../route';
+import { createAuth } from '@/lib/googleAuth';
 import { google } from 'googleapis';
 
 export async function GET() {
