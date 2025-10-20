@@ -5,7 +5,7 @@
   "crons": [
     {
       "path": "/api/cron/aggregate-attendance",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
