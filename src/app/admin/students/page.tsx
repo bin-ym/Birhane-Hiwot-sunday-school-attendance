@@ -10,7 +10,8 @@ const PAGE_SIZE = 10;
 
 function exportToCSV(data: Student[], filename: string) {
   if (!data.length) return;
-  const headers = [    "Unique ID",
+  const headers = [
+    "Unique ID",
     "First Name",
     "Father Name",
     "Grandfather Name",
@@ -28,9 +29,11 @@ function exportToCSV(data: Student[], filename: string) {
     "Academic Year",
     "Grade",
   ];
-  const csv = [    headers.join(","),
+  const csv = [
+    headers.join(","),
     ...data.map((row) =>
-      [        row.Unique_ID,
+      [
+        row.Unique_ID,
         row.First_Name,
         row.Father_Name,
         row.Grandfather_Name,
@@ -77,6 +80,8 @@ export default function AdminStudents() {
   const [selectedTableGrade, setSelectedTableGrade] = useState("");
   const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
   const [yearOptions, setYearOptions] = useState<string[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+
   const [gradeOptionsByYear, setGradeOptionsByYear] = useState<
     Record<string, string[]>
   >({});
@@ -86,21 +91,27 @@ export default function AdminStudents() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const studentsRes = await fetch("/api/students");
+      const [studentsRes, subjectsRes, resultsRes, requestsRes] =
+        await Promise.all([
+          fetch("/api/students"),
+          fetch("/api/subjects"),
+          fetch("/api/student-results"),
+          fetch("/api/student-requests?status=pending"),
+        ]);
+
+      // Students
       const studentsData = await studentsRes.json();
-      if (!studentsRes.ok) {
+      if (!studentsRes.ok)
         throw new Error(studentsData.error || "Failed to load students");
-      }
       setStudents(studentsData);
 
-      const subjectsRes = await fetch("/api/subjects");
+      // Subjects
       const subjectsData = await subjectsRes.json();
-      if (!subjectsRes.ok) {
+      if (!subjectsRes.ok)
         throw new Error(subjectsData.error || "Failed to load subjects");
-      }
       setSubjects(subjectsData);
 
-      const resultsRes = await fetch("/api/student-results");
+      // Results
       const resultsData = await resultsRes.json();
       if (!resultsRes.ok) {
         console.warn("Failed to load results:", resultsData.error);
@@ -109,6 +120,16 @@ export default function AdminStudents() {
         setResults(resultsData);
       }
 
+      // ✅ Pending Requests
+      const requestsData = await requestsRes.json();
+      if (!requestsRes.ok) {
+        console.warn("Failed to load requests:", requestsData.error);
+        setRequests([]);
+      } else {
+        setRequests(requestsData); // Now it's guaranteed to be an array
+      }
+
+      // --- Build Year and Grade Maps ---
       const yearMap = new Map<string, Set<string>>();
       studentsData.forEach((student: Student) => {
         if (!yearMap.has(student.Academic_Year)) {
@@ -120,7 +141,7 @@ export default function AdminStudents() {
       const years = Array.from(yearMap.keys()).sort().reverse();
       setYearOptions(years);
 
-      const gradeMap: { [key: string]: string[] } = {};
+      const gradeMap: Record<string, string[]> = {};
       yearMap.forEach((grades, year) => {
         gradeMap[year] = Array.from(grades).sort();
       });
@@ -140,7 +161,8 @@ export default function AdminStudents() {
 
   useEffect(() => {
     setPage(1);
-  }, [    students.length,
+  }, [
+    students.length,
     search,
     selectedGrade,
     selectedSex,
@@ -207,7 +229,8 @@ export default function AdminStudents() {
             .includes(search.toLowerCase()) ||
           (student.Grade || "").toLowerCase().includes(search.toLowerCase()))
     );
-  }, [    students,
+  }, [
+    students,
     search,
     selectedGrade,
     selectedSex,
@@ -228,6 +251,19 @@ export default function AdminStudents() {
           Manage Students
         </h1>
         <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/student-requests"
+            className="relative bg-purple-600 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg hover:bg-purple-700 text-sm sm:text-base"
+            aria-label="View student registration requests"
+          >
+            📋 Pending Requests
+            {requests.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {requests.length}
+              </span>
+            )}
+          </Link>
+
           <Link
             href="/admin/sheet-import"
             className="bg-teal-600 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg hover:bg-teal-700 text-sm sm:text-base"

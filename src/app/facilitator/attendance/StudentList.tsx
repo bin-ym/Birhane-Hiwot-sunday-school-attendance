@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Student } from "@/lib/models";
+import { getCurrentEthiopianYear } from "@/lib/utils";
 
 export default function StudentList() {
   const { data: session, status } = useSession();
@@ -15,8 +16,12 @@ export default function StudentList() {
   const [expandedYears, setExpandedYears] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const currentAcademicYear = getCurrentEthiopianYear();
 
-  const facilitatorGrade = session?.user?.grade as string | string[] | undefined;
+  const facilitatorGrade = session?.user?.grade as
+    | string
+    | string[]
+    | undefined;
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
@@ -62,8 +67,13 @@ export default function StudentList() {
   }, [facilitatorGrade, fetchStudents, status, session]);
 
   const yearOptions = [...new Set(students.map((s) => s.Academic_Year))].sort();
+  const filteredYearOptions = yearOptions.filter(year => year === String(currentAcademicYear));
   const gradeOptionsByYear = yearOptions.reduce((acc, year) => {
-    const grades = [...new Set(students.filter((s) => s.Academic_Year === year).map((s) => s.Grade))].sort();
+    const grades = [
+      ...new Set(
+        students.filter((s) => s.Academic_Year === year).map((s) => s.Grade)
+      ),
+    ].sort();
     acc[year] = grades;
     return acc;
   }, {} as Record<string, string[]>);
@@ -79,15 +89,22 @@ export default function StudentList() {
     setSelectedTableGrade(grade);
   };
 
-  const filteredStudents = students.filter((student) =>
-    (!selectedYear || student.Academic_Year === selectedYear) &&
-    (!selectedTableGrade || student.Grade === selectedTableGrade) &&
-    (selectedGrade === "" || student.Grade === selectedGrade) &&
-    (selectedSex === "" || student.Sex === selectedSex) &&
-    ((student.Unique_ID || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-     (student.First_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-     (student.Father_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-     (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredStudents = students.filter(
+    (student) =>
+      Number(student.Academic_Year) === currentAcademicYear && // Convert to number
+      (!selectedTableGrade || student.Grade === selectedTableGrade) &&
+      (selectedGrade === "" || student.Grade === selectedGrade) &&
+      (selectedSex === "" || student.Sex === selectedSex) &&
+      ((student.Unique_ID || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+        (student.First_Name || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (student.Father_Name || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const gradeOptions = [...new Set(students.map((s) => s.Grade))].sort();
@@ -116,7 +133,9 @@ export default function StudentList() {
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search
+                </label>
                 <input
                   type="text"
                   placeholder="Search by ID, Name, or Grade"
@@ -126,7 +145,9 @@ export default function StudentList() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Grade</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Filter by Grade
+                </label>
                 <select
                   value={selectedGrade}
                   onChange={(e) => setSelectedGrade(e.target.value)}
@@ -134,12 +155,16 @@ export default function StudentList() {
                 >
                   <option value="">All Assigned Grades</option>
                   {gradeOptions.map((option) => (
-                    <option key={option} value={option}>{option}</option>
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Sex</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Filter by Sex
+                </label>
                 <select
                   value={selectedSex}
                   onChange={(e) => setSelectedSex(e.target.value)}
@@ -147,7 +172,9 @@ export default function StudentList() {
                 >
                   <option value="">Both</option>
                   {sexOptions.map((option) => (
-                    <option key={option} value={option}>{option}</option>
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -156,11 +183,15 @@ export default function StudentList() {
 
           {/* Students by Academic Year */}
           <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-xl font-semibold text-gray-700 mb-4">Students by Academic Year</h3>
-            {yearOptions.length === 0 ? (
-              <p className="text-gray-600 text-responsive">No students found.</p>
+            <h3 className="text-xl font-semibold text-gray-700 mb-4">
+              Students by Academic Year
+            </h3>
+            {filteredYearOptions.length === 0 ? (
+              <p className="text-gray-600 text-responsive">
+                No students found.
+              </p>
             ) : (
-              yearOptions.map((year) => (
+              filteredYearOptions.map((year) => (
                 <div key={year} className="mb-4">
                   <button
                     onClick={() => toggleYear(year)}
@@ -173,7 +204,9 @@ export default function StudentList() {
                   {expandedYears.includes(year) && (
                     <div className="pl-4 pt-2">
                       {gradeOptionsByYear[year].length === 0 ? (
-                        <p className="text-gray-600 text-responsive">No grades found for {year}.</p>
+                        <p className="text-gray-600 text-responsive">
+                          No grades found for {year}.
+                        </p>
                       ) : (
                         <ul className="space-y-2">
                           {gradeOptionsByYear[year].map((grade) => (
@@ -181,7 +214,8 @@ export default function StudentList() {
                               <button
                                 onClick={() => handleGradeSelect(year, grade)}
                                 className={`w-full text-left p-2 rounded-lg text-responsive ${
-                                  selectedYear === year && selectedTableGrade === grade
+                                  selectedYear === year &&
+                                  selectedTableGrade === grade
                                     ? "bg-blue-600 text-white"
                                     : "bg-gray-100 hover:bg-gray-200"
                                 }`}
@@ -203,29 +237,51 @@ export default function StudentList() {
           {selectedYear && selectedTableGrade && (
             <div className="bg-white p-6 rounded-lg shadow">
               <h3 className="text-xl font-semibold text-gray-700 mb-4 text-responsive">
-                Students in {selectedTableGrade} for Academic Year {selectedYear}
+                Students in {selectedTableGrade} for Academic Year{" "}
+                {selectedYear}
               </h3>
               {filteredStudents.length === 0 ? (
-                <p className="text-gray-600 text-responsive">No students found for {selectedTableGrade} in {selectedYear}.</p>
+                <p className="text-gray-600 text-responsive">
+                  No students found for {selectedTableGrade} in {selectedYear}.
+                </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full border-collapse border">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="border p-3 text-left text-responsive font-medium">ID Number</th>
-                        <th className="border p-3 text-left text-responsive font-medium">Name</th>
-                        <th className="border p-3 text-left text-responsive font-medium">Grade</th>
-                        <th className="border p-3 text-left text-responsive font-medium">Sex</th>
-                        <th className="border p-3 text-left text-responsive font-medium">Actions</th>
+                        <th className="border p-3 text-left text-responsive font-medium">
+                          ID Number
+                        </th>
+                        <th className="border p-3 text-left text-responsive font-medium">
+                          Name
+                        </th>
+                        <th className="border p-3 text-left text-responsive font-medium">
+                          Grade
+                        </th>
+                        <th className="border p-3 text-left text-responsive font-medium">
+                          Sex
+                        </th>
+                        <th className="border p-3 text-left text-responsive font-medium">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredStudents.map((student) => (
-                        <tr key={student._id.toString()} className="hover:bg-gray-50">
-                          <td className="border p-3 text-responsive">{student.Unique_ID}</td>
+                        <tr
+                          key={student._id.toString()}
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="border p-3 text-responsive">
+                            {student.Unique_ID}
+                          </td>
                           <td className="border p-3 text-responsive">{`${student.First_Name} ${student.Father_Name}`}</td>
-                          <td className="border p-3 text-responsive">{student.Grade}</td>
-                          <td className="border p-3 text-responsive">{student.Sex}</td>
+                          <td className="border p-3 text-responsive">
+                            {student.Grade}
+                          </td>
+                          <td className="border p-3 text-responsive">
+                            {student.Sex}
+                          </td>
                           <td className="border p-3 text-center">
                             <Link
                               href={`/facilitator/attendance/students/${student._id.toString()}`}

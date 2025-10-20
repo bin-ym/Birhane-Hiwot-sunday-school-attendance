@@ -2,17 +2,16 @@
 import { getDb } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
-import { Student } from '@/lib/models';
+import { Student, UserRole } from '@/lib/models';
 
 export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
     const { searchParams } = new URL(req.url);
-    const grades = searchParams.getAll("grade"); // Use .getAll() to get an array of grades
+    const grades = searchParams.getAll("grade");
 
     const query: any = {};
 
-    // If grade parameters exist, filter by them using the $in operator
     if (grades && grades.length > 0) {
       query.Grade = { $in: grades };
     }
@@ -30,16 +29,36 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Your POST and DELETE handlers are fine, no changes needed there.
 export async function POST(req: NextRequest) {
   try {
     const db = await getDb();
-    const body: Omit<Student, '_id'> = await req.json();
+    const body: Omit<Student, '_id'> & { userRole?: UserRole } = await req.json();
+    const userRole = body.userRole || "Admin";
 
     const requiredFields = ['Unique_ID', 'First_Name', 'Father_Name', 'Academic_Year', 'Grade'];
     for (const field of requiredFields) {
       if (!(field in body)) {
         return NextResponse.json({ error: `${field} is required` }, { status: 400 });
+      }
+    }
+
+    // Check if this is a new student by seeing if Unique_ID already exists
+    const existingStudent = await db.collection('students').findOne({ 
+      Unique_ID: body.Unique_ID 
+    });
+    
+    const isNewStudent = !existingStudent; // True if no existing student with this ID
+
+    // ✅ ENFORCE grade restrictions for Attendance Facilitator on NEW students
+    if (userRole === "Attendance Facilitator" && isNewStudent) {
+      const restrictedGrades = [4, 6, 8, 12];
+      const gradeNumber = parseInt(body.Grade.match(/\d+/)?.[0] || "0");
+      
+      if (restrictedGrades.includes(gradeNumber)) {
+        return NextResponse.json({ 
+          error: `Grade ${gradeNumber} is restricted for Attendance Facilitators. Please use "Request Admin Approval" instead.`,
+          code: 'RESTRICTED_GRADE'
+        }, { status: 403 });
       }
     }
 

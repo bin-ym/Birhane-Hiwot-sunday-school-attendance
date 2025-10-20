@@ -28,6 +28,17 @@ export interface Student {
   Grade: typeof GRADES[number];
 }
 
+export interface StudentRequest {
+  _id?: ObjectId;
+  studentData: Omit<Student, "_id">;
+  requestedBy: string; // UserRole
+  requestedByName: string; // User's name
+  status: "pending" | "approved" | "rejected";
+  createdAt: Date;
+  updatedAt: Date;
+  approvedBy?: string;
+  rejectionReason?: string;
+}
 export interface Attendance {
   studentId: string;
   date: string;

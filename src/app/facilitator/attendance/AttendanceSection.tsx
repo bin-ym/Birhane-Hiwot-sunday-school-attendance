@@ -1,4 +1,3 @@
-// src/app/facilitator/attendance/AttendanceSection.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -6,7 +5,7 @@ import { useSession } from "next-auth/react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { gregorianToEthiopian, formatEthiopianDate } from "@/lib/utils";
-import { Student, Attendance } from "@/lib/models";
+import { Student } from "@/lib/models";
 
 interface AttendanceRecord {
   studentId: string;
@@ -14,33 +13,34 @@ interface AttendanceRecord {
   present: boolean;
   hasPermission: boolean;
   reason?: string;
+  markedBy?: string;
+  timestamp?: string;
+  submissionId?: string;
 }
 
 export default function AttendanceSection() {
   const { data: session } = useSession();
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedGrade, setSelectedGrade] = useState(""); // Local filter (optional)
+  const [selectedGrade, setSelectedGrade] = useState("");
   const currentDate = useMemo(() => new Date(), []);
   const ethiopianDate = gregorianToEthiopian(currentDate);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [tempAttendance, setTempAttendance] = useState<AttendanceRecord[]>([]);
   const [isSunday, setIsSunday] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Get facilitator's assigned grade from session
-  const facilitatorGrade = session?.user?.grade as
-    | string
-    | string[]
-    | undefined;
+  const facilitatorGrade = session?.user?.grade as string | string[] | undefined;
+  const facilitatorEmail = session?.user?.email || "Attendance Facilitator";
 
   useEffect(() => {
     setIsSunday(currentDate.getDay() === 0);
 
-    async function fetchStudents() {
+    async function fetchData() {
       setLoading(true);
       try {
-        // 👇 Only fetch students of assigned grade
+        // Fetch students
         let url = "/api/students";
         if (facilitatorGrade) {
           const params = new URLSearchParams();
@@ -53,27 +53,67 @@ export default function AttendanceSection() {
             url += `?${params.toString()}`;
           }
         }
+        const studentRes = await fetch(url);
+        if (!studentRes.ok) throw new Error("Failed to load students");
+        const studentData = await studentRes.json();
+        setStudents(studentData);
 
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Failed to load students");
-        const data = await res.json();
-        setStudents(data);
+        // Fetch temporary attendance
+        const formattedDate = formatEthiopianDate(currentDate);
+        const tempRes = await fetch(
+          `/api/attendance/temp?date=${encodeURIComponent(
+            formattedDate
+          )}&markedBy=${encodeURIComponent(facilitatorEmail)}`
+        );
+        if (!tempRes.ok) {
+          const errorData = await tempRes.json();
+          console.warn(
+            `Failed to load temp attendance: ${tempRes.status} - ${
+              errorData.error || "No error message"
+            }`
+          );
+          setTempAttendance([]); // Fallback to empty array
+        } else {
+          const tempData = await tempRes.json();
+          setTempAttendance(tempData);
+        }
+
+        // Fetch final attendance
+        const finalRes = await fetch(
+          `/api/attendance?date=${encodeURIComponent(formattedDate)}`
+        );
+        if (!finalRes.ok) throw new Error("Failed to load final attendance");
+        const finalData = await finalRes.json();
+        setAttendance(
+          finalData.filter((record: AttendanceRecord) =>
+            studentData.some(
+              (student: Student) => student._id?.toString() === record.studentId
+            )
+          )
+        );
+
         setError(null);
       } catch (err) {
-        setError((err as Error).message);
+        const errorMessage = (err as Error).message;
+        console.error("fetchData error:", errorMessage);
+        setError(errorMessage);
         setStudents([]);
+        setTempAttendance([]);
+        setAttendance([]);
       } finally {
         setLoading(false);
       }
     }
 
     if (facilitatorGrade && facilitatorGrade.length > 0) {
-      fetchStudents();
+      fetchData();
     } else {
       setStudents([]);
+      setTempAttendance([]);
+      setAttendance([]);
       setError("No grade assigned. Please contact admin.");
     }
-  }, [currentDate, facilitatorGrade]);
+  }, [currentDate, facilitatorGrade, facilitatorEmail]);
 
   const formattedDate = formatEthiopianDate(currentDate);
   const currentYear = Math.max(
@@ -104,6 +144,7 @@ export default function AttendanceSection() {
               present: true,
               hasPermission: false,
               reason: "",
+              markedBy: facilitatorEmail,
             },
           ]
     );
@@ -130,6 +171,7 @@ export default function AttendanceSection() {
               present: false,
               hasPermission: true,
               reason: "",
+              markedBy: facilitatorEmail,
             },
           ]
     );
@@ -159,76 +201,98 @@ export default function AttendanceSection() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSunday) return alert("Attendance can only be submitted on Sundays");
+    let allRecords = attendance;
     if (
       !attendance.some(
         (r: AttendanceRecord) =>
           r.date === formattedDate && (r.present || r.hasPermission)
       )
     ) {
-      return alert(
-        "Please mark at least one student as Present or with Permission"
-      );
+      // Generate Absent records for unmarked students
+      allRecords = currentYearStudents.map((student: Student) => {
+        const record = attendance.find(
+          (r: AttendanceRecord) =>
+            r.studentId === student._id?.toString() && r.date === formattedDate
+        );
+        return (
+          record || {
+            studentId: student._id?.toString() || "",
+            date: formattedDate,
+            present: false,
+            hasPermission: false,
+            reason: "",
+            markedBy: facilitatorEmail,
+          }
+        );
+      });
+      setAttendance(allRecords);
     }
 
     setLoading(true);
     setError(null);
     try {
       const timestamp = formatEthiopianDate(new Date());
+      const payload = {
+        date: formattedDate,
+        attendance: allRecords
+          .filter((r) => r.date === formattedDate)
+          .map((r) => ({
+            ...r,
+            markedBy: facilitatorEmail,
+            timestamp,
+          })),
+      };
+
       const res = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: formattedDate,
-          attendance: attendance
-            .filter((r) => r.date === formattedDate)
-            .map((r) => ({
-              ...r,
-              markedBy: session?.user?.email || "Attendance Facilitator",
-              timestamp,
-            })),
-        }),
+        body: JSON.stringify(payload),
       });
+
+      const responseData = await res.json();
+
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to save attendance");
+        throw new Error(responseData.message || "Failed to queue attendance");
       }
 
-      const data = currentYearStudents.map((student: Student) => ({
-        Unique_ID: student.Unique_ID,
-        First_Name: student.First_Name,
-        Father_Name: student.Father_Name,
-        Grade: student.Grade,
-        Status: attendance.find(
+      // Update tempAttendance
+      const tempRes = await fetch(
+        `/api/attendance/temp?date=${encodeURIComponent(
+          formattedDate
+        )}&markedBy=${encodeURIComponent(facilitatorEmail)}`
+      );
+      if (tempRes.ok) {
+        const tempData = await tempRes.json();
+        setTempAttendance(tempData);
+      } else {
+        console.warn(
+          `Failed to fetch temp attendance after submit: ${tempRes.status}`
+        );
+        setTempAttendance([]);
+      }
+
+      // Generate Excel with current submission
+      const data = currentYearStudents.map((student: Student) => {
+        const record = allRecords.find(
           (r: AttendanceRecord) =>
             r.studentId === student._id?.toString() && r.date === formattedDate
-        )?.present
-          ? "Present"
-          : attendance.find(
-              (r: AttendanceRecord) =>
-                r.studentId === student._id?.toString() &&
-                r.date === formattedDate
-            )?.hasPermission
-          ? `Permission${
-              attendance.find(
-                (r) =>
-                  r.studentId === student._id?.toString() &&
-                  r.date === formattedDate
-              )?.reason
-                ? ` (${
-                    attendance.find(
-                      (r) =>
-                        r.studentId === student._id?.toString() &&
-                        r.date === formattedDate
-                    )?.reason
-                  })`
-                : ""
-            }`
-          : "Absent",
-        Date: formattedDate,
-      }));
+        );
+        return {
+          Unique_ID: student.Unique_ID,
+          First_Name: student.First_Name,
+          Father_Name: student.Father_Name,
+          Grade: student.Grade,
+          Status: record?.present
+            ? "Present"
+            : record?.hasPermission
+            ? `Permission${record.reason ? ` (${record.reason})` : ""}`
+            : "Absent",
+          Date: formattedDate,
+        };
+      });
       generateExcel(data);
 
-      alert("Attendance submitted successfully!");
+      alert("Attendance queued successfully! It will be processed within an hour.");
       setAttendance([]);
     } catch (err) {
       setError((err as Error).message);
@@ -237,7 +301,6 @@ export default function AttendanceSection() {
     }
   };
 
-  // Local filter (optional — you can remove grade filter dropdown if you want)
   const filteredStudents = currentYearStudents.filter(
     (student: Student) =>
       student._id &&
@@ -332,33 +395,21 @@ export default function AttendanceSection() {
           className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
           disabled={loading}
         >
-          {loading ? "Submitting..." : "Submit"}
+          {loading ? "Submitting..." : "Queue Attendance"}
         </button>
       </form>
 
-      {/* Desktop Table */}
       <div className="hidden sm:block table-responsive max-h-[500px] overflow-y-auto">
         <table className="min-w-full border-collapse border bg-white rounded-lg overflow-hidden shadow-sm">
           <thead className="bg-gray-100 sticky top-0">
             <tr>
-              <th className="border p-3 text-left text-responsive font-medium">
-                ID Number
-              </th>
-              <th className="border p-3 text-left text-responsive font-medium">
-                Name
-              </th>
-              <th className="border p-3 text-left text-responsive font-medium">
-                Grade
-              </th>
-              <th className="border p-3 text-left text-responsive font-medium">
-                Present
-              </th>
-              <th className="border p-3 text-left text-responsive font-medium">
-                Permission
-              </th>
-              <th className="border p-3 text-left text-responsive font-medium">
-                Reason
-              </th>
+              <th className="border p-3 text-left text-responsive font-medium">ID Number</th>
+              <th className="border p-3 text-left text-responsive font-medium">Name</th>
+              <th className="border p-3 text-left text-responsive font-medium">Grade</th>
+              <th className="border p-3 text-left text-responsive font-medium">Present</th>
+              <th className="border p-3 text-left text-responsive font-medium">Permission</th>
+              <th className="border p-3 text-left text-responsive font-medium">Reason</th>
+              <th className="border p-3 text-left text-responsive font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -368,15 +419,22 @@ export default function AttendanceSection() {
                   r.studentId === student._id?.toString() &&
                   r.date === formattedDate
               );
+              const tempRecord = tempAttendance.find(
+                (r: AttendanceRecord) =>
+                  r.studentId === student._id?.toString() &&
+                  r.date === formattedDate &&
+                  r.markedBy === facilitatorEmail
+              );
+              const finalRecord = attendance.find(
+                (r: AttendanceRecord) =>
+                  r.studentId === student._id?.toString() &&
+                  r.date === formattedDate
+              );
               return (
                 <tr key={student._id?.toString()} className="hover:bg-gray-50">
-                  <td className="border p-3 text-responsive">
-                    {student.Unique_ID}
-                  </td>
+                  <td className="border p-3 text-responsive">{student.Unique_ID}</td>
                   <td className="border p-3 text-responsive">{`${student.First_Name} ${student.Father_Name}`}</td>
-                  <td className="border p-3 text-responsive">
-                    {student.Grade}
-                  </td>
+                  <td className="border p-3 text-responsive">{student.Grade}</td>
                   <td className="border p-3 text-center">
                     <input
                       type="checkbox"
@@ -384,7 +442,7 @@ export default function AttendanceSection() {
                       onChange={() =>
                         student._id && toggleAttendance(student._id.toString())
                       }
-                      disabled={!isSunday || loading}
+                      disabled={!isSunday || loading || !!finalRecord}
                       className="w-4 h-4"
                     />
                   </td>
@@ -395,7 +453,7 @@ export default function AttendanceSection() {
                       onChange={() =>
                         student._id && togglePermission(student._id.toString())
                       }
-                      disabled={!isSunday || loading}
+                      disabled={!isSunday || loading || !!finalRecord}
                       className="w-4 h-4"
                     />
                   </td>
@@ -408,9 +466,22 @@ export default function AttendanceSection() {
                         updateReason(student._id.toString(), e.target.value)
                       }
                       className="w-full p-2 border rounded text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled={!isSunday || !record?.hasPermission || loading}
+                      disabled={!isSunday || !record?.hasPermission || loading || !!finalRecord}
                       placeholder="Reason for permission"
                     />
+                  </td>
+                  <td className="border p-3 text-responsive">
+                    {finalRecord ? (
+                      <span className="text-green-500">
+                        Final: {finalRecord.present ? "Present" : finalRecord.hasPermission ? `Permission (${finalRecord.reason || ""})` : "Absent"}
+                      </span>
+                    ) : tempRecord ? (
+                      <span className="text-orange-500">
+                        Queued: {tempRecord.present ? "Present" : tempRecord.hasPermission ? `Permission (${tempRecord.reason || ""})` : "Absent"}
+                      </span>
+                    ) : (
+                      "Not marked"
+                    )}
                   </td>
                 </tr>
               );
@@ -419,10 +490,20 @@ export default function AttendanceSection() {
         </table>
       </div>
 
-      {/* Mobile Cards */}
       <div className="sm:hidden space-y-3 max-h-[500px] overflow-y-auto">
         {filteredStudents.map((student: Student) => {
           const record = attendance.find(
+            (r: AttendanceRecord) =>
+              r.studentId === student._id?.toString() &&
+              r.date === formattedDate
+          );
+          const tempRecord = tempAttendance.find(
+            (r: AttendanceRecord) =>
+              r.studentId === student._id?.toString() &&
+              r.date === formattedDate &&
+              r.markedBy === facilitatorEmail
+          );
+          const finalRecord = attendance.find(
             (r: AttendanceRecord) =>
               r.studentId === student._id?.toString() &&
               r.date === formattedDate
@@ -432,16 +513,11 @@ export default function AttendanceSection() {
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="font-semibold text-responsive">
-                      {student.Unique_ID}
-                    </div>
+                    <div className="font-semibold text-responsive">{student.Unique_ID}</div>
                     <div className="text-responsive">{`${student.First_Name} ${student.Father_Name}`}</div>
-                    <div className="text-sm text-gray-600">
-                      Grade: {student.Grade}
-                    </div>
+                    <div className="text-sm text-gray-600">Grade: {student.Grade}</div>
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <label className="flex items-center gap-2 text-responsive">
@@ -449,10 +525,9 @@ export default function AttendanceSection() {
                         type="checkbox"
                         checked={!!record?.present}
                         onChange={() =>
-                          student._id &&
-                          toggleAttendance(student._id.toString())
+                          student._id && toggleAttendance(student._id.toString())
                         }
-                        disabled={!isSunday || loading}
+                        disabled={!isSunday || loading || !!finalRecord}
                         className="w-4 h-4"
                       />
                       Present
@@ -462,16 +537,14 @@ export default function AttendanceSection() {
                         type="checkbox"
                         checked={!!record?.hasPermission}
                         onChange={() =>
-                          student._id &&
-                          togglePermission(student._id.toString())
+                          student._id && togglePermission(student._id.toString())
                         }
-                        disabled={!isSunday || loading}
+                        disabled={!isSunday || loading || !!finalRecord}
                         className="w-4 h-4"
                       />
                       Permission
                     </label>
                   </div>
-
                   {record?.hasPermission && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -481,15 +554,28 @@ export default function AttendanceSection() {
                         type="text"
                         value={record?.reason || ""}
                         onChange={(e) =>
-                          student._id &&
-                          updateReason(student._id.toString(), e.target.value)
+                          student._id && updateReason(student._id.toString(), e.target.value)
                         }
                         className="w-full p-2 border rounded text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        disabled={!isSunday || loading}
+                        disabled={!isSunday || loading || !!finalRecord}
                         placeholder="Enter reason"
                       />
                     </div>
                   )}
+                  <div className="text-sm">
+                    <span className="font-medium">Status: </span>
+                    {finalRecord ? (
+                      <span className="text-green-500">
+                        Final: {finalRecord.present ? "Present" : finalRecord.hasPermission ? `Permission (${finalRecord.reason || ""})` : "Absent"}
+                      </span>
+                    ) : tempRecord ? (
+                      <span className="text-orange-500">
+                        Queued: {tempRecord.present ? "Present" : tempRecord.hasPermission ? `Permission (${tempRecord.reason || ""})` : "Absent"}
+                      </span>
+                    ) : (
+                      "Not marked"
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

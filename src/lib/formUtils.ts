@@ -1,5 +1,6 @@
 import { Student } from "@/lib/models";
 import { getCurrentEthiopianYear, ethiopianToGregorian, gregorianToEthiopian, isEthiopianLeapYear } from "@/lib/utils";
+import { GRADES } from "@/lib/constants";
 
 export function calculateAge(date: number, month: number, year: number): number {
   // Validate inputs
@@ -33,6 +34,19 @@ export function calculateAge(date: number, month: number, year: number): number 
     console.error("Error calculating age:", error);
     return 0;
   }
+}
+
+// NEW: Map age to suggested grade
+export function mapAgeToGrade(age: number): string {
+  if (age < 7) return GRADES[0];      // Grade 1
+  if (age <= 8) return GRADES[1];     // Grade 2
+  if (age <= 10) return GRADES[2];    // Grade 3
+  if (age <= 12) return GRADES[3];    // Grade 4
+  if (age <= 14) return GRADES[4];    // Grade 5
+  if (age <= 16) return GRADES[5];    // Grade 6
+  if (age <= 18) return GRADES[6];    // Grade 7
+  if (age <= 25) return GRADES[7];    // Grade 8
+  return GRADES[8];                   // Adult
 }
 
 export function validateStudentForm(formData: Omit<Student, "_id">, isNew: boolean): Partial<Record<keyof Omit<Student, "_id">, string>> {
