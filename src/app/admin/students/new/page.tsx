@@ -12,7 +12,11 @@ export default function NewStudentPage() {
   const [error, setError] = useState<string | null>(null);
 
   if (status === "loading") {
-    return <main className="container-responsive py-6"><div className="card-responsive">Loading...</div></main>;
+    return (
+      <main className="container-responsive py-6">
+        <div className="card-responsive">Loading...</div>
+      </main>
+    );
   }
 
   if (status === "unauthenticated" || !user) {
@@ -37,7 +41,11 @@ export default function NewStudentPage() {
             const res = await fetch("/api/students", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(studentData),
+              body: JSON.stringify({
+                ...studentData,
+                userRole: user.role,
+                isNewStudent: true, // Always true for new student page
+              }),
             });
             if (!res.ok) {
               const data = await res.json();
