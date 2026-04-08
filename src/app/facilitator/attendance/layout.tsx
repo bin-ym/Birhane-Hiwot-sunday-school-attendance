@@ -1,5 +1,6 @@
 // src/app/facilitator/attendance/layout.tsx
 "use client";
+import Head from "next/head";
 import RoleLayoutShell from "@/components/RoleLayoutShell";
 
 const facilitatorLinks = [
@@ -14,8 +15,15 @@ export default function FacilitatorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <RoleLayoutShell roleTitle="Attendance Facilitator" links={facilitatorLinks}>
-      {children}
-    </RoleLayoutShell>
+    <>
+      <Head>
+        {/* PWA manifest only for Attendance Facilitator area */}
+        <link rel="manifest" href="/manifest-attendance.webmanifest" />
+        <meta name="theme-color" content="#2563eb" />
+      </Head>
+      <RoleLayoutShell roleTitle="Attendance Facilitator" links={facilitatorLinks}>
+        {children}
+      </RoleLayoutShell>
+    </>
   );
 }

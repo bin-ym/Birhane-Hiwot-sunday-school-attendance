@@ -8,6 +8,12 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { gregorianToEthiopian, formatEthiopianDate } from "@/lib/utils";
 import { Student } from "@/lib/models";
+import toast, { Toaster } from "react-hot-toast";
+import dynamic from "next/dynamic";
+
+const QRScannerModal = dynamic(() => import("@/components/QRScannerModal"), {
+  ssr: false,
+});
 
 interface AttendanceRecord {
   studentId: string;
@@ -17,7 +23,6 @@ interface AttendanceRecord {
   reason?: string;
   markedBy?: string;
   timestamp?: string;
-  submissionId?: string;
 }
 
 export default function AttendanceSection() {
@@ -26,19 +31,34 @@ export default function AttendanceSection() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
   const currentDate = useMemo(() => new Date(), []);
-  const ethiopianDate = gregorianToEthiopian(currentDate);
+  // Ethiopian date for display only
+  void gregorianToEthiopian(currentDate);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
-  const [tempAttendance, setTempAttendance] = useState<AttendanceRecord[]>([]);
-  const [isSunday, setIsSunday] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
 
-  const facilitatorGrade = session?.user?.grade as string | string[] | undefined;
+  const facilitatorGrade = session?.user?.grade as
+    | string
+    | string[]
+    | undefined;
   const facilitatorEmail = session?.user?.email || "Attendance Facilitator";
 
-  useEffect(() => {
-    setIsSunday(currentDate.getDay() === 0);
+  const formattedDate = formatEthiopianDate(currentDate);
 
+  // Register Attendance PWA service worker (only on this page)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator)) return;
+
+    navigator.serviceWorker
+      .register("/sw-attendance.js", { scope: "/facilitator/" })
+      .catch((err) => {
+        console.error("Failed to register attendance service worker:", err);
+      });
+  }, []);
+
+  useEffect(() => {
     async function fetchData() {
       setLoading(true);
       try {
@@ -60,38 +80,19 @@ export default function AttendanceSection() {
         const studentData = await studentRes.json();
         setStudents(studentData);
 
-        // Fetch temporary attendance
-        const formattedDate = formatEthiopianDate(currentDate);
-        const tempRes = await fetch(
-          `/api/attendance/temp?date=${encodeURIComponent(
-            formattedDate
-          )}&markedBy=${encodeURIComponent(facilitatorEmail)}`
-        );
-        if (!tempRes.ok) {
-          const errorData = await tempRes.json();
-          console.warn(
-            `Failed to load temp attendance: ${tempRes.status} - ${
-              errorData.error || "No error message"
-            }`
-          );
-          setTempAttendance([]); // Fallback to empty array
-        } else {
-          const tempData = await tempRes.json();
-          setTempAttendance(tempData);
-        }
-
-        // Fetch final attendance
+        // Fetch final attendance for today
         const finalRes = await fetch(
-          `/api/attendance?date=${encodeURIComponent(formattedDate)}`
+          `/api/attendance?date=${encodeURIComponent(formattedDate)}`,
         );
-        if (!finalRes.ok) throw new Error("Failed to load final attendance");
+        if (!finalRes.ok) throw new Error("Failed to load attendance");
         const finalData = await finalRes.json();
         setAttendance(
           finalData.filter((record: AttendanceRecord) =>
             studentData.some(
-              (student: Student) => student._id?.toString() === record.studentId
-            )
-          )
+              (student: Student) =>
+                student._id?.toString() === record.studentId,
+            ),
+          ),
         );
 
         setError(null);
@@ -100,7 +101,6 @@ export default function AttendanceSection() {
         console.error("fetchData error:", errorMessage);
         setError(errorMessage);
         setStudents([]);
-        setTempAttendance([]);
         setAttendance([]);
       } finally {
         setLoading(false);
@@ -111,32 +111,29 @@ export default function AttendanceSection() {
       fetchData();
     } else {
       setStudents([]);
-      setTempAttendance([]);
       setAttendance([]);
       setError("No grade assigned. Please contact admin.");
     }
-  }, [currentDate, facilitatorGrade, facilitatorEmail]);
+  }, [currentDate, facilitatorGrade, facilitatorEmail, formattedDate]);
 
-  const formattedDate = formatEthiopianDate(currentDate);
   const currentYear = Math.max(
-    ...students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean)
+    ...students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean),
   );
   const currentYearStudents = students.filter(
-    (s: Student) => s.Academic_Year === String(currentYear)
+    (s: Student) => s.Academic_Year === String(currentYear),
   );
 
   const toggleAttendance = (studentId: string) => {
-    if (!isSunday) return alert("Attendance can only be marked on Sundays");
     const record = attendance.find(
       (r: AttendanceRecord) =>
-        r.studentId === studentId && r.date === formattedDate
+        r.studentId === studentId && r.date === formattedDate,
     );
     setAttendance(
       record
         ? attendance.map((r: AttendanceRecord) =>
             r.studentId === studentId && r.date === formattedDate
               ? { ...r, present: !r.present, hasPermission: false, reason: "" }
-              : r
+              : r,
           )
         : [
             ...attendance,
@@ -148,22 +145,21 @@ export default function AttendanceSection() {
               reason: "",
               markedBy: facilitatorEmail,
             },
-          ]
+          ],
     );
   };
 
   const togglePermission = (studentId: string) => {
-    if (!isSunday) return alert("Permission can only be marked on Sundays");
     const record = attendance.find(
       (r: AttendanceRecord) =>
-        r.studentId === studentId && r.date === formattedDate
+        r.studentId === studentId && r.date === formattedDate,
     );
     setAttendance(
       record
         ? attendance.map((r: AttendanceRecord) =>
             r.studentId === studentId && r.date === formattedDate
               ? { ...r, hasPermission: !r.hasPermission, present: false }
-              : r
+              : r,
           )
         : [
             ...attendance,
@@ -175,7 +171,7 @@ export default function AttendanceSection() {
               reason: "",
               markedBy: facilitatorEmail,
             },
-          ]
+          ],
     );
   };
 
@@ -184,37 +180,82 @@ export default function AttendanceSection() {
       attendance.map((r: AttendanceRecord) =>
         r.studentId === studentId && r.date === formattedDate
           ? { ...r, reason }
-          : r
-      )
+          : r,
+      ),
     );
   };
 
-  const generateExcel = (data: any[]) => {
+  // Handle QR scan — marks the scanned student as Present
+  const handleQRScan = (uniqueId: string) => {
+    const student = currentYearStudents.find(
+      (s: Student) =>
+        s.Unique_ID === uniqueId || s._id?.toString() === uniqueId,
+    );
+    if (!student) {
+      toast.error(`Student not found for ID: ${uniqueId}`);
+      return;
+    }
+    const studentId = student._id?.toString() || "";
+    const alreadyMarked = attendance.find(
+      (r) => r.studentId === studentId && r.date === formattedDate && r.present,
+    );
+    if (alreadyMarked) {
+      toast(`${student.First_Name} is already marked present.`, { icon: "ℹ️" });
+      return;
+    }
+    setAttendance((prev) => {
+      const existing = prev.find(
+        (r) => r.studentId === studentId && r.date === formattedDate,
+      );
+      if (existing) {
+        return prev.map((r) =>
+          r.studentId === studentId && r.date === formattedDate
+            ? { ...r, present: true, hasPermission: false }
+            : r,
+        );
+      }
+      return [
+        ...prev,
+        {
+          studentId,
+          date: formattedDate,
+          present: true,
+          hasPermission: false,
+          reason: "",
+          markedBy: facilitatorEmail,
+        },
+      ];
+    });
+    toast.success(
+      `${student.First_Name} ${student.Father_Name} marked Present!`,
+    );
+  };
+
+  const generateExcel = (data: unknown[]) => {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Attendance");
     const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(
       new Blob([buffer], { type: "application/octet-stream" }),
-      `Attendance_${formattedDate.replace(/[\s,]+/g, "_")}.xlsx`
+      `Attendance_${formattedDate.replace(/[\s,]+/g, "_")}.xlsx`,
     );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSunday) return alert("Attendance can only be submitted on Sundays");
     let allRecords = attendance;
     if (
       !attendance.some(
         (r: AttendanceRecord) =>
-          r.date === formattedDate && (r.present || r.hasPermission)
+          r.date === formattedDate && (r.present || r.hasPermission),
       )
     ) {
       // Generate Absent records for unmarked students
       allRecords = currentYearStudents.map((student: Student) => {
         const record = attendance.find(
           (r: AttendanceRecord) =>
-            r.studentId === student._id?.toString() && r.date === formattedDate
+            r.studentId === student._id?.toString() && r.date === formattedDate,
         );
         return (
           record || {
@@ -254,30 +295,14 @@ export default function AttendanceSection() {
       const responseData = await res.json();
 
       if (!res.ok) {
-        throw new Error(responseData.message || "Failed to queue attendance");
+        throw new Error(responseData.message || "Failed to submit attendance");
       }
 
-      // Update tempAttendance
-      const tempRes = await fetch(
-        `/api/attendance/temp?date=${encodeURIComponent(
-          formattedDate
-        )}&markedBy=${encodeURIComponent(facilitatorEmail)}`
-      );
-      if (tempRes.ok) {
-        const tempData = await tempRes.json();
-        setTempAttendance(tempData);
-      } else {
-        console.warn(
-          `Failed to fetch temp attendance after submit: ${tempRes.status}`
-        );
-        setTempAttendance([]);
-      }
-
-      // Generate Excel with current submission
+      // Generate Excel
       const data = currentYearStudents.map((student: Student) => {
         const record = allRecords.find(
           (r: AttendanceRecord) =>
-            r.studentId === student._id?.toString() && r.date === formattedDate
+            r.studentId === student._id?.toString() && r.date === formattedDate,
         );
         return {
           Unique_ID: student.Unique_ID,
@@ -287,17 +312,18 @@ export default function AttendanceSection() {
           Status: record?.present
             ? "Present"
             : record?.hasPermission
-            ? `Permission${record.reason ? ` (${record.reason})` : ""}`
-            : "Absent",
+              ? `Permission${record.reason ? ` (${record.reason})` : ""}`
+              : "Absent",
           Date: formattedDate,
         };
       });
       generateExcel(data);
 
-      alert("Attendance queued successfully! It will be processed within an hour.");
+      toast.success("Attendance submitted successfully!");
       setAttendance([]);
     } catch (err) {
       setError((err as Error).message);
+      toast.error((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -316,14 +342,55 @@ export default function AttendanceSection() {
         (student.Father_Name || "")
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase()))
+        (student.Grade || "").toLowerCase().includes(searchTerm.toLowerCase())),
   );
 
   return (
     <div className="card-responsive">
-      <h1 className="heading-responsive text-gray-800 mb-6">
-        Attendance Management
-      </h1>
+      <Toaster position="top-right" />
+
+      {showScanner && (
+        <QRScannerModal
+          allowedGrades={
+            Array.isArray(facilitatorGrade)
+              ? facilitatorGrade
+              : facilitatorGrade
+                ? [facilitatorGrade]
+                : []
+          }
+          onPass={handleQRScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <h1 className="heading-responsive text-gray-800">
+          Attendance Management
+        </h1>
+        {/* QR Scanner button */}
+        <button
+          type="button"
+          onClick={() => setShowScanner(true)}
+          disabled={loading}
+          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition disabled:bg-gray-400"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M9 9h1v1H9V9zm5 0h1v1h-1V9zm-5 5h1v1H9v-1zm5 0h1v1h-1v-1z"
+            />
+          </svg>
+          Scan QR Code
+        </button>
+      </div>
+
       {error && (
         <div className="text-red-500 mb-4 text-responsive">{error}</div>
       )}
@@ -345,11 +412,6 @@ export default function AttendanceSection() {
           <p className="p-3 border border-gray-300 rounded-lg bg-gray-50 text-responsive">
             {formattedDate}
           </p>
-          {!isSunday && (
-            <p className="text-red-500 text-sm mt-1">
-              Attendance can only be marked on Sundays
-            </p>
-          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -388,7 +450,7 @@ export default function AttendanceSection() {
                 <option key={option} value={option}>
                   {option}
                 </option>
-              )
+              ),
             )}
           </select>
         </div>
@@ -397,21 +459,36 @@ export default function AttendanceSection() {
           className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
           disabled={loading}
         >
-          {loading ? "Submitting..." : "Queue Attendance"}
+          {loading ? "Submitting…" : "Submit Attendance"}
         </button>
       </form>
 
+      {/* Desktop table */}
       <div className="hidden sm:block table-responsive max-h-[500px] overflow-y-auto">
         <table className="min-w-full border-collapse border bg-white rounded-lg overflow-hidden shadow-sm">
           <thead className="bg-gray-100 sticky top-0">
             <tr>
-              <th className="border p-3 text-left text-responsive font-medium">ID Number</th>
-              <th className="border p-3 text-left text-responsive font-medium">Name</th>
-              <th className="border p-3 text-left text-responsive font-medium">Grade</th>
-              <th className="border p-3 text-left text-responsive font-medium">Present</th>
-              <th className="border p-3 text-left text-responsive font-medium">Permission</th>
-              <th className="border p-3 text-left text-responsive font-medium">Reason</th>
-              <th className="border p-3 text-left text-responsive font-medium">Status</th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                ID Number
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Name
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Grade
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Present
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Permission
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Reason
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Status
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -419,24 +496,17 @@ export default function AttendanceSection() {
               const record = attendance.find(
                 (r: AttendanceRecord) =>
                   r.studentId === student._id?.toString() &&
-                  r.date === formattedDate
-              );
-              const tempRecord = tempAttendance.find(
-                (r: AttendanceRecord) =>
-                  r.studentId === student._id?.toString() &&
-                  r.date === formattedDate &&
-                  r.markedBy === facilitatorEmail
-              );
-              const finalRecord = attendance.find(
-                (r: AttendanceRecord) =>
-                  r.studentId === student._id?.toString() &&
-                  r.date === formattedDate
+                  r.date === formattedDate,
               );
               return (
                 <tr key={student._id?.toString()} className="hover:bg-gray-50">
-                  <td className="border p-3 text-responsive">{student.Unique_ID}</td>
+                  <td className="border p-3 text-responsive">
+                    {student.Unique_ID}
+                  </td>
                   <td className="border p-3 text-responsive">{`${student.First_Name} ${student.Father_Name}`}</td>
-                  <td className="border p-3 text-responsive">{student.Grade}</td>
+                  <td className="border p-3 text-responsive">
+                    {student.Grade}
+                  </td>
                   <td className="border p-3 text-center">
                     <input
                       type="checkbox"
@@ -444,7 +514,7 @@ export default function AttendanceSection() {
                       onChange={() =>
                         student._id && toggleAttendance(student._id.toString())
                       }
-                      disabled={!isSunday || loading || !!finalRecord}
+                      disabled={loading}
                       className="w-4 h-4"
                     />
                   </td>
@@ -455,7 +525,7 @@ export default function AttendanceSection() {
                       onChange={() =>
                         student._id && togglePermission(student._id.toString())
                       }
-                      disabled={!isSunday || loading || !!finalRecord}
+                      disabled={loading}
                       className="w-4 h-4"
                     />
                   </td>
@@ -468,21 +538,27 @@ export default function AttendanceSection() {
                         updateReason(student._id.toString(), e.target.value)
                       }
                       className="w-full p-2 border rounded text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled={!isSunday || !record?.hasPermission || loading || !!finalRecord}
+                      disabled={!record?.hasPermission || loading}
                       placeholder="Reason for permission"
                     />
                   </td>
                   <td className="border p-3 text-responsive">
-                    {finalRecord ? (
-                      <span className="text-green-500">
-                        Final: {finalRecord.present ? "Present" : finalRecord.hasPermission ? `Permission (${finalRecord.reason || ""})` : "Absent"}
-                      </span>
-                    ) : tempRecord ? (
-                      <span className="text-orange-500">
-                        Queued: {tempRecord.present ? "Present" : tempRecord.hasPermission ? `Permission (${tempRecord.reason || ""})` : "Absent"}
+                    {record ? (
+                      <span
+                        className={
+                          record.present
+                            ? "text-green-600 font-medium"
+                            : "text-orange-500 font-medium"
+                        }
+                      >
+                        {record.present
+                          ? "Present"
+                          : record.hasPermission
+                            ? `Permission${record.reason ? ` (${record.reason})` : ""}`
+                            : "Absent"}
                       </span>
                     ) : (
-                      "Not marked"
+                      <span className="text-gray-400">Not marked</span>
                     )}
                   </td>
                 </tr>
@@ -492,32 +568,26 @@ export default function AttendanceSection() {
         </table>
       </div>
 
+      {/* Mobile cards */}
       <div className="sm:hidden space-y-3 max-h-[500px] overflow-y-auto">
         {filteredStudents.map((student: Student) => {
           const record = attendance.find(
             (r: AttendanceRecord) =>
               r.studentId === student._id?.toString() &&
-              r.date === formattedDate
-          );
-          const tempRecord = tempAttendance.find(
-            (r: AttendanceRecord) =>
-              r.studentId === student._id?.toString() &&
-              r.date === formattedDate &&
-              r.markedBy === facilitatorEmail
-          );
-          const finalRecord = attendance.find(
-            (r: AttendanceRecord) =>
-              r.studentId === student._id?.toString() &&
-              r.date === formattedDate
+              r.date === formattedDate,
           );
           return (
             <div key={student._id?.toString()} className="card-responsive">
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="font-semibold text-responsive">{student.Unique_ID}</div>
+                    <div className="font-semibold text-responsive">
+                      {student.Unique_ID}
+                    </div>
                     <div className="text-responsive">{`${student.First_Name} ${student.Father_Name}`}</div>
-                    <div className="text-sm text-gray-600">Grade: {student.Grade}</div>
+                    <div className="text-sm text-gray-600">
+                      Grade: {student.Grade}
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-col gap-3">
@@ -527,9 +597,10 @@ export default function AttendanceSection() {
                         type="checkbox"
                         checked={!!record?.present}
                         onChange={() =>
-                          student._id && toggleAttendance(student._id.toString())
+                          student._id &&
+                          toggleAttendance(student._id.toString())
                         }
-                        disabled={!isSunday || loading || !!finalRecord}
+                        disabled={loading}
                         className="w-4 h-4"
                       />
                       Present
@@ -539,9 +610,10 @@ export default function AttendanceSection() {
                         type="checkbox"
                         checked={!!record?.hasPermission}
                         onChange={() =>
-                          student._id && togglePermission(student._id.toString())
+                          student._id &&
+                          togglePermission(student._id.toString())
                         }
-                        disabled={!isSunday || loading || !!finalRecord}
+                        disabled={loading}
                         className="w-4 h-4"
                       />
                       Permission
@@ -556,26 +628,33 @@ export default function AttendanceSection() {
                         type="text"
                         value={record?.reason || ""}
                         onChange={(e) =>
-                          student._id && updateReason(student._id.toString(), e.target.value)
+                          student._id &&
+                          updateReason(student._id.toString(), e.target.value)
                         }
                         className="w-full p-2 border rounded text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        disabled={!isSunday || loading || !!finalRecord}
+                        disabled={loading}
                         placeholder="Enter reason"
                       />
                     </div>
                   )}
                   <div className="text-sm">
                     <span className="font-medium">Status: </span>
-                    {finalRecord ? (
-                      <span className="text-green-500">
-                        Final: {finalRecord.present ? "Present" : finalRecord.hasPermission ? `Permission (${finalRecord.reason || ""})` : "Absent"}
-                      </span>
-                    ) : tempRecord ? (
-                      <span className="text-orange-500">
-                        Queued: {tempRecord.present ? "Present" : tempRecord.hasPermission ? `Permission (${tempRecord.reason || ""})` : "Absent"}
+                    {record ? (
+                      <span
+                        className={
+                          record.present
+                            ? "text-green-600 font-medium"
+                            : "text-orange-500"
+                        }
+                      >
+                        {record.present
+                          ? "Present"
+                          : record.hasPermission
+                            ? `Permission (${record.reason || ""})`
+                            : "Absent"}
                       </span>
                     ) : (
-                      "Not marked"
+                      <span className="text-gray-400">Not marked</span>
                     )}
                   </div>
                 </div>
