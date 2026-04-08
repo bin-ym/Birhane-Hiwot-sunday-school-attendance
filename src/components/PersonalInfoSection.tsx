@@ -13,6 +13,7 @@ interface PersonalInfoSectionProps {
   handleChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => void;
+  onPhotoChange: (file: File | null) => void;
   onNext: () => void;
   userRole: UserRole;
   canEdit: boolean;
@@ -24,6 +25,7 @@ export function PersonalInfoSection({
   formData,
   errors,
   handleChange,
+  onPhotoChange,
   onNext,
   userRole,
   canEdit,
@@ -51,6 +53,47 @@ export function PersonalInfoSection({
       <h4 className="text-lg sm:text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">
         Personal Information
       </h4>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Student Photo (JPG/PNG)
+        </label>
+        <div className="flex items-center gap-4">
+          <div className="w-20 h-20 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
+            {formData.photo_data_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={formData.photo_data_url}
+                alt="Student photo preview"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-xs text-gray-400">No photo</span>
+            )}
+          </div>
+          <div className="flex-1">
+            <input
+              type="file"
+              accept="image/jpeg,image/png"
+              disabled={isFieldDisabled}
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                onPhotoChange(file);
+                // allow re-selecting the same file
+                e.currentTarget.value = "";
+              }}
+              className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-60"
+            />
+            {errors.photo_data_url && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.photo_data_url}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              Only <strong>.jpg</strong> or <strong>.png</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <FormField
           label="First Name"

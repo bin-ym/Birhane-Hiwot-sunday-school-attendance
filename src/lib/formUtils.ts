@@ -98,6 +98,9 @@ export function validateStudentForm(formData: Omit<Student, "_id">, isNew: boole
   if (isNew && !formData.Unique_ID) {
     errors.Unique_ID = "Unique ID is required";
   }
+  if (isNew && !formData.photo_data_url) {
+    errors.photo_data_url = "Student photo (JPG/PNG) is required";
+  }
 
   // Validate DOB
   if (formData.DOB_Date && formData.DOB_Month && formData.DOB_Year) {

@@ -107,6 +107,28 @@ export default function DetailsTab({ student }: DetailsTabProps) {
               <td className="border p-4">{student.Academic_Year}</td>
             </tr>
           )}
+          {student._id && student.qr_code && (
+            <tr className="hover:bg-gray-100 transition duration-150 ease-in-out">
+              <td className="border p-4 font-medium">QR Code</td>
+              <td className="border p-4">
+                <div className="flex items-center gap-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/students/${student._id}/qr`}
+                    alt="Student QR Code"
+                    className="w-32 h-32 border border-gray-200 rounded-lg"
+                  />
+                  <a
+                    href={`/api/students/${student._id}/qr`}
+                    download={`${student.Unique_ID}_QR.png`}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition"
+                  >
+                    Download QR
+                  </a>
+                </div>
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

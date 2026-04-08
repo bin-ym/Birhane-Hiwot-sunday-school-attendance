@@ -10,6 +10,7 @@ export interface Student {
   Grandfather_Name: string;
   Mothers_Name: string;
   Christian_Name: string;
+  photo_data_url?: string;
   DOB_Date: string;
   DOB_Month: string;
   DOB_Year: string;
@@ -25,7 +26,8 @@ export interface Student {
   Address: string;
   Address_Other?: string;
   Academic_Year: string;
-  Grade: typeof GRADES[number];
+  Grade: (typeof GRADES)[number];
+  qr_code?: string;
 }
 
 export interface StudentRequest {
@@ -58,7 +60,10 @@ export interface Payment {
   description?: string;
 }
 
-export type UserRole = 'Admin' | 'Attendance Facilitator' | 'Education Facilitator';
+export type UserRole =
+  | "Admin"
+  | "Attendance Facilitator"
+  | "Education Facilitator";
 
 export interface User {
   _id?: ObjectId;
@@ -109,9 +114,9 @@ export interface StudentResult {
   academicYear: string;
   assignment1?: number; // 0–10
   assignment2?: number; // 0–10
-  midTest?: number;     // 0–30
-  finalExam?: number;   // 0–50
-  totalScore?: number;  // 0–100
+  midTest?: number; // 0–30
+  finalExam?: number; // 0–50
+  totalScore?: number; // 0–100
   average?: number;
   grade?: string;
   remarks?: string;

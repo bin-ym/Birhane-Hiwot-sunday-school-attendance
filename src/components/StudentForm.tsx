@@ -2,7 +2,7 @@
 
 "use client";
 
-  import { useState, useMemo } from "react";
+  import { useMemo, useState } from "react";
   import { Button } from "@/components/ui/button";
   import { toast } from "react-hot-toast";
   import { Student, UserRole } from "@/lib/models";
@@ -48,6 +48,46 @@
       "personal"
     );
     const hasErrors = Object.values(errors).some((err) => !!err);
+
+    const handlePhotoChange = async (file: File | null) => {
+      if (!file) {
+        setFormData((prev) => ({ ...prev, photo_data_url: "" }));
+        return;
+      }
+
+      const allowed = ["image/jpeg", "image/png"];
+      if (!allowed.includes(file.type)) {
+        toast.error("Only JPG or PNG files are allowed.");
+        setFormData((prev) => ({ ...prev, photo_data_url: "" }));
+        return;
+      }
+
+      // 1MB limit to keep Mongo documents reasonable
+      const maxBytes = 1_000_000;
+      if (file.size > maxBytes) {
+        toast.error("Photo is too large. Please upload a smaller image (<= 1MB).");
+        setFormData((prev) => ({ ...prev, photo_data_url: "" }));
+        return;
+      }
+
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Failed to read image"));
+        reader.readAsDataURL(file);
+      });
+
+      if (
+        !dataUrl.startsWith("data:image/jpeg") &&
+        !dataUrl.startsWith("data:image/png")
+      ) {
+        toast.error("Invalid image format. Please upload JPG or PNG.");
+        setFormData((prev) => ({ ...prev, photo_data_url: "" }));
+        return;
+      }
+
+      setFormData((prev) => ({ ...prev, photo_data_url: dataUrl }));
+    };
 
     // Define restricted grades here for consistent use in the component
     const restrictedGradesForFacilitator = useMemo(() => [4, 6, 8, 12], []);
@@ -133,6 +173,7 @@
                 formData={formData}
                 errors={errors}
                 handleChange={handleChange}
+                onPhotoChange={handlePhotoChange}
                 onNext={handleNext}
                 userRole={userRole}
                 canEdit={canEdit}
