@@ -11,6 +11,8 @@
   import { useStudentForm } from "@/lib/hooks/useStudentForm";
   import { getCurrentEthiopianYear, getGradeNumber } from "@/lib/utils";
   import { Toaster } from "react-hot-toast";
+  
+  const ADMIN_ROLES: UserRole[] = ["Admin", "Super Admin", "HR Admin"];
 
   interface StudentFormProps {
     student: Student | null;
@@ -145,7 +147,7 @@
     };
 
     // Both roles can create new students and edit existing ones
-    const canEdit = userRole === "Admin" || userRole === "Attendance Facilitator";
+    const canEdit = ADMIN_ROLES.includes(userRole) || userRole === "Attendance Facilitator";
 
     // Progress indicator logic
     const getProgressState = (section: "personal" | "academic") => {

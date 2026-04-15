@@ -1,39 +1,46 @@
-//src/app/admin/students/%5Bid%5D/edit/page.tsx
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Student } from "@/lib/models";
+import { useState, useEffect } from "react";
 import { StudentForm } from "@/components/StudentForm";
+import { Student } from "@/lib/models";
 import { useAuth } from "@/lib/auth";
+
+const ADMIN_ROLES = ["Admin", "Super Admin", "HR Admin"];
 
 export default function EditStudentPage() {
   const router = useRouter();
-  const params = useParams();
-  const id = params.id as string;
+  const { id } = useParams<{ id: string }>();
   const { user, status } = useAuth();
-
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!id) return;
+
     const fetchStudent = async () => {
       try {
-        const res = await fetch(`/api/students?id=${id}`);
+        const res = await fetch(`/api/students/${id}`);
         if (!res.ok) throw new Error("Failed to fetch student");
         const data = await res.json();
         setStudent(data);
-      } catch (error) {
-        console.error("Error fetching student:", error);
+      } catch (err) {
+        setError((err as Error).message);
       } finally {
         setLoading(false);
       }
     };
+
     fetchStudent();
   }, [id]);
 
   if (status === "loading" || loading) {
-    return <main className="container-responsive py-6"><div className="card-responsive">Loading...</div></main>;
+    return (
+      <main className="container-responsive py-6">
+        <div className="card-responsive">Loading...</div>
+      </main>
+    );
   }
 
   if (status === "unauthenticated" || !user) {
@@ -41,31 +48,55 @@ export default function EditStudentPage() {
     return null;
   }
 
-  if (user.role !== "Admin") {
+  if (!ADMIN_ROLES.includes(user.role)) {
     router.push("/403");
     return null;
   }
 
+  if (error) {
+    return (
+      <main className="container-responsive py-6">
+        <div className="card-responsive">
+          <p className="text-red-500">{error}</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!student) {
+    return (
+      <main className="container-responsive py-6">
+        <div className="card-responsive">
+          <p>Student not found</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="container-responsive py-6">
+    <div className="py-6">
       <StudentForm
         student={student}
-        title={`Edit Student: ${student?.First_Name ?? ""} ${student?.Father_Name ?? ""}`}
-        onCancel={() => router.push("/admin/students")}
+        title="Edit Student"
+        onCancel={() => router.push(`/admin/students/${id}`)}
         onSave={async (studentData: Omit<Student, "_id">) => {
-          const res = await fetch("/api/students", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...studentData, id }),
-          });
-          if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error || "Failed to update student");
+          try {
+            const res = await fetch(`/api/students/${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(studentData),
+            });
+            if (!res.ok) {
+              const data = await res.json();
+              throw new Error(data.error || "Failed to update student");
+            }
+            router.push(`/admin/students/${id}`);
+          } catch (err) {
+            setError((err as Error).message);
           }
-          router.push("/admin/students");
         }}
         userRole={user.role}
       />
-    </main>
+    </div>
   );
 }

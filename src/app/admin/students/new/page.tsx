@@ -6,6 +6,8 @@ import { StudentForm } from "@/components/StudentForm";
 import { Student } from "@/lib/models";
 import { useAuth } from "@/lib/auth";
 
+const ADMIN_ROLES = ["Admin", "Super Admin", "HR Admin"];
+
 export default function NewStudentPage() {
   const router = useRouter();
   const { user, status } = useAuth();
@@ -24,7 +26,7 @@ export default function NewStudentPage() {
     return null;
   }
 
-  if (user.role !== "Admin") {
+  if (!ADMIN_ROLES.includes(user.role)) {
     router.push("/403");
     return null;
   }

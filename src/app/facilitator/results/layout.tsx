@@ -1,24 +1,19 @@
 "use client";
 import { useState } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const SECTIONS = [
   {
-    key: "teachers",
-    label: "Teachers Attendance",
-    href: "/facilitator/results",
-  },
-  {
-    key: "subjects",
-    label: "Subject Management",
-    href: "/facilitator/results/subjects",
-  },
-  {
     key: "students",
-    label: "Student Records",
+    label: "Student Records & Results",
     href: "/facilitator/results/students",
+  },
+  {
+    key: "reports",
+    label: "Reports",
+    href: "/facilitator/results/reports",
   },
 ];
 
@@ -28,6 +23,10 @@ export default function EducationFacilitatorLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = String(session?.user?.role || "");
+  const isEducationAdmin =
+    role === "Education Admin" || role === "Education Facilitator";
 
   const getCurrentSection = () => {
     if (pathname.includes("/subjects")) return "subjects";
@@ -39,7 +38,7 @@ export default function EducationFacilitatorLayout({
     <div className="flex flex-col lg:flex-row min-h-screen">
       <aside className="w-full lg:w-64 bg-blue-900 text-white shadow-lg flex flex-col p-4 lg:p-6">
         <h2 className="text-xl lg:text-2xl font-bold mb-6 lg:mb-8">
-          Education Department
+          Education Facilitator
         </h2>
         <nav className="flex flex-row lg:flex-col gap-2 lg:gap-4 overflow-x-auto lg:overflow-x-visible">
           {SECTIONS.map((s) => (
