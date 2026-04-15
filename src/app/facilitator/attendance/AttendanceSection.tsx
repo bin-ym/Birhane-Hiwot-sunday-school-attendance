@@ -483,12 +483,6 @@ export default function AttendanceSection() {
               <th className="border p-3 text-left text-responsive font-medium">
                 Permission
               </th>
-              <th className="border p-3 text-left text-responsive font-medium">
-                Reason
-              </th>
-              <th className="border p-3 text-left text-responsive font-medium">
-                Status
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -529,38 +523,6 @@ export default function AttendanceSection() {
                       className="w-4 h-4"
                     />
                   </td>
-                  <td className="border p-3">
-                    <input
-                      type="text"
-                      value={record?.reason || ""}
-                      onChange={(e) =>
-                        student._id &&
-                        updateReason(student._id.toString(), e.target.value)
-                      }
-                      className="w-full p-2 border rounded text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled={!record?.hasPermission || loading}
-                      placeholder="Reason for permission"
-                    />
-                  </td>
-                  <td className="border p-3 text-responsive">
-                    {record ? (
-                      <span
-                        className={
-                          record.present
-                            ? "text-green-600 font-medium"
-                            : "text-orange-500 font-medium"
-                        }
-                      >
-                        {record.present
-                          ? "Present"
-                          : record.hasPermission
-                            ? `Permission${record.reason ? ` (${record.reason})` : ""}`
-                            : "Absent"}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">Not marked</span>
-                    )}
-                  </td>
                 </tr>
               );
             })}
@@ -590,73 +552,33 @@ export default function AttendanceSection() {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-responsive">
-                      <input
-                        type="checkbox"
-                        checked={!!record?.present}
-                        onChange={() =>
-                          student._id &&
-                          toggleAttendance(student._id.toString())
-                        }
-                        disabled={loading}
-                        className="w-4 h-4"
-                      />
-                      Present
-                    </label>
-                    <label className="flex items-center gap-2 text-responsive">
-                      <input
-                        type="checkbox"
-                        checked={!!record?.hasPermission}
-                        onChange={() =>
-                          student._id &&
-                          togglePermission(student._id.toString())
-                        }
-                        disabled={loading}
-                        className="w-4 h-4"
-                      />
-                      Permission
-                    </label>
-                  </div>
-                  {record?.hasPermission && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Reason for permission
-                      </label>
-                      <input
-                        type="text"
-                        value={record?.reason || ""}
-                        onChange={(e) =>
-                          student._id &&
-                          updateReason(student._id.toString(), e.target.value)
-                        }
-                        className="w-full p-2 border rounded text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        disabled={loading}
-                        placeholder="Enter reason"
-                      />
-                    </div>
-                  )}
-                  <div className="text-sm">
-                    <span className="font-medium">Status: </span>
-                    {record ? (
-                      <span
-                        className={
-                          record.present
-                            ? "text-green-600 font-medium"
-                            : "text-orange-500"
-                        }
-                      >
-                        {record.present
-                          ? "Present"
-                          : record.hasPermission
-                            ? `Permission (${record.reason || ""})`
-                            : "Absent"}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">Not marked</span>
-                    )}
-                  </div>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-responsive">
+                    <input
+                      type="checkbox"
+                      checked={!!record?.present}
+                      onChange={() =>
+                        student._id &&
+                        toggleAttendance(student._id.toString())
+                      }
+                      disabled={loading}
+                      className="w-4 h-4"
+                    />
+                    Present
+                  </label>
+                  <label className="flex items-center gap-2 text-responsive">
+                    <input
+                      type="checkbox"
+                      checked={!!record?.hasPermission}
+                      onChange={() =>
+                        student._id &&
+                        togglePermission(student._id.toString())
+                      }
+                      disabled={loading}
+                      className="w-4 h-4"
+                    />
+                    Permission
+                  </label>
                 </div>
               </div>
             </div>

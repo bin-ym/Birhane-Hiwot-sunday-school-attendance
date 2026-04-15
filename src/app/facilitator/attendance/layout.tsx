@@ -2,11 +2,12 @@
 "use client";
 import Head from "next/head";
 import RoleLayoutShell from "@/components/RoleLayoutShell";
+import { useSession } from "next-auth/react";
 
 const facilitatorLinks = [
-  { label: "Attendance Management", href: "/facilitator/attendance" },
-  { label: "Register New Student", href: "/facilitator/attendance/register" },
-  { label: "Student List", href: "/facilitator/attendance/list" },
+  { label: "Take Attendance", href: "/facilitator/attendance" },
+  { label: "Students & Payments", href: "/facilitator/attendance/students" },
+  { label: "Reports", href: "/facilitator/attendance/reports" },
 ];
 
 export default function FacilitatorLayout({
@@ -14,6 +15,8 @@ export default function FacilitatorLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const roleTitle = "Attendance Facilitator";
+
   return (
     <>
       <Head>
@@ -21,7 +24,7 @@ export default function FacilitatorLayout({
         <link rel="manifest" href="/manifest-attendance.webmanifest" />
         <meta name="theme-color" content="#2563eb" />
       </Head>
-      <RoleLayoutShell roleTitle="Attendance Facilitator" links={facilitatorLinks}>
+      <RoleLayoutShell roleTitle={roleTitle} links={facilitatorLinks}>
         {children}
       </RoleLayoutShell>
     </>

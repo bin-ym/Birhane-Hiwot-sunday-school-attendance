@@ -266,7 +266,7 @@ export function PersonalInfoSection({
         <FormField
           label="Age (Calculated)"
           name="Age"
-          value={formData.Age.toString()}
+          value={formData.Age?.toString() || "0"}
           type="number"
           readOnly
           disabled

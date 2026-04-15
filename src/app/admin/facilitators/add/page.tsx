@@ -20,14 +20,14 @@ export default function AddFacilitatorPage() {
     name: "",
     email: "",
     password: "",
-    role: "Attendance Facilitator",
-    grade: "Grade 1", // default can still be a single string
+    role: "",
+    grade: undefined,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleFormChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
     if (name === "role" && value !== "Attendance Facilitator") {
@@ -110,7 +110,10 @@ export default function AddFacilitatorPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Role</label>
+            <label className="block text-sm font-medium mb-1">
+              Role (Department Assignments Must Be Added Natively In Their Own
+              Tabs)
+            </label>
             <select
               name="role"
               className="w-full p-2 border rounded"
@@ -118,7 +121,14 @@ export default function AddFacilitatorPage() {
               onChange={handleFormChange}
               required
             >
-              {ROLE_VALUES.map((r) => (
+              <option value="" disabled>
+                Select Role...
+              </option>
+              {ROLE_VALUES.filter(
+                (r) =>
+                  r.value !== "Attendance Facilitator" &&
+                  r.value !== "Education Facilitator",
+              ).map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}
                 </option>
@@ -148,7 +158,7 @@ export default function AddFacilitatorPage() {
                             newGrades = [...facForm.grade, grade];
                           } else {
                             newGrades = facForm.grade.filter(
-                              (g) => g !== grade
+                              (g) => g !== grade,
                             );
                           }
                         } else {
@@ -172,8 +182,8 @@ export default function AddFacilitatorPage() {
                             (Array.isArray(newGrades) && newGrades.length === 1
                               ? newGrades[0] // Keep single as string
                               : newGrades.length > 0
-                              ? newGrades
-                              : undefined),
+                                ? newGrades
+                                : undefined),
                         }));
                       }}
                     />

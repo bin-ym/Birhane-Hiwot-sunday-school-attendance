@@ -10,14 +10,22 @@ export default function LoginPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState("123454678");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [setupLoading, setSetupLoading] = useState(false);
+  const [setupMessage, setSetupMessage] = useState("");
 
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role) {
-      if (session.user.role === "Admin") {
+      if (session.user.role === "Super Admin") {
+        router.replace("/super-admin/dashboard");
+      } else if (session.user.role === "HR Admin") {
+        router.replace("/hr");
+      } else if (session.user.role === "Admin") {
         router.replace("/admin/dashboard");
+      } else if (session.user.role === "Education Admin") {
+        router.replace("/education");
       } else if (session.user.role === "Attendance Facilitator") {
         router.replace("/facilitator/attendance");
       } else if (session.user.role === "Education Facilitator") {
@@ -38,6 +46,36 @@ export default function LoginPage() {
     setLoading(false);
     if (res?.error) {
       setError("Invalid email or password");
+    }
+  };
+
+  const handleSetupSuperAdmin = async () => {
+    setSetupLoading(true);
+    setSetupMessage("");
+    setError("");
+    try {
+      const res = await fetch("/api/setup/super-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "YM Super Admin",
+          email,
+          password,
+          confirm: "CREATE_SUPER_ADMIN",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Setup failed");
+
+      if (data.created) {
+        setSetupMessage("Super Admin account created. You can now sign in.");
+      } else {
+        setSetupMessage("Super Admin already exists. Please sign in.");
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSetupLoading(false);
     }
   };
 
@@ -91,6 +129,11 @@ export default function LoginPage() {
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
+            {setupMessage && (
+              <div className="text-green-600 text-responsive">
+                {setupMessage}
+              </div>
+            )}
           </form>
         </div>
       </div>

@@ -61,6 +61,9 @@ export interface Payment {
 }
 
 export type UserRole =
+  | "Super Admin"
+  | "HR Admin"
+  | "Education Admin"
   | "Admin"
   | "Attendance Facilitator"
   | "Education Facilitator";

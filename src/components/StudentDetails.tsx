@@ -19,6 +19,7 @@ interface StudentDetailsProps {
 }
 
 type TabID = "details" | "attendance" | "payment" | "results";
+const ADMIN_ROLES: UserRole[] = ["Admin", "Super Admin", "HR Admin"];
 
 const TAB_LABELS: Record<TabID, string> = {
   details: "Details",
@@ -39,10 +40,14 @@ export default function StudentDetails({
   const getAllowedTabs = (role: UserRole): TabID[] => {
     switch (role) {
       case "Admin":
+      case "Super Admin":
         return ["details", "attendance", "payment", "results"];
+      case "HR Admin":
+        return ["details", "attendance", "payment"];
       case "Attendance Facilitator":
         return ["details", "attendance"];
       case "Education Facilitator":
+      case "Education Admin":
         return ["details", "payment", "results"];
       default:
         return ["details"];
@@ -93,7 +98,7 @@ export default function StudentDetails({
           student={student}
           attendanceRecords={attendanceRecords}
           currentDate={currentDate}
-          {...(userRole === "Admin" ? { handleGenerateReport: () => {} } : {})}
+          {...(ADMIN_ROLES.includes(userRole) ? { handleGenerateReport: () => {} } : {})}
         />
       )}
       {activeTab === "payment" && (

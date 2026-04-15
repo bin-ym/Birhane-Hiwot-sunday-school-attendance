@@ -95,8 +95,8 @@ export default function StudentResults() {
       if (!subjectsRes.ok) throw new Error("Failed to fetch subjects");
       setSubjects(await subjectsRes.json());
 
-      // 3) Existing results
-      const resultsRes = await fetch(`/api/student-results?studentId=${id}`);
+      // 3) Existing results - use Unique_ID
+      const resultsRes = await fetch(`/api/student-results?studentId=${studentData.Unique_ID}`);
       if (!resultsRes.ok) throw new Error("Failed to fetch results");
       const resultsData: Result[] = await resultsRes.json();
       setResults(resultsData);
@@ -142,7 +142,7 @@ export default function StudentResults() {
       const grade      = getUniversityGrade(totalScore);
 
       const payload: Omit<Result, "_id"> = {
-        studentId:   id!,
+        studentId:   student!.Unique_ID, // Use Unique_ID instead of MongoDB _id
         studentName: `${student!.First_Name} ${student!.Father_Name}`,
         subjectId:   newResult.subjectId,
         subjectName: newResult.subjectName,

@@ -414,15 +414,13 @@ export default function AdminStudents() {
                                           >
                                             Details
                                           </Link>
-                                          <Button
+                                          <Link
+                                            href={`/admin/students/${student._id?.toString()}/edit`}
                                             className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 text-sm sm:text-base"
-                                            onClick={() => {
-                                              /* Implement edit navigation if needed */
-                                            }}
                                             aria-label={`Edit ${student.First_Name}`}
                                           >
                                             Edit
-                                          </Button>
+                                          </Link>
                                           <Button
                                             className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm sm:text-base"
                                             onClick={() =>
@@ -485,15 +483,13 @@ export default function AdminStudents() {
                                           >
                                             Details
                                           </Link>
-                                          <Button
+                                          <Link
+                                            href={`/admin/students/${student._id?.toString()}/edit`}
                                             className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 text-sm"
-                                            onClick={() => {
-                                              /* Implement edit navigation if needed */
-                                            }}
                                             aria-label={`Edit ${student.First_Name}`}
                                           >
                                             Edit
-                                          </Button>
+                                          </Link>
                                           <Button
                                             className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm"
                                             onClick={() =>
