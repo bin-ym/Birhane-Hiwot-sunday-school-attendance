@@ -21,6 +21,7 @@ const EDUCATION_ADMIN_ALLOWED_ADMIN_PREFIXES = [
 ];
 
 export default withAuth({
+  secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     authorized: ({ token, req }) => {
       const path = req.nextUrl.pathname;
