@@ -2,8 +2,12 @@
 import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { getDb } from '@/lib/mongodb';
+import { getDb } from "@/lib/mongodb";
 import { User } from "@/lib/models";
+
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 // ✅ FIX: Removed the 'export' keyword. This constant is only used locally.
 const authOptions: AuthOptions = {
@@ -18,9 +22,17 @@ const authOptions: AuthOptions = {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
-        
+
+        const email = credentials.email.trim();
+        if (!email) {
+          return null;
+        }
+
         const db = await getDb();
-        const userFromDb = await db.collection<User>("users").findOne({ email: credentials.email });
+        // Case-insensitive email match (production DB may differ in casing from the form).
+        const userFromDb = await db.collection<User>("users").findOne({
+          email: { $regex: new RegExp(`^${escapeRegex(email)}$`, "i") },
+        });
 
         if (!userFromDb) {
           return null;
