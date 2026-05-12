@@ -50,7 +50,7 @@ export default function AttendanceSection() {
 
   const studentsUrl = useMemo(() => {
     if (!facilitatorGrade || facilitatorGrade.length === 0) return null;
-    let url = "/api/students";
+    const url = "/api/students";
     const params = new URLSearchParams();
     if (Array.isArray(facilitatorGrade)) {
       facilitatorGrade.forEach((grade) => params.append("grade", grade));

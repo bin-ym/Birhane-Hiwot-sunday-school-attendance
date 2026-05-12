@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Student } from "@/lib/models";
 import { gregorianToEthiopian } from "@/lib/utils";
 
@@ -42,6 +42,17 @@ interface TeacherAssignment {
   status: "active" | "inactive";
 }
 
+const GRADE_OPTIONS = [
+  "Grade 1",
+  "Grade 2",
+  "Grade 3",
+  "Grade 4",
+  "Grade 5",
+  "Grade 6",
+  "Grade 7",
+  "Grade 8",
+];
+
 export default function TeachersAttendance() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -71,16 +82,6 @@ export default function TeachersAttendance() {
   });
 
   const academicYearOptions = generateAcademicYearOptions();
-  const gradeOptions = [
-    "Grade 1",
-    "Grade 2",
-    "Grade 3",
-    "Grade 4",
-    "Grade 5",
-    "Grade 6",
-    "Grade 7",
-    "Grade 8",
-  ];
 
   // Predefined subjects for selection
   const availableSubjects = [
@@ -92,11 +93,7 @@ export default function TeachersAttendance() {
     "የግእዝ ቋንቋ ት/ት",
   ];
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch teachers
@@ -110,7 +107,7 @@ export default function TeachersAttendance() {
         rawList.filter((t: Teacher) => t.role === "Education Facilitator"),
       );
 
-      setGrades(gradeOptions);
+      setGrades(GRADE_OPTIONS);
 
       // Fetch subjects
       const subjectsRes = await fetch("/api/subjects");
@@ -134,7 +131,11 @@ export default function TeachersAttendance() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   const addTeacher = async () => {
     if (!newTeacher.name || !newTeacher.email) {
@@ -661,7 +662,7 @@ export default function TeachersAttendance() {
                       className="w-full p-3 border rounded-lg"
                     >
                       <option value="">Select Grade</option>
-                      {gradeOptions.map((grade) => (
+                      {GRADE_OPTIONS.map((grade) => (
                         <option key={grade} value={grade}>
                           {grade}
                         </option>
