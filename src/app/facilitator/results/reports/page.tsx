@@ -1,14 +1,26 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Student, User, Attendance } from "@/lib/models";
 
-function exportToCSV(data: (Student | User | Attendance)[], filename: string) {
+import { useEffect, useState, useMemo } from "react";
+import { Student } from "@/lib/models";
+import {
+  academicYearMatchesEthiopian,
+  getCurrentEthiopianYear,
+} from "@/lib/utils";
+import {
+  ReportPageLayout,
+  ReportSection,
+  ReportStatCard,
+  ReportStatGrid,
+} from "@/components/reports/ReportPageLayout";
+
+function exportToCSV(data: unknown[], filename: string) {
+  if (data.length === 0) return;
   const csv = [
-    Object.keys(data[0] || {}).join(","),
+    Object.keys(data[0] as object).join(","),
     ...data.map((row) =>
-      Object.values(row)
+      Object.values(row as Record<string, unknown>)
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(",")
+        .join(","),
     ),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
@@ -20,97 +32,138 @@ function exportToCSV(data: (Student | User | Attendance)[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function AdminReports() {
+type ResultRow = {
+  _id?: string;
+  studentId?: string;
+  subjectId?: string;
+  academicYear?: string;
+};
+
+type SubjectRow = {
+  _id?: string;
+  name?: string;
+  grade?: string;
+  academicYear?: string;
+};
+
+export default function EducationFacilitatorResultsReportsPage() {
+  const ecYear = getCurrentEthiopianYear();
   const [students, setStudents] = useState<Student[]>([]);
-  const [facilitators, setFacilitators] = useState<User[]>([]);
-  const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [results, setResults] = useState<ResultRow[]>([]);
+  const [subjects, setSubjects] = useState<SubjectRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch("/api/students").then((res) => res.json()),
-      fetch("/api/facilitators").then((res) => res.json()),
-      fetch("/api/attendance").then((res) => res.json()),
-    ]).then(([s, f, a]) => {
-      setStudents(Array.isArray(s) ? s : []);
-      setFacilitators(Array.isArray(f) ? f : []);
-      setAttendance(Array.isArray(a) ? a : []);
-      setLoading(false);
-    });
+      fetch("/api/students").then((r) => r.json()),
+      fetch("/api/student-results").then((r) => r.json()),
+      fetch("/api/subjects").then((r) => r.json()),
+    ])
+      .then(([s, res, sub]) => {
+        setStudents(Array.isArray(s) ? s : []);
+        setResults(Array.isArray(res) ? res : []);
+        setSubjects(Array.isArray(sub) ? sub : []);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const attendanceRate =
-    attendance.length > 0
-      ? Math.round(
-          (attendance.filter((a) => a.present).length / attendance.length) * 100
-        )
-      : 0;
+  const currentYearStudents = useMemo(
+    () =>
+      students.filter((st) =>
+        academicYearMatchesEthiopian(String(st.Academic_Year), ecYear),
+      ),
+    [students, ecYear],
+  );
+
+  const currentYearResults = useMemo(
+    () =>
+      results.filter((r) =>
+        academicYearMatchesEthiopian(String(r.academicYear ?? ""), ecYear),
+      ),
+    [results, ecYear],
+  );
+
+  const subjectsThisYear = useMemo(
+    () =>
+      subjects.filter((sub) =>
+        academicYearMatchesEthiopian(String(sub.academicYear ?? ""), ecYear),
+      ),
+    [subjects, ecYear],
+  );
 
   return (
-    <div className="space-y-8">
-      <h1 className="heading-responsive text-blue-900">Reports & Export</h1>
+    <ReportPageLayout
+      badge="Education facilitator"
+      title="Results & curriculum snapshot"
+      subtitle={`Figures below emphasise the current Ethiopian academic year (${ecYear} EC): students on file, recorded result rows, and subjects defined for any grade.`}
+      heroGradient="from-violet-950 via-purple-900 to-indigo-950"
+    >
+      <ReportStatGrid>
+        <ReportStatCard
+          label={`Students (${ecYear} EC)`}
+          value={loading ? "…" : currentYearStudents.length}
+          valueClassName="text-violet-700"
+        />
+        <ReportStatCard
+          label={`Result rows (${ecYear} EC)`}
+          value={loading ? "…" : currentYearResults.length}
+          hint="Rows in student_results for this year."
+          valueClassName="text-indigo-700"
+        />
+        <ReportStatCard
+          label={`Subjects (${ecYear} EC)`}
+          value={loading ? "…" : subjectsThisYear.length}
+          valueClassName="text-emerald-700"
+        />
+        <ReportStatCard
+          label="All students (API)"
+          value={loading ? "…" : students.length}
+          hint="Includes every academic year."
+          valueClassName="text-gray-800"
+        />
+      </ReportStatGrid>
 
-      {/* Stats Grid */}
-      <div className="grid-responsive">
-        <div className="card-responsive flex flex-col items-center text-center">
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-700">
-            {loading ? "-" : students.length}
-          </span>
-          <span className="text-gray-600 mt-2 text-responsive">
-            Total Students
-          </span>
+      <ReportSection title="Exports">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <button
+            type="button"
+            className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow transition hover:bg-violet-500 disabled:opacity-50"
+            onClick={() =>
+              exportToCSV(
+                currentYearResults as unknown[],
+                `student_results_${ecYear}_ec.csv`,
+              )
+            }
+            disabled={currentYearResults.length === 0}
+          >
+            Export current-year results
+          </button>
+          <button
+            type="button"
+            className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50 disabled:opacity-50"
+            onClick={() =>
+              exportToCSV(
+                currentYearStudents as unknown[],
+                `students_${ecYear}_ec.csv`,
+              )
+            }
+            disabled={currentYearStudents.length === 0}
+          >
+            Export current-year students
+          </button>
+          <button
+            type="button"
+            className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50 disabled:opacity-50"
+            onClick={() =>
+              exportToCSV(subjectsThisYear as unknown[], `subjects_${ecYear}_ec.csv`)
+            }
+            disabled={subjectsThisYear.length === 0}
+          >
+            Export current-year subjects
+          </button>
         </div>
-        <div className="card-responsive flex flex-col items-center text-center">
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-700">
-            {loading ? "-" : facilitators.length}
-          </span>
-          <span className="text-gray-600 mt-2 text-responsive">
-            Facilitators
-          </span>
-        </div>
-        <div className="card-responsive flex flex-col items-center text-center">
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-yellow-600">
-            {loading ? "-" : `${attendanceRate}%`}
-          </span>
-          <span className="text-gray-600 mt-2 text-responsive">
-            Attendance Rate
-          </span>
-        </div>
-        <div className="card-responsive flex flex-col items-center text-center">
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-700">
-            {loading ? "-" : attendance.length}
-          </span>
-          <span className="text-gray-600 mt-2 text-responsive">
-            Attendance Records
-          </span>
-        </div>
-      </div>
-
-      {/* Export Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <button
-          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 font-semibold"
-          onClick={() => exportToCSV(students, "students.csv")}
-          disabled={students.length === 0}
-        >
-          Export Students CSV
-        </button>
-        <button
-          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 font-semibold"
-          onClick={() => exportToCSV(facilitators, "facilitators.csv")}
-          disabled={facilitators.length === 0}
-        >
-          Export Facilitators CSV
-        </button>
-        <button
-          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 font-semibold"
-          onClick={() => exportToCSV(attendance, "attendance.csv")}
-          disabled={attendance.length === 0}
-        >
-          Export Attendance CSV
-        </button>
-      </div>
-    </div>
+      </ReportSection>
+    </ReportPageLayout>
   );
 }

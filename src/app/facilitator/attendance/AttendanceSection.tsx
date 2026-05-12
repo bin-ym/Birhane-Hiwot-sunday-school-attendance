@@ -25,18 +25,10 @@ interface AttendanceRecord {
   timestamp?: string;
 }
 
+import useSWR from "swr";
+
 export default function AttendanceSection() {
   const { data: session } = useSession();
-  const [students, setStudents] = useState<Student[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedGrade, setSelectedGrade] = useState("");
-  const currentDate = useMemo(() => new Date(), []);
-  // Ethiopian date for display only
-  void gregorianToEthiopian(currentDate);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showScanner, setShowScanner] = useState(false);
 
   const facilitatorGrade = session?.user?.grade as
     | string
@@ -44,77 +36,83 @@ export default function AttendanceSection() {
     | undefined;
   const facilitatorEmail = session?.user?.email || "Attendance Facilitator";
 
+  const currentDate = useMemo(() => new Date(), []);
+  void gregorianToEthiopian(currentDate);
   const formattedDate = formatEthiopianDate(currentDate);
 
-  // Register Attendance PWA service worker (only on this page)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!("serviceWorker" in navigator)) return;
+  // SWR Fetcher
+  const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Request failed");
+    return data;
+  };
 
-    navigator.serviceWorker
-      .register("/sw-attendance.js", { scope: "/facilitator/" })
-      .catch((err) => {
-        console.error("Failed to register attendance service worker:", err);
-      });
-  }, []);
-
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        // Fetch students
-        let url = "/api/students";
-        if (facilitatorGrade) {
-          const params = new URLSearchParams();
-          if (Array.isArray(facilitatorGrade)) {
-            facilitatorGrade.forEach((grade) => params.append("grade", grade));
-          } else {
-            params.append("grade", facilitatorGrade);
-          }
-          if (params.toString()) {
-            url += `?${params.toString()}`;
-          }
-        }
-        const studentRes = await fetch(url);
-        if (!studentRes.ok) throw new Error("Failed to load students");
-        const studentData = await studentRes.json();
-        setStudents(studentData);
-
-        // Fetch final attendance for today
-        const finalRes = await fetch(
-          `/api/attendance?date=${encodeURIComponent(formattedDate)}`,
-        );
-        if (!finalRes.ok) throw new Error("Failed to load attendance");
-        const finalData = await finalRes.json();
-        setAttendance(
-          finalData.filter((record: AttendanceRecord) =>
-            studentData.some(
-              (student: Student) =>
-                student._id?.toString() === record.studentId,
-            ),
-          ),
-        );
-
-        setError(null);
-      } catch (err) {
-        const errorMessage = (err as Error).message;
-        console.error("fetchData error:", errorMessage);
-        setError(errorMessage);
-        setStudents([]);
-        setAttendance([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (facilitatorGrade && facilitatorGrade.length > 0) {
-      fetchData();
+  const studentsUrl = useMemo(() => {
+    if (!facilitatorGrade || facilitatorGrade.length === 0) return null;
+    let url = "/api/students";
+    const params = new URLSearchParams();
+    if (Array.isArray(facilitatorGrade)) {
+      facilitatorGrade.forEach((grade) => params.append("grade", grade));
     } else {
-      setStudents([]);
-      setAttendance([]);
-      setError("No grade assigned. Please contact admin.");
+      params.append("grade", facilitatorGrade);
     }
-  }, [currentDate, facilitatorGrade, facilitatorEmail, formattedDate]);
+    return `${url}?${params.toString()}`;
+  }, [facilitatorGrade]);
+
+  const {
+    data: fetchedStudents,
+    error: studentsError,
+    isLoading: studentsLoading,
+  } = useSWR<Student[]>(
+    studentsUrl,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 600000 }, // 10 minutes cache
+  );
+
+  const {
+    data: fetchedAttendance,
+    error: attendanceError,
+    isLoading: attendanceLoading,
+  } = useSWR<AttendanceRecord[]>(
+    studentsUrl
+      ? `/api/attendance?date=${encodeURIComponent(formattedDate)}`
+      : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 600000 },
+  );
+
+  const [students, setStudents] = useState<Student[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedGrade, setSelectedGrade] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
+
+  useEffect(() => {
+    if (fetchedStudents) setStudents(fetchedStudents);
+  }, [fetchedStudents]);
+
+  useEffect(() => {
+    if (fetchedAttendance && fetchedStudents) {
+      setAttendance(
+        fetchedAttendance.filter((record) =>
+          fetchedStudents.some(
+            (student) => student._id?.toString() === record.studentId,
+          ),
+        ),
+      );
+    }
+  }, [fetchedAttendance, fetchedStudents]);
+
+  useEffect(() => {
+    if (studentsError) setError(studentsError.message);
+    else if (attendanceError) setError(attendanceError.message);
+    else if (!facilitatorGrade)
+      setError("No grade assigned. Please contact admin.");
+    else setError(null);
+  }, [studentsError, attendanceError, facilitatorGrade]);
 
   const currentYear = Math.max(
     ...students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean),
@@ -558,8 +556,7 @@ export default function AttendanceSection() {
                       type="checkbox"
                       checked={!!record?.present}
                       onChange={() =>
-                        student._id &&
-                        toggleAttendance(student._id.toString())
+                        student._id && toggleAttendance(student._id.toString())
                       }
                       disabled={loading}
                       className="w-4 h-4"
@@ -571,8 +568,7 @@ export default function AttendanceSection() {
                       type="checkbox"
                       checked={!!record?.hasPermission}
                       onChange={() =>
-                        student._id &&
-                        togglePermission(student._id.toString())
+                        student._id && togglePermission(student._id.toString())
                       }
                       disabled={loading}
                       className="w-4 h-4"

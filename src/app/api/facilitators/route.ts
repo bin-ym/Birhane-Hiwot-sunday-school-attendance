@@ -46,6 +46,7 @@ function getManageableFacilitatorRoles(role: string): string[] {
   return [];
 }
 
+/* ===================== GET ===================== */
 export async function GET(req: NextRequest) {
   if (req.nextUrl.pathname.endsWith("/roles")) {
     return NextResponse.json(ROLE_VALUES, { status: 200 });
@@ -63,7 +64,6 @@ export async function GET(req: NextRequest) {
     const allowedRoles = getManageableFacilitatorRoles(requesterRole);
 
     if (id) {
-      // 👇 Return single facilitator by ID
       if (!ObjectId.isValid(id)) {
         return NextResponse.json(
           { error: "Invalid facilitator ID" },
@@ -85,28 +85,38 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      return NextResponse.json(
-        {
-          ...facilitator,
-          _id: facilitator._id.toString(),
-        },
-        { status: 200 },
-      );
+      const result: any = {
+        ...facilitator,
+        _id: facilitator._id.toString(),
+      };
+
+      if (facilitator.role !== "Attendance Facilitator") {
+        delete result.grade;
+      }
+
+      return NextResponse.json(result, { status: 200 });
     }
 
-    // 👇 Else return all facilitators
     const facilitators = await db
       .collection("users")
       .find({ role: { $in: allowedRoles } })
       .project({ password: 0 })
       .toArray();
 
-    const transformedFacilitators = facilitators.map((fac) => ({
-      ...fac,
-      _id: fac._id.toString(),
-    }));
+    const transformed = facilitators.map((fac) => {
+      const f: any = {
+        ...fac,
+        _id: fac._id.toString(),
+      };
 
-    return NextResponse.json(transformedFacilitators, { status: 200 });
+      if (fac.role !== "Attendance Facilitator") {
+        delete f.grade;
+      }
+
+      return f;
+    });
+
+    return NextResponse.json(transformed, { status: 200 });
   } catch (error) {
     console.error("Facilitator GET error:", error);
     return NextResponse.json(
@@ -116,6 +126,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/* ===================== POST ===================== */
 export async function POST(req: NextRequest) {
   try {
     const requesterRole = await getRequesterRole(req);
@@ -129,25 +140,21 @@ export async function POST(req: NextRequest) {
 
     if (!email || !password || !role) {
       return NextResponse.json(
-        {
-          error:
-            "Missing required fields: email, password, and role are required",
-        },
+        { error: "Missing required fields" },
         { status: 400 },
       );
     }
 
     if (!ROLE_VALUES.some((r) => r.value === role)) {
       return NextResponse.json(
-        {
-          error: `Invalid role. Must be one of: ${ROLE_VALUES.map((r) => r.value).join(", ")}`,
-        },
+        { error: "Invalid role" },
         { status: 400 },
       );
     }
+
     if (!allowedRoles.includes(role)) {
       return NextResponse.json(
-        { error: "You do not have permission to create this facilitator role" },
+        { error: "No permission for this role" },
         { status: 403 },
       );
     }
@@ -162,7 +169,6 @@ export async function POST(req: NextRequest) {
 
     const hashed = await bcrypt.hash(password, 10);
 
-    // 👇 Construct full user object with grade
     const newUser: any = {
       name,
       email,
@@ -172,13 +178,13 @@ export async function POST(req: NextRequest) {
     };
 
     if (role === "Attendance Facilitator") {
-      if (!grade) {
+      if (!grade || (Array.isArray(grade) && grade.length === 0)) {
         return NextResponse.json(
-          { error: "Grade is required for Attendance Facilitators" },
+          { error: "Grade is required" },
           { status: 400 },
         );
       }
-      newUser.grade = grade; // Can be string or string[]
+      newUser.grade = grade;
     }
 
     const result = await db.collection("users").insertOne(newUser);
@@ -189,7 +195,7 @@ export async function POST(req: NextRequest) {
         name,
         email,
         role,
-        grade, // 👈 Include in response
+        ...(role === "Attendance Facilitator" ? { grade } : {}),
       },
       { status: 201 },
     );
@@ -202,6 +208,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/* ===================== PUT ===================== */
 export async function PUT(req: NextRequest) {
   try {
     const requesterRole = await getRequesterRole(req);
@@ -212,71 +219,74 @@ export async function PUT(req: NextRequest) {
     const db = await getDb();
     const { id, name, email, password, role, grade } = await req.json();
     const allowedRoles = getManageableFacilitatorRoles(requesterRole);
-    // Validate required fields
+
     if (!id || !email || !role) {
       return NextResponse.json(
-        { error: "Missing required fields: id, email, and role are required" },
+        { error: "Missing required fields" },
         { status: 400 },
       );
     }
-    // Validate role
+
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { error: "Invalid ID" },
+        { status: 400 },
+      );
+    }
+
     if (!ROLE_VALUES.some((r) => r.value === role)) {
       return NextResponse.json(
-        {
-          error: `Invalid role. Must be one of: ${ROLE_VALUES.map((r) => r.value).join(", ")}`,
-        },
+        { error: "Invalid role" },
         { status: 400 },
       );
     }
+
     if (!allowedRoles.includes(role)) {
       return NextResponse.json(
-        { error: "You do not have permission to assign this role" },
+        { error: "No permission for this role" },
         { status: 403 },
       );
     }
-    // Validate ObjectId
-    if (!ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: "Invalid facilitator ID" },
-        { status: 400 },
-      );
-    }
-    const update: {
-      name?: string;
-      email: string;
-      role: string;
-      password?: string;
-      grade?: string;
-    } = { name, email, role };
+
+    const update: any = { name, email, role };
+
     if (password) {
       update.password = await bcrypt.hash(password, 10);
     }
 
     if (role === "Attendance Facilitator") {
-      if (!grade) {
+      if (!grade || (Array.isArray(grade) && grade.length === 0)) {
         return NextResponse.json(
-          { error: "Grade is required for Attendance Facilitators" },
+          { error: "Grade is required" },
           { status: 400 },
         );
       }
       update.grade = grade;
     } else {
-      update.grade = undefined; // Clear grade if not Attendance Facilitator
+      await db
+        .collection("users")
+        .updateOne(
+          { _id: new ObjectId(id) },
+          { $unset: { grade: "" } },
+        );
     }
+
     const result = await db
       .collection("users")
       .updateOne(
         { _id: new ObjectId(id), role: { $in: allowedRoles } },
         { $set: update },
       );
+
     if (result.matchedCount === 0) {
       return NextResponse.json(
-        { error: "Facilitator not found" },
+        { error: "Not found" },
         { status: 404 },
       );
     }
+
     return NextResponse.json(
-      { message: "Facilitator updated" },
+      { message: "Updated successfully" },
       { status: 200 },
     );
   } catch (error) {
@@ -287,6 +297,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
+/* ===================== DELETE ===================== */
 export async function DELETE(req: NextRequest) {
   try {
     const requesterRole = await getRequesterRole(req);
@@ -297,32 +308,28 @@ export async function DELETE(req: NextRequest) {
     const db = await getDb();
     const { id } = await req.json();
     const allowedRoles = getManageableFacilitatorRoles(requesterRole);
-    // Validate required fields
-    if (!id) {
+
+    if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json(
-        { error: "Missing facilitator ID" },
+        { error: "Invalid ID" },
         { status: 400 },
       );
     }
-    // Validate ObjectId
-    if (!ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: "Invalid facilitator ID" },
-        { status: 400 },
-      );
-    }
+
     const result = await db.collection("users").deleteOne({
       _id: new ObjectId(id),
       role: { $in: allowedRoles },
     });
+
     if (result.deletedCount === 0) {
       return NextResponse.json(
-        { error: "Facilitator not found" },
+        { error: "Not found" },
         { status: 404 },
       );
     }
+
     return NextResponse.json(
-      { message: "Facilitator deleted" },
+      { message: "Deleted successfully" },
       { status: 200 },
     );
   } catch (error) {

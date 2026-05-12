@@ -5,7 +5,7 @@ export default function DepartmentAdminsPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
       {/* Premium Header */}
-      <div className="bg-gradient-to-br from-indigo-900 to-blue-800 text-white py-12 px-6 sm:px-10 shadow-lg rounded-b-3xl mb-10 relative overflow-hidden">
+      {/* <div className="bg-gradient-to-br from-indigo-900 to-blue-800 text-white py-12 px-6 sm:px-10 shadow-lg rounded-b-3xl mb-10 relative overflow-hidden">
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-white opacity-5 mix-blend-overlay rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 bg-indigo-400 opacity-20 mix-blend-overlay rounded-full blur-2xl"></div>
 
@@ -40,7 +40,7 @@ export default function DepartmentAdminsPage() {
             systematic integrity.
           </p>
         </div>
-      </div>
+      </div> */}
 
       {/* Component Wrapper with Premium Feel */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6">

@@ -1,14 +1,26 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Student, User, Attendance } from "@/lib/models";
 
-function exportToCSV(data: (Student | User | Attendance)[], filename: string) {
+import { useEffect, useState, useMemo } from "react";
+import { Student, User, Attendance } from "@/lib/models";
+import {
+  academicYearMatchesEthiopian,
+  getCurrentEthiopianYear,
+} from "@/lib/utils";
+import {
+  ReportPageLayout,
+  ReportSection,
+  ReportStatCard,
+  ReportStatGrid,
+} from "@/components/reports/ReportPageLayout";
+
+function exportToCSV(data: unknown[], filename: string) {
+  if (data.length === 0) return;
   const csv = [
-    Object.keys(data[0] || {}).join(","),
+    Object.keys(data[0] as object).join(","),
     ...data.map((row) =>
-      Object.values(row)
+      Object.values(row as Record<string, unknown>)
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(",")
+        .join(","),
     ),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
@@ -20,7 +32,8 @@ function exportToCSV(data: (Student | User | Attendance)[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function AdminReports() {
+export default function SuperAdminReportsDashboard() {
+  const ecYear = getCurrentEthiopianYear();
   const [students, setStudents] = useState<Student[]>([]);
   const [facilitators, setFacilitators] = useState<User[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
@@ -40,77 +53,140 @@ export default function AdminReports() {
     });
   }, []);
 
+  const currentYearStudents = useMemo(
+    () =>
+      students.filter((st) =>
+        academicYearMatchesEthiopian(String(st.Academic_Year), ecYear),
+      ),
+    [students, ecYear],
+  );
+
+  const totalEducationFacilitators = facilitators.filter(
+    (f) => f.role === "Education Facilitator",
+  ).length;
+  const totalAttendanceFacilitators = facilitators.filter(
+    (f) => f.role === "Attendance Facilitator",
+  ).length;
+  const presentRows = attendance.filter((x) => x.present).length;
   const attendanceRate =
     attendance.length > 0
-      ? Math.round(
-          (attendance.filter((a) => a.present).length / attendance.length) * 100
-        )
+      ? Math.round((presentRows / attendance.length) * 100)
       : 0;
 
   return (
-    <div className="space-y-8">
-      <h1 className="heading-responsive text-blue-900">Reports & Export</h1>
+    <ReportPageLayout
+      badge="Super Admin"
+      title="System intelligence"
+      subtitle="Global counts for students, facilitator roles, and attendance volume. Exports mirror database collections for offline analysis."
+      heroGradient="from-gray-950 via-zinc-900 to-indigo-950"
+    >
+      <ReportStatGrid>
+        <ReportStatCard
+          label="Students (all years)"
+          value={loading ? "…" : students.length}
+          valueClassName="text-gray-900"
+        />
+        <ReportStatCard
+          label={`Students (${ecYear} EC)`}
+          value={loading ? "…" : currentYearStudents.length}
+          hint="Current Ethiopian academic year only."
+          valueClassName="text-emerald-600"
+        />
+        <ReportStatCard
+          label="Education facilitators"
+          value={loading ? "…" : totalEducationFacilitators}
+          valueClassName="text-blue-600"
+        />
+        <ReportStatCard
+          label="Attendance facilitators"
+          value={loading ? "…" : totalAttendanceFacilitators}
+          valueClassName="text-purple-600"
+        />
+      </ReportStatGrid>
 
-      {/* Stats Grid */}
-      <div className="grid-responsive">
-        <div className="card-responsive flex flex-col items-center text-center">
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-700">
-            {loading ? "-" : students.length}
-          </span>
-          <span className="text-gray-600 mt-2 text-responsive">
-            Total Students
-          </span>
-        </div>
-        <div className="card-responsive flex flex-col items-center text-center">
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-700">
-            {loading ? "-" : facilitators.length}
-          </span>
-          <span className="text-gray-600 mt-2 text-responsive">
-            Facilitators
-          </span>
-        </div>
-        <div className="card-responsive flex flex-col items-center text-center">
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-yellow-600">
-            {loading ? "-" : `${attendanceRate}%`}
-          </span>
-          <span className="text-gray-600 mt-2 text-responsive">
-            Attendance Rate
-          </span>
-        </div>
-        <div className="card-responsive flex flex-col items-center text-center">
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-700">
-            {loading ? "-" : attendance.length}
-          </span>
-          <span className="text-gray-600 mt-2 text-responsive">
-            Attendance Records
-          </span>
-        </div>
-      </div>
+      <ReportStatGrid>
+        <ReportStatCard
+          label="Attendance rows"
+          value={loading ? "…" : attendance.length}
+          valueClassName="text-gray-900"
+        />
+        <ReportStatCard
+          label="Present / total"
+          value={
+            loading
+              ? "…"
+              : `${presentRows} / ${attendance.length || 0}`
+          }
+          hint={`Approx. rate ${attendanceRate}%`}
+          valueClassName="text-emerald-700"
+        />
+        <ReportStatCard
+          label="Staff accounts (API)"
+          value={loading ? "…" : facilitators.length}
+          valueClassName="text-indigo-700"
+        />
+      </ReportStatGrid>
 
-      {/* Export Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <button
-          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 font-semibold"
-          onClick={() => exportToCSV(students, "students.csv")}
-          disabled={students.length === 0}
-        >
-          Export Students CSV
-        </button>
-        <button
-          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 font-semibold"
-          onClick={() => exportToCSV(facilitators, "facilitators.csv")}
-          disabled={facilitators.length === 0}
-        >
-          Export Facilitators CSV
-        </button>
-        <button
-          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 font-semibold"
-          onClick={() => exportToCSV(attendance, "attendance.csv")}
-          disabled={attendance.length === 0}
-        >
-          Export Attendance CSV
-        </button>
-      </div>
-    </div>
+      <ReportSection title="Database exports">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <button
+            type="button"
+            className="flex flex-col items-start rounded-2xl border border-gray-200 p-5 text-left transition hover:border-gray-900 hover:bg-gray-50 disabled:opacity-50"
+            onClick={() =>
+              exportToCSV(students as unknown[], "system_students_dump.csv")
+            }
+            disabled={students.length === 0}
+          >
+            <span className="text-2xl font-black text-gray-900">
+              {loading ? "–" : students.length}
+            </span>
+            <span className="mt-2 font-semibold text-gray-600">
+              Export students
+            </span>
+          </button>
+          <button
+            type="button"
+            className="flex flex-col items-start rounded-2xl border border-gray-200 p-5 text-left transition hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50"
+            onClick={() =>
+              exportToCSV(
+                facilitators as unknown[],
+                "system_facilitators_dump.csv",
+              )
+            }
+            disabled={facilitators.length === 0}
+          >
+            <span className="text-2xl font-black text-blue-700">
+              {loading ? "–" : facilitators.length}
+            </span>
+            <span className="mt-2 font-semibold text-gray-600">
+              Export facilitators
+            </span>
+          </button>
+          <button
+            type="button"
+            className="flex flex-col items-start rounded-2xl border border-gray-200 p-5 text-left transition hover:border-emerald-500 hover:bg-emerald-50 disabled:opacity-50 sm:col-span-2 lg:col-span-1"
+            onClick={() =>
+              exportToCSV(
+                attendance.map((x) => ({
+                  Date: new Date(x.date).toLocaleDateString(),
+                  Student: x.studentId,
+                  Present: x.present ? "YES" : "NO",
+                  Reason: x.reason || "",
+                })) as unknown[],
+                "system_attendance_dump.csv",
+              )
+            }
+            disabled={attendance.length === 0}
+          >
+            <span className="text-2xl font-black text-emerald-700">
+              {loading ? "–" : attendance.length}
+            </span>
+            <span className="mt-2 font-semibold text-gray-600">
+              Export attendance (flattened)
+            </span>
+          </button>
+        </div>
+      </ReportSection>
+    </ReportPageLayout>
   );
 }

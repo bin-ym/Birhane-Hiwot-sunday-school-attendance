@@ -5,7 +5,8 @@ import RoleLayoutShell from "@/components/RoleLayoutShell";
 import { useSession } from "next-auth/react";
 
 const facilitatorLinks = [
-  { label: "Take Attendance", href: "/facilitator/attendance" },
+  { label: "Dashboard", href: "/facilitator/attendance" },
+  { label: "Take Attendance", href: "/facilitator/attendance/take" },
   { label: "Students & Payments", href: "/facilitator/attendance/students" },
   { label: "Reports", href: "/facilitator/attendance/reports" },
 ];

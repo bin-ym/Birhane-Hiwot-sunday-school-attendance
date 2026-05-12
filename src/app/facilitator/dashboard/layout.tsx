@@ -7,7 +7,7 @@ const educationFacilitatorLinks = [
   { label: "Reports", href: "/facilitator/results/reports" },
 ];
 
-export default function EducationFacilitatorLayout({
+export default function FacilitatorDashboardLayout({
   children,
 }: {
   children: React.ReactNode;

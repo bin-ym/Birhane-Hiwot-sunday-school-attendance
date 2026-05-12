@@ -20,9 +20,11 @@ export default function RootLayout({
       <body className="bg-gray-50 text-gray-900 min-h-screen">
         <ClientSessionProvider>
           <SidebarProvider>
-            <div className="flex flex-col min-h-screen">
+            <div className="flex min-h-screen flex-col">
               <NavBar />
-              <main className="flex-1 w-full max-w-none">{children}</main>
+              <main className="flex min-h-0 w-full max-w-none flex-1 flex-col md:min-h-[calc(100vh-var(--app-navbar-height))]">
+                {children}
+              </main>
             </div>
           </SidebarProvider>
         </ClientSessionProvider>

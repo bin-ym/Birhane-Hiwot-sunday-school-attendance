@@ -16,8 +16,7 @@ export default function RoleLayoutShell({
   const { isOpen, toggleSidebar } = useSidebar();
 
   return (
-    <div className="flex flex-col md:flex-row relative min-h-screen">
-      {/* Sidebar */}
+    <div className="flex min-h-[calc(100vh-var(--app-navbar-height))] flex-1 flex-col bg-gray-50 md:min-h-0 md:flex-row">
       <RoleSidebar
         roleTitle={roleTitle}
         links={links}
@@ -25,9 +24,8 @@ export default function RoleLayoutShell({
         toggle={toggleSidebar}
       />
 
-      {/* Main content */}
-      <main className="flex-1 container-responsive py-4 md:py-6 bg-gray-50 overflow-y-auto z-10 min-h-screen md:min-h-0">
-        {children}
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-gray-50 pb-[env(safe-area-inset-bottom)]">
+        <div className="container-responsive w-full py-4 md:py-6">{children}</div>
       </main>
     </div>
   );

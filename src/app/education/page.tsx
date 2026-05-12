@@ -68,18 +68,19 @@ export default function EducationDashboard() {
             </div>
           </div>
         </Link>
-        <Link href="/education/manage-facilitators" className="block group">
-          <div className="relative overflow-hidden bg-indigo-50 border border-indigo-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between">
+        <Link href="/education/reports" className="block group">
+          <div className="relative flex items-center justify-between overflow-hidden rounded-3xl border border-indigo-100 bg-indigo-50 p-6 shadow-sm transition-all hover:shadow-md">
             <div>
-              <h3 className="text-lg font-bold text-indigo-900 mb-1">
-                Human Resources Layer
+              <h3 className="mb-1 text-lg font-bold text-indigo-900">
+                Reports & teacher accounts
               </h3>
               <p className="text-sm text-indigo-700">
-                Appoint active Education Facilitators to manage results.
+                Student analytics, exports, and education teacher roster — open
+                teacher account management from there when needed.
               </p>
             </div>
-            <div className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm group-hover:bg-indigo-700 transition-colors">
-              Manage Staff
+            <div className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors group-hover:bg-indigo-700">
+              Open reports
             </div>
           </div>
         </Link>
