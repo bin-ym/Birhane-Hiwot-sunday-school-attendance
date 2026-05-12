@@ -41,14 +41,12 @@ export default function StudentList() {
     dedupingInterval: 600000,
   });
 
-  const raw = Array.isArray(data) ? data : [];
-  const students = useMemo(
-    () =>
-      raw.filter((s) =>
-        academicYearMatchesEthiopian(String(s.Academic_Year), currentYear),
-      ),
-    [raw, currentYear],
-  );
+  const students = useMemo(() => {
+    const raw = Array.isArray(data) ? data : [];
+    return raw.filter((s) =>
+      academicYearMatchesEthiopian(String(s.Academic_Year), currentYear),
+    );
+  }, [data, currentYear]);
 
   const loading = status === "loading" || isLoading;
   const errorMsg =
