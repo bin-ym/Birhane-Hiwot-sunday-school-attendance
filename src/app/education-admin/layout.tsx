@@ -31,8 +31,8 @@ export default function EducationAdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-blue-700 text-white p-4 shadow-md">
+    <div className="min-h-[calc(100vh-var(--app-navbar-height))] bg-gray-50">
+      <nav className="sticky top-[var(--app-navbar-height)] z-30 bg-blue-700 p-4 text-white shadow-md">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-xl font-bold">Education Admin Panel</h1>
           <div className="flex gap-4">

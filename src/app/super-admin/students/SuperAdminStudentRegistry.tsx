@@ -10,7 +10,7 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
-export default function StudentsByGrade() {
+export default function SuperAdminStudentRegistry() {
   const { data, error, isLoading } = useSWR<Student[]>("/api/students", fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 600000,
@@ -21,13 +21,13 @@ export default function StudentsByGrade() {
       students={Array.isArray(data) ? data : []}
       loading={isLoading}
       error={error?.message ?? null}
-      basePath="/education/students"
-      theme="emerald"
-      badge="Education"
-      title="Student records"
-      description="Browse all registered students. Filter by academic year and grade, then open a student to view or edit results."
+      basePath="/super-admin/students"
+      theme="indigo"
+      badge="Super Admin"
+      title="Global student directory"
+      description="Search every enrolled student in one place. Filter by year, grade, or gender, then open a profile or academic results from the student page."
       hideYearFilter={false}
-      actionLabel="Open"
+      actionLabel="View"
     />
   );
 }

@@ -166,9 +166,6 @@ export default function AdminFacilitators() {
                     Role
                   </th>
                   <th className="border p-3 text-left text-responsive font-medium">
-                    Grade
-                  </th>
-                  <th className="border p-3 text-left text-responsive font-medium">
                     Actions
                   </th>
                 </tr>
@@ -182,11 +179,6 @@ export default function AdminFacilitators() {
                     <td className="border p-3 text-responsive">{fac.email}</td>
                     <td className="border p-3 text-responsive capitalize">
                       {fac.role}
-                    </td>
-                    <td className="border p-3 text-responsive">
-                      {Array.isArray(fac.grade)
-                        ? fac.grade.join(", ")
-                        : fac.grade || "-"}
                     </td>
                     <td className="border p-3">
                       <div className="flex gap-2">
@@ -233,16 +225,6 @@ export default function AdminFacilitators() {
                     <span className="font-semibold text-responsive">Role:</span>
                     <span className="ml-2 text-responsive capitalize">
                       {fac.role}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-responsive">
-                      Grade:
-                    </span>
-                    <span className="ml-2 text-responsive">
-                      {Array.isArray(fac.grade)
-                        ? fac.grade.join(", ")
-                        : fac.grade || "-"}
                     </span>
                   </div>
                   <div className="flex gap-2 mt-3">

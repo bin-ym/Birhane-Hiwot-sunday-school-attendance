@@ -65,7 +65,8 @@ export default withAuth({
         return false;
 
       if (
-        path.startsWith("/facilitator/results") &&
+        (path.startsWith("/facilitator/results") ||
+          path.startsWith("/facilitator/dashboard")) &&
         !RESULTS_ROLES.includes(role)
       )
         return false;

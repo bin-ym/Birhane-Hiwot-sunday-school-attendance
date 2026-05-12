@@ -19,7 +19,8 @@ interface Teacher {
   phone?: string;
   specialization?: string;
   status: "active" | "inactive";
-  subjects?: string[]; // Added subjects to the interface
+  subjects?: string[];
+  role?: string;
 }
 
 interface Subject {
@@ -49,10 +50,6 @@ export default function TeachersAttendance() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // UI State
-  const [activeTab, setActiveTab] = useState<
-    "teachers" | "assignments" | "overview"
-  >("overview");
   const [showAddTeacher, setShowAddTeacher] = useState(false);
   const [showAddAssignment, setShowAddAssignment] = useState(false);
 
@@ -108,7 +105,10 @@ export default function TeachersAttendance() {
       if (!teachersRes.ok) {
         throw new Error(teachersData.error || "Failed to load teachers");
       }
-      setTeachers(teachersData);
+      const rawList = Array.isArray(teachersData) ? teachersData : [];
+      setTeachers(
+        rawList.filter((t: Teacher) => t.role === "Education Facilitator"),
+      );
 
       setGrades(gradeOptions);
 
@@ -251,47 +251,24 @@ export default function TeachersAttendance() {
   if (error) return <div className="text-red-500">{error}</div>;
 
   return (
-    <div className="space-y-6">
-      <h2 className="heading-responsive text-gray-800">Teachers Assignment</h2>
-
-      {/* Navigation Tabs */}
-      <div className="card-responsive">
-        <nav className="flex flex-wrap gap-2 sm:gap-4 border-b">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`py-2 px-3 sm:px-4 font-medium text-sm sm:text-base transition-colors ${
-              activeTab === "overview"
-                ? "border-b-2 border-blue-600 text-blue-600"
-                : "text-gray-600 hover:text-blue-600"
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab("teachers")}
-            className={`py-2 px-3 sm:px-4 font-medium text-sm sm:text-base transition-colors ${
-              activeTab === "teachers"
-                ? "border-b-2 border-blue-600 text-blue-600"
-                : "text-gray-600 hover:text-blue-600"
-            }`}
-          >
-            Teachers
-          </button>
-          <button
-            onClick={() => setActiveTab("assignments")}
-            className={`py-2 px-3 sm:px-4 font-medium text-sm sm:text-base transition-colors ${
-              activeTab === "assignments"
-                ? "border-b-2 border-blue-600 text-blue-600"
-                : "text-gray-600 hover:text-blue-600"
-            }`}
-          >
-            Assignments
-          </button>
-        </nav>
+    <div className="space-y-10">
+      <div>
+        <h2 className="heading-responsive text-gray-800">
+          Teachers assignment
+        </h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Overview, teachers, and assignments on one page — scroll to each
+          section.
+        </p>
       </div>
 
-      {/* Overview Tab */}
-      {activeTab === "overview" && (
+      <section className="space-y-6" aria-labelledby="teachers-overview-heading">
+        <h3
+          id="teachers-overview-heading"
+          className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2"
+        >
+          Overview
+        </h3>
         <div className="space-y-6">
           {/* Statistics */}
           <div className="grid-responsive">
@@ -457,10 +434,15 @@ export default function TeachersAttendance() {
             )}
           </div>
         </div>
-      )}
+      </section>
 
-      {/* Teachers Tab */}
-      {activeTab === "teachers" && (
+      <section className="space-y-6" aria-labelledby="teachers-list-heading">
+        <h3
+          id="teachers-list-heading"
+          className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2"
+        >
+          Teachers
+        </h3>
         <div className="space-y-6">
           <div className="card-responsive">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
@@ -616,10 +598,15 @@ export default function TeachersAttendance() {
             )}
           </div>
         </div>
-      )}
+      </section>
 
-      {/* Assignments Tab */}
-      {activeTab === "assignments" && (
+      <section className="space-y-6" aria-labelledby="teachers-assignments-heading">
+        <h3
+          id="teachers-assignments-heading"
+          className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2"
+        >
+          Assignments
+        </h3>
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="flex justify-between items-center mb-4">
@@ -795,7 +782,7 @@ export default function TeachersAttendance() {
             </div>
           </div>
         </div>
-      )}
+      </section>
     </div>
   );
 }

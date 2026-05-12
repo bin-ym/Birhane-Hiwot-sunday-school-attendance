@@ -29,7 +29,7 @@ export default function LoginPage() {
       } else if (session.user.role === "Attendance Facilitator") {
         router.replace("/facilitator/attendance");
       } else if (session.user.role === "Education Facilitator") {
-        router.replace("/facilitator/results");
+        router.replace("/facilitator/dashboard");
       }
     }
   }, [status, session, router]);

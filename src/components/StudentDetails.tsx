@@ -16,6 +16,9 @@ interface StudentDetailsProps {
   currentDate?: Date;
   handleGenerateReport?: (format: "CSV" | "PDF") => void;
   allowedTabs?: string[];
+  /** Override default "Back to Students" link (e.g. super-admin or hr list). */
+  listBackHref?: string;
+  listBackLabel?: string;
 }
 
 type TabID = "details" | "attendance" | "payment" | "results";
@@ -34,6 +37,8 @@ export default function StudentDetails({
   userRole,
   currentDate = new Date(),
   allowedTabs,
+  listBackHref = "/admin/students",
+  listBackLabel = "Back to Students",
 }: StudentDetailsProps) {
   const [activeTab, setActiveTab] = useState<TabID>("details");
 
@@ -67,10 +72,10 @@ export default function StudentDetails({
           {student.First_Name} {student.Father_Name} {student.Grandfather_Name}
         </h1>
         <Link
-          href="/admin/students"
+          href={listBackHref}
           className="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg hover:bg-secondary/80"
         >
-          Back to Students
+          {listBackLabel}
         </Link>
       </header>
 

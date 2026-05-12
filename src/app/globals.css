@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Matches NavBar height — sidebars use top-[var(--app-navbar-height)] */
+:root {
+  --app-navbar-height: 4.0rem;
+}
+
 /* Responsive container system */
 .container-responsive {
   width: 100%;

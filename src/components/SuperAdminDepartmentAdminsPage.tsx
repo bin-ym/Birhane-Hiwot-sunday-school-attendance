@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
@@ -23,6 +23,15 @@ export default function SuperAdminDepartmentAdminsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const [editingAdmin, setEditingAdmin] = useState<DepartmentAdmin | null>(
+    null,
+  );
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -53,6 +62,8 @@ export default function SuperAdminDepartmentAdminsPage() {
     }
   }
 
+  const loadedOnce = useRef(false);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/login");
@@ -63,7 +74,10 @@ export default function SuperAdminDepartmentAdminsPage() {
       return;
     }
     if (status === "authenticated" && user?.role === "Super Admin") {
-      loadAdmins();
+      if (!loadedOnce.current) {
+        loadedOnce.current = true;
+        loadAdmins();
+      }
     }
   }, [status, user, router]);
 
@@ -91,12 +105,9 @@ export default function SuperAdminDepartmentAdminsPage() {
     }
   }
 
-  async function updateAdmin(id: string, name: string) {
-    const nextName = window.prompt("Enter new name", name || "");
-    if (nextName === null) return;
-    const nextPassword = window.prompt(
-      "Optional new password (leave empty to keep current)",
-    );
+  async function handleUpdateAdmin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingAdmin) return;
     setSaving(true);
     setError(null);
     try {
@@ -104,14 +115,16 @@ export default function SuperAdminDepartmentAdminsPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id,
-          name: nextName,
-          password: nextPassword || undefined,
+          id: editingAdmin._id,
+          name: editForm.name,
+          email: editForm.email,
+          password: editForm.password || undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update admin");
       await loadAdmins();
+      setEditingAdmin(null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -223,7 +236,14 @@ export default function SuperAdminDepartmentAdminsPage() {
 
                     <div className="flex gap-3 pt-5 mt-2 border-t border-gray-100">
                       <button
-                        onClick={() => updateAdmin(admin._id, admin.name || "")}
+                        onClick={() => {
+                          setEditingAdmin(admin);
+                          setEditForm({
+                            name: admin.name || "",
+                            email: admin.email,
+                            password: "",
+                          });
+                        }}
                         disabled={saving}
                         className="flex-1 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 hover:text-indigo-600 transition-colors disabled:opacity-50"
                       >
@@ -403,6 +423,108 @@ export default function SuperAdminDepartmentAdminsPage() {
           </form>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {editingAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-6 md:p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-800">
+                  Update {editingAdmin.role} Access
+                </h3>
+                <button
+                  onClick={() => setEditingAdmin(null)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateAdmin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                    Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all outline-none"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        email: e.target.value.trim(),
+                      }))
+                    }
+                    className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                    New Password (Optional)
+                  </label>
+                  <input
+                    type="password"
+                    value={editForm.password}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        password: e.target.value,
+                      }))
+                    }
+                    className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all outline-none"
+                    placeholder="Leave empty to keep current password"
+                    minLength={6}
+                  />
+                </div>
+                <div className="pt-4 flex gap-3 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setEditingAdmin(null)}
+                    disabled={saving}
+                    className="flex-1 bg-white border border-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-medium py-3 px-6 rounded-xl transition-all shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

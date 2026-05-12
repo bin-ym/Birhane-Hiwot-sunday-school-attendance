@@ -126,6 +126,18 @@ export function getCurrentEthiopianYear(): number {
   return ecYear;
 }
 
+/** True if stored academic year refers to the given Ethiopian calendar year (handles "2017", "2017 EC", etc.). */
+export function academicYearMatchesEthiopian(
+  studentAcademicYear: string,
+  ethiopianYear: number,
+): boolean {
+  const raw = String(studentAcademicYear).trim();
+  const digits = raw.replace(/\D/g, "").slice(0, 4);
+  const n = parseInt(digits, 10);
+  if (!Number.isNaN(n) && n === ethiopianYear) return true;
+  return raw === String(ethiopianYear);
+}
+
 // NEW: Map age to grade number (returns a numeric grade)
 export function getGradeNumber(gradeName: string): number {
   if (!gradeName) return 0;
