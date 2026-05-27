@@ -6,8 +6,6 @@ import { StudentForm } from "@/components/StudentForm";
 import { Student } from "@/lib/models";
 import { useAuth } from "@/lib/auth";
 
-const ADMIN_ROLES = ["Admin", "Super Admin", "HR Admin"];
-
 export default function NewStudentPage() {
   const router = useRouter();
   const { user, status } = useAuth();
@@ -26,9 +24,16 @@ export default function NewStudentPage() {
     return null;
   }
 
-  if (!ADMIN_ROLES.includes(user.role)) {
-    router.push("/403");
-    return null;
+  if (!user.canAddStudent) {
+    return (
+      <main className="container-responsive py-6">
+        <div className="card-responsive">
+          <p className="text-red-500">
+            You don&apos;t have permission to add students.
+          </p>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -46,7 +51,7 @@ export default function NewStudentPage() {
               body: JSON.stringify({
                 ...studentData,
                 userRole: user.role,
-                isNewStudent: true, // Always true for new student page
+                isNewStudent: true,
               }),
             });
             if (!res.ok) {

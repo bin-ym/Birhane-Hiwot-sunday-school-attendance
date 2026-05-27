@@ -11,7 +11,7 @@ const SECTIONS = [
   },
   {
     key: "teachers",
-    label: "Teachers Attendance",
+    label: "Teachers",
     href: "/education/teachers",
   },
   {
@@ -77,7 +77,9 @@ export default function EducationFacilitatorLayout({
           </Link>
         ))}
       </nav>
-      <div className="mt-auto shrink-0 border-t border-white/10 pt-4">{logoutBtn}</div>
+      <div className="mt-auto shrink-0 border-t border-white/10 pt-4">
+        {logoutBtn}
+      </div>
     </>
   );
 

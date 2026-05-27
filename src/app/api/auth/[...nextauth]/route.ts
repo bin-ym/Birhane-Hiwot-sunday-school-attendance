@@ -40,7 +40,7 @@ const authOptions: AuthOptions = {
 
         const passwordsMatch = await bcrypt.compare(
           credentials.password,
-          userFromDb.password
+          userFromDb.password,
         );
 
         if (passwordsMatch) {
@@ -50,9 +50,10 @@ const authOptions: AuthOptions = {
             name: userFromDb.name,
             role: userFromDb.role,
             grade: userFromDb.grade,
+            canAddStudent: userFromDb.canAddStudent,
           };
         }
-        
+
         return null;
       },
     }),
@@ -63,6 +64,7 @@ const authOptions: AuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.grade = user.grade;
+        token.canAddStudent = user.canAddStudent;
       }
       return token;
     },
@@ -71,15 +73,16 @@ const authOptions: AuthOptions = {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.grade = token.grade;
+        session.user.canAddStudent = token.canAddStudent;
       }
       return session;
     },
   },
   pages: {
-    signIn: '/login',
+    signIn: "/login",
   },
   session: {
-    strategy: 'jwt',
+    strategy: "jwt",
     maxAge: 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,

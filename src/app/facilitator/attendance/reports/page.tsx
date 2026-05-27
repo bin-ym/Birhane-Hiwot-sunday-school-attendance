@@ -14,24 +14,7 @@ import {
   ReportStatGrid,
 } from "@/components/reports/ReportPageLayout";
 
-function exportToCSV(data: unknown[], filename: string) {
-  if (data.length === 0) return;
-  const csv = [
-    Object.keys(data[0] as object).join(","),
-    ...data.map((row) =>
-      Object.values(row as Record<string, unknown>)
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(","),
-    ),
-  ].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import { exportToExcel } from "@/lib/excelExport";
 
 export default function FacilitatorReportsDashboard() {
   const { data: session } = useSession();
@@ -140,10 +123,7 @@ export default function FacilitatorReportsDashboard() {
       </ReportStatGrid>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <ReportSection
-          title="Attendance mix"
-          className="lg:col-span-2"
-        >
+        <ReportSection title="Attendance mix" className="lg:col-span-2">
           <div className="h-4 overflow-hidden rounded-full bg-red-100">
             <div
               className="h-full bg-emerald-500 transition-all duration-700"
@@ -153,7 +133,9 @@ export default function FacilitatorReportsDashboard() {
           <div className="mt-6 flex flex-wrap justify-between gap-4 text-sm">
             <div>
               <p className="text-gray-500">Present</p>
-              <p className="text-2xl font-bold text-emerald-600">{presentCount}</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {presentCount}
+              </p>
             </div>
             <div className="text-right">
               <p className="text-gray-500">Absent</p>
@@ -171,7 +153,10 @@ export default function FacilitatorReportsDashboard() {
               type="button"
               className="rounded-xl bg-white py-3 text-sm font-semibold text-gray-900 ring-1 ring-gray-200 transition hover:bg-gray-50 disabled:opacity-50"
               onClick={() =>
-                exportToCSV(currentYearStudents as unknown[], "my_class_students_current_year.csv")
+                exportToExcel(
+                  currentYearStudents as unknown[],
+                  "My_Class_Students_Current_Year",
+                )
               }
               disabled={currentYearStudents.length === 0}
             >
@@ -181,14 +166,14 @@ export default function FacilitatorReportsDashboard() {
               type="button"
               className="rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white shadow transition hover:bg-violet-500 disabled:opacity-50"
               onClick={() =>
-                exportToCSV(
+                exportToExcel(
                   attendance.map((a) => ({
                     Date: new Date(a.date).toLocaleDateString(),
                     Student: a.studentId,
                     Present: a.present ? "YES" : "NO",
                     Reason: a.reason || "",
                   })) as unknown[],
-                  "my_class_attendance_log.csv",
+                  "My_Class_Attendance_Log",
                 )
               }
               disabled={attendance.length === 0}

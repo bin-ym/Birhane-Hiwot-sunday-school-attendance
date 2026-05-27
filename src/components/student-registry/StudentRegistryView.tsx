@@ -79,6 +79,8 @@ export type StudentRegistryViewProps = {
   /** Hide academic year filter (e.g. list is already current-year only). */
   hideYearFilter?: boolean;
   actionLabel?: string;
+  showAddButton?: boolean;
+  canAddStudent?: boolean;
 };
 
 export function StudentRegistryView({
@@ -92,6 +94,8 @@ export function StudentRegistryView({
   description,
   hideYearFilter = false,
   actionLabel = "View",
+  showAddButton = false,
+  canAddStudent = true,
 }: StudentRegistryViewProps) {
   const t = THEME[theme];
   const currentYear = getCurrentEthiopianYear();
@@ -259,13 +263,25 @@ export function StudentRegistryView({
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm sm:rounded-3xl">
-        <div className="border-b border-gray-100 bg-gray-50/80 px-4 py-3 sm:px-6 sm:py-4">
+        <div className="border-b border-gray-100 bg-gray-50/80 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center">
           <h2 className="text-base font-bold text-gray-900 sm:text-lg">
             Students
             <span className="ml-2 font-normal text-gray-500">
               ({filtered.length} shown)
             </span>
           </h2>
+          {showAddButton && (
+            <Link
+              href={`${basePath}/new`}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-white shadow-sm transition sm:rounded-xl sm:px-4 sm:text-sm ${t.btn} ${!canAddStudent ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
+              aria-disabled={!canAddStudent}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Student
+            </Link>
+          )}
         </div>
 
         {loading ? (

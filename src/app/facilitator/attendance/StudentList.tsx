@@ -24,6 +24,8 @@ export default function StudentList() {
     | string
     | string[]
     | undefined;
+  
+  const canAddStudent = session?.user?.canAddStudent ?? false;
 
   const url = useMemo(() => {
     if (!facilitatorGrade || facilitatorGrade.length === 0) return null;
@@ -75,6 +77,8 @@ export default function StudentList() {
           description={`Students in your assigned grades for the current academic year (${currentYear} EC) only.`}
           hideYearFilter
           actionLabel="Open"
+          showAddButton={true}
+          canAddStudent={canAddStudent}
         />
       )}
     </main>

@@ -34,11 +34,25 @@ export default function AttendanceTab({
   // Parse academic year into a number (e.g., "2017-2018" -> 2017)
   const numericYear = parseInt(student.Academic_Year.split("-")[0], 10);
 
-  // Get Sundays for the numeric Ethiopian year
-  const sundays = getSundaysInEthiopianYear(numericYear);
+  // For testing: Get ALL days in the Ethiopian year (not just Sundays)
+  const getAllDaysInEthiopianYear = (year: number): string[] => {
+    const days: string[] = [];
+    const monthDays = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 5]; // 13 months
+    
+    for (let month = 1; month <= 13; month++) {
+      const daysInMonth = monthDays[month - 1];
+      for (let day = 1; day <= daysInMonth; day++) {
+        const monthName = ETHIOPIAN_MONTHS[month - 1];
+        days.push(`${day} ${monthName} ${year}`);
+      }
+    }
+    return days;
+  };
 
-  // Group Sundays by their month name
-  const sundaysByMonth = sundays.reduce((acc, dateStr) => {
+  const allDays = getAllDaysInEthiopianYear(numericYear);
+
+  // Group days by their month name
+  const daysByMonth = allDays.reduce((acc, dateStr) => {
     const [dayStr, monthName, yearStr] = dateStr.split(" ");
     if (!acc[monthName]) acc[monthName] = [];
     acc[monthName].push(dateStr);
@@ -49,9 +63,9 @@ export default function AttendanceTab({
     attendanceRecords.map((r) => [r.date, r])
   );
 
-  const total = sundays.length;
-  const present = sundays.filter((d) => attendanceMap[d]?.present).length;
-  const permission = sundays.filter(
+  const total = allDays.length;
+  const present = allDays.filter((d) => attendanceMap[d]?.present).length;
+  const permission = allDays.filter(
     (d) => !attendanceMap[d]?.present && attendanceMap[d]?.hasPermission
   ).length;
   const absent = total - present - permission;
@@ -59,7 +73,7 @@ export default function AttendanceTab({
   const escapeCSV = (val: string) => `"${val?.replace(/"/g, '""') || ""}"`;
 
   const exportToCSV = () => {
-    const rows = sundays.map((dateStr) => {
+    const rows = allDays.map((dateStr) => {
       const record = attendanceMap[dateStr];
       return {
         Student: `${student.First_Name} ${student.Father_Name}`,
@@ -95,7 +109,7 @@ export default function AttendanceTab({
     const title = `Attendance Report for ${student.First_Name} ${student.Father_Name}`;
     doc.text(title, 14, 20);
 
-    const tableData = sundays.map((dateStr) => {
+    const tableData = allDays.map((dateStr) => {
       const record = attendanceMap[dateStr];
       const status = record
         ? record.present
@@ -177,13 +191,13 @@ export default function AttendanceTab({
 
       {/* Month-by-Month View */}
       <div className="overflow-x-auto">
-        {Object.keys(sundaysByMonth).length === 0 ? (
+        {Object.keys(daysByMonth).length === 0 ? (
           <p className="text-gray-600">
-            No Sundays found for {student.Academic_Year}.
+            No days found for {student.Academic_Year}.
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {Object.entries(sundaysByMonth).map(([monthName, dates]) => (
+            {Object.entries(daysByMonth).map(([monthName, dates]) => (
               <div
                 key={monthName}
                 className="bg-gradient-to-r from-gray-50 to-white border border-gray-300 rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow duration-300"
