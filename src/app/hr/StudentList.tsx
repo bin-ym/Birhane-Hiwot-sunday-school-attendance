@@ -80,6 +80,8 @@ export default function StudentList({
           description="Search and filter students. HR and Super Admin see all years; scoped facilitators see their assigned grades."
           hideYearFilter={false}
           actionLabel="Open"
+          showAddButton={true}
+          canAddStudent={true}
         />
       )}
     </main>

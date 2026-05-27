@@ -1,12 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
 import useSWR from "swr";
 import { Student } from "@/lib/models";
-import {
-  academicYearMatchesEthiopian,
-  getCurrentEthiopianYear,
-} from "@/lib/utils";
 import { StudentRegistryView } from "@/components/student-registry/StudentRegistryView";
 
 const fetcher = async (url: string) => {
@@ -16,30 +11,26 @@ const fetcher = async (url: string) => {
 };
 
 export default function FacilitatorResultsStudentsPage() {
-  const currentYear = getCurrentEthiopianYear();
-  const { data, error, isLoading } = useSWR<Student[]>("/api/students", fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 600000,
-  });
-
-  const students = useMemo(() => {
-    const list = Array.isArray(data) ? data : [];
-    return list.filter((s) =>
-      academicYearMatchesEthiopian(String(s.Academic_Year), currentYear),
-    );
-  }, [data, currentYear]);
+  const { data, error, isLoading } = useSWR<Student[]>(
+    "/api/students",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 600000,
+    },
+  );
 
   return (
     <StudentRegistryView
-      students={students}
+      students={Array.isArray(data) ? data : []}
       loading={isLoading}
       error={error?.message ?? null}
       basePath="/facilitator/results/students"
-      theme="violet"
-      badge="Results"
-      title="Student results roster"
-      description={`Students registered for the current academic year (${currentYear} EC). Open a student to enter or review subject scores.`}
-      hideYearFilter
+      theme="emerald"
+      badge="Education"
+      title="Student records"
+      description="Browse all registered students. Filter by academic year and grade, then open a student to view or edit results."
+      hideYearFilter={false}
       actionLabel="Open"
     />
   );

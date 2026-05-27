@@ -13,24 +13,7 @@ import {
   ReportStatGrid,
 } from "@/components/reports/ReportPageLayout";
 
-function exportToCSV(data: unknown[], filename: string) {
-  if (data.length === 0) return;
-  const csv = [
-    Object.keys(data[0] as object).join(","),
-    ...data.map((row) =>
-      Object.values(row as Record<string, unknown>)
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(","),
-    ),
-  ].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import { exportToExcel } from "@/lib/excelExport";
 
 export default function SuperAdminReportsDashboard() {
   const ecYear = getCurrentEthiopianYear();
@@ -112,11 +95,7 @@ export default function SuperAdminReportsDashboard() {
         />
         <ReportStatCard
           label="Present / total"
-          value={
-            loading
-              ? "…"
-              : `${presentRows} / ${attendance.length || 0}`
-          }
+          value={loading ? "…" : `${presentRows} / ${attendance.length || 0}`}
           hint={`Approx. rate ${attendanceRate}%`}
           valueClassName="text-emerald-700"
         />
@@ -133,7 +112,7 @@ export default function SuperAdminReportsDashboard() {
             type="button"
             className="flex flex-col items-start rounded-2xl border border-gray-200 p-5 text-left transition hover:border-gray-900 hover:bg-gray-50 disabled:opacity-50"
             onClick={() =>
-              exportToCSV(students as unknown[], "system_students_dump.csv")
+              exportToExcel(students as unknown[], "System_Students_Dump")
             }
             disabled={students.length === 0}
           >
@@ -148,9 +127,9 @@ export default function SuperAdminReportsDashboard() {
             type="button"
             className="flex flex-col items-start rounded-2xl border border-gray-200 p-5 text-left transition hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50"
             onClick={() =>
-              exportToCSV(
+              exportToExcel(
                 facilitators as unknown[],
-                "system_facilitators_dump.csv",
+                "System_Facilitators_Dump",
               )
             }
             disabled={facilitators.length === 0}
@@ -166,14 +145,14 @@ export default function SuperAdminReportsDashboard() {
             type="button"
             className="flex flex-col items-start rounded-2xl border border-gray-200 p-5 text-left transition hover:border-emerald-500 hover:bg-emerald-50 disabled:opacity-50 sm:col-span-2 lg:col-span-1"
             onClick={() =>
-              exportToCSV(
+              exportToExcel(
                 attendance.map((x) => ({
                   Date: new Date(x.date).toLocaleDateString(),
                   Student: x.studentId,
                   Present: x.present ? "YES" : "NO",
                   Reason: x.reason || "",
                 })) as unknown[],
-                "system_attendance_dump.csv",
+                "System_Attendance_Dump",
               )
             }
             disabled={attendance.length === 0}

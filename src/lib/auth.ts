@@ -8,6 +8,7 @@ interface AuthUser {
   name?: string;
   role: UserRole;
   grade?: string | string[];
+  canAddStudent?: boolean;
 }
 
 interface AuthState {
@@ -26,6 +27,7 @@ export function useAuth(): AuthState {
           name: session.user.name || "",
           role: session.user.role,
           grade: session.user.grade || "",
+          canAddStudent: session.user.canAddStudent,
         }
       : null;
   }, [session?.user]);
@@ -46,12 +48,14 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       grade?: string | string[];
+      canAddStudent?: boolean;
     } & DefaultSession["user"];
   }
 
   interface User extends DefaultUser {
     role: UserRole;
     grade?: string | string[];
+    canAddStudent?: boolean;
   }
 }
 
@@ -60,5 +64,6 @@ declare module "next-auth/jwt" {
     id: string;
     role: UserRole;
     grade?: string | string[];
+    canAddStudent?: boolean;
   }
 }

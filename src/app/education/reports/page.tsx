@@ -17,45 +17,7 @@ type TeacherAccount = {
   createdAt?: string;
 };
 
-function exportToCSV(data: Student[], filename: string) {
-  if (data.length === 0) return;
-  const csv = [
-    Object.keys(data[0] || {}).join(","),
-    ...data.map((row) =>
-      Object.values(row)
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(","),
-    ),
-  ].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function exportTeachersCSV(teachers: TeacherAccount[]) {
-  if (teachers.length === 0) return;
-  const headers = ["name", "email", "role", "createdAt"];
-  const csv = [
-    headers.join(","),
-    ...teachers.map((t) =>
-      headers
-        .map((h) => `"${String((t as Record<string, unknown>)[h] ?? "").replace(/"/g, '""')}"`)
-        .join(","),
-    ),
-  ].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "education_teachers_accounts.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
+import { exportToExcel } from "@/lib/excelExport";
 export default function EducationReportsDashboard() {
   const { data: session } = useSession();
   const role = String(session?.user?.role || "");
@@ -152,15 +114,18 @@ export default function EducationReportsDashboard() {
             type="button"
             disabled={activeTeachers.length === 0 || loadingTeachers}
             className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500 disabled:opacity-50"
-            onClick={() => exportTeachersCSV(activeTeachers)}
+            onClick={() =>
+              exportToExcel(
+                activeTeachers as unknown[],
+                "Education_Teachers_Accounts",
+              )
+            }
           >
-            Export teachers CSV
+            Export teachers Excel
           </button>
         </div>
 
-        {teachersError && (
-          <p className="mb-4 text-red-600">{teachersError}</p>
-        )}
+        {teachersError && <p className="mb-4 text-red-600">{teachersError}</p>}
 
         {loadingTeachers ? (
           <div className="animate-pulse space-y-3">
@@ -205,8 +170,7 @@ export default function EducationReportsDashboard() {
         )}
 
         <p className="mt-4 text-xs text-gray-500">
-          Total: {loadingTeachers ? "…" : activeTeachers.length} teacher
-          account
+          Total: {loadingTeachers ? "…" : activeTeachers.length} teacher account
           {activeTeachers.length === 1 ? "" : "s"}
         </p>
       </div>
@@ -244,7 +208,10 @@ export default function EducationReportsDashboard() {
           {loadingStudents ? (
             <div className="flex animate-pulse flex-col gap-4">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-12 w-full rounded-xl bg-gray-100"></div>
+                <div
+                  key={i}
+                  className="h-12 w-full rounded-xl bg-gray-100"
+                ></div>
               ))}
             </div>
           ) : (
@@ -279,7 +246,7 @@ export default function EducationReportsDashboard() {
           <button
             className="flex w-full items-center justify-center gap-3 rounded-xl bg-emerald-500 py-4 font-bold text-white shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] transition-all hover:bg-emerald-400 disabled:opacity-50 disabled:shadow-none"
             onClick={() =>
-              exportToCSV(students, "academic_students_roster.csv")
+              exportToExcel(students as unknown[], "Academic_Students_Roster")
             }
             disabled={students.length === 0}
           >
@@ -296,7 +263,7 @@ export default function EducationReportsDashboard() {
                 d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               ></path>
             </svg>
-            Download Roster CSV
+            Download Roster Excel
           </button>
         </div>
       </div>

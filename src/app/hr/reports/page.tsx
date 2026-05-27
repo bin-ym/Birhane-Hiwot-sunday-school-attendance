@@ -13,24 +13,7 @@ import {
   ReportStatGrid,
 } from "@/components/reports/ReportPageLayout";
 
-function exportToCSV(data: unknown[], filename: string) {
-  if (data.length === 0) return;
-  const csv = [
-    Object.keys(data[0] as object).join(","),
-    ...data.map((row) =>
-      Object.values(row as Record<string, unknown>)
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(","),
-    ),
-  ].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import { exportToExcel } from "@/lib/excelExport";
 
 export default function HRReportsDashboard() {
   const ecYear = getCurrentEthiopianYear();
@@ -108,11 +91,11 @@ export default function HRReportsDashboard() {
               type="button"
               className="mt-4 w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:border-blue-400 hover:text-blue-700 disabled:opacity-50 sm:w-auto sm:px-6"
               onClick={() =>
-                exportToCSV(facilitators as unknown[], "all_staff_registry.csv")
+                exportToExcel(facilitators as unknown[], "All_Staff_Registry")
               }
               disabled={facilitators.length === 0}
             >
-              Export staff CSV
+              Export staff Excel
             </button>
           </div>
           <div className="rounded-2xl border border-gray-100 bg-gray-50/80 p-4 sm:p-5">
@@ -125,11 +108,11 @@ export default function HRReportsDashboard() {
               type="button"
               className="mt-4 w-full rounded-xl border border-emerald-200 bg-emerald-600 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-50 sm:w-auto sm:px-6"
               onClick={() =>
-                exportToCSV(students as unknown[], "global_students_registry.csv")
+                exportToExcel(students as unknown[], "Global_Students_Registry")
               }
               disabled={students.length === 0}
             >
-              Export students CSV
+              Export students Excel
             </button>
           </div>
         </div>

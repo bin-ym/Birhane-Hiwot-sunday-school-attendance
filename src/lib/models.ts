@@ -66,7 +66,8 @@ export type UserRole =
   | "Education Admin"
   | "Admin"
   | "Attendance Facilitator"
-  | "Education Facilitator";
+  | "Education Facilitator"
+  | "Teacher";
 
 export interface User {
   _id?: ObjectId;
@@ -74,12 +75,15 @@ export interface User {
   password: string;
   name?: string;
   role: UserRole;
-  grade?: string | string[];
+  grade?: string | string[]; // for Attendance Facilitator/Education Facilitator
+  assignedSubjects?: string[]; // Arrays of _ids or names of subjects assigned to a Teacher
+  canAddStudent?: boolean; // Determines if the HR Facilitator has allowed them to create students
   createdAt?: string;
   updatedAt?: string;
 }
 export interface Facilitator extends User {
   grade: string | string[];
+  canAddStudent?: boolean;
 }
 
 export interface Subject {

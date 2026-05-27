@@ -9,24 +9,7 @@ import {
   ReportStatGrid,
 } from "@/components/reports/ReportPageLayout";
 
-function exportToCSV(data: unknown[], filename: string) {
-  if (data.length === 0) return;
-  const csv = [
-    Object.keys(data[0] as object).join(","),
-    ...data.map((row) =>
-      Object.values(row as Record<string, unknown>)
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(","),
-    ),
-  ].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import { exportToExcel } from "@/lib/excelExport";
 
 export default function AdminReportsPage() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -51,7 +34,8 @@ export default function AdminReportsPage() {
   const attendanceRate =
     attendance.length > 0
       ? Math.round(
-          (attendance.filter((x) => x.present).length / attendance.length) * 100,
+          (attendance.filter((x) => x.present).length / attendance.length) *
+            100,
         )
       : 0;
 
@@ -98,7 +82,9 @@ export default function AdminReportsPage() {
           <button
             type="button"
             className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow transition hover:bg-blue-700 disabled:opacity-50"
-            onClick={() => exportToCSV(students as unknown[], "students.csv")}
+            onClick={() =>
+              exportToExcel(students as unknown[], "Admin_Students")
+            }
             disabled={students.length === 0}
           >
             Export students
@@ -107,7 +93,7 @@ export default function AdminReportsPage() {
             type="button"
             className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 disabled:opacity-50"
             onClick={() =>
-              exportToCSV(facilitators as unknown[], "facilitators.csv")
+              exportToExcel(facilitators as unknown[], "Admin_Facilitators")
             }
             disabled={facilitators.length === 0}
           >
@@ -117,7 +103,7 @@ export default function AdminReportsPage() {
             type="button"
             className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow transition hover:bg-violet-700 disabled:opacity-50"
             onClick={() =>
-              exportToCSV(attendance as unknown[], "attendance.csv")
+              exportToExcel(attendance as unknown[], "Admin_Attendance")
             }
             disabled={attendance.length === 0}
           >

@@ -13,24 +13,7 @@ import {
   ReportStatGrid,
 } from "@/components/reports/ReportPageLayout";
 
-function exportToCSV(data: unknown[], filename: string) {
-  if (data.length === 0) return;
-  const csv = [
-    Object.keys(data[0] as object).join(","),
-    ...data.map((row) =>
-      Object.values(row as Record<string, unknown>)
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(","),
-    ),
-  ].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import { exportToExcel } from "@/lib/excelExport";
 
 type ResultRow = {
   _id?: string;
@@ -130,9 +113,9 @@ export default function EducationFacilitatorResultsReportsPage() {
             type="button"
             className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow transition hover:bg-violet-500 disabled:opacity-50"
             onClick={() =>
-              exportToCSV(
+              exportToExcel(
                 currentYearResults as unknown[],
-                `student_results_${ecYear}_ec.csv`,
+                `Student_Results_${ecYear}_EC`,
               )
             }
             disabled={currentYearResults.length === 0}
@@ -143,9 +126,9 @@ export default function EducationFacilitatorResultsReportsPage() {
             type="button"
             className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50 disabled:opacity-50"
             onClick={() =>
-              exportToCSV(
+              exportToExcel(
                 currentYearStudents as unknown[],
-                `students_${ecYear}_ec.csv`,
+                `Students_${ecYear}_EC`,
               )
             }
             disabled={currentYearStudents.length === 0}
@@ -156,7 +139,10 @@ export default function EducationFacilitatorResultsReportsPage() {
             type="button"
             className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50 disabled:opacity-50"
             onClick={() =>
-              exportToCSV(subjectsThisYear as unknown[], `subjects_${ecYear}_ec.csv`)
+              exportToExcel(
+                subjectsThisYear as unknown[],
+                `Subjects_${ecYear}_EC`,
+              )
             }
             disabled={subjectsThisYear.length === 0}
           >
