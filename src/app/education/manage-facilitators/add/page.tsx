@@ -70,39 +70,46 @@ export default function AddFacilitatorPage() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
-      <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow">
-        <h2 className="text-xl font-bold mb-4">Add New Facilitator</h2>
-        <form onSubmit={handleFormSubmit} className="space-y-4">
-          {/* ... other form fields are correct ... */}
+    <div className="min-h-screen p-6 sm:p-12 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
+      <div className="w-full max-w-xl bg-white/90 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-2xl border border-white">
+        <h2 className="text-3xl font-extrabold mb-8 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+          Add New Facilitator
+        </h2>
+        <form onSubmit={handleFormSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+              Name
+            </label>
             <input
               type="text"
               name="name"
-              className="w-full p-2 border rounded"
+              className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
               value={facForm.name}
               onChange={handleFormChange}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+              Email
+            </label>
             <input
               type="email"
               name="email"
-              className="w-full p-2 border rounded"
+              className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
               value={facForm.email}
               onChange={handleFormChange}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+              Password
+            </label>
             <input
               type="password"
               name="password"
-              className="w-full p-2 border rounded"
+              className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
               value={facForm.password}
               onChange={handleFormChange}
               minLength={6}
@@ -110,26 +117,30 @@ export default function AddFacilitatorPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-sm font-bold text-gray-700 mb-2">
               Department Role
             </label>
             <input
               type="text"
-              className="w-full p-2 border rounded bg-gray-100 text-gray-500"
+              className="w-full p-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-500 cursor-not-allowed outline-none"
               value="Education Facilitator"
               disabled
             />
           </div>
           {facForm.role === "Attendance Facilitator" && (
-            <div>
-              <label className="block text-sm font-medium mb-1">
+            <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100">
+              <label className="block text-sm font-bold text-emerald-900 mb-3">
                 Assign Grades *
               </label>
-              <div className="space-y-2 max-h-40 overflow-y-auto border p-3 rounded">
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                 {GRADES.map((grade) => (
-                  <label key={grade} className="flex items-center gap-2">
+                  <label
+                    key={grade}
+                    className="flex items-center gap-3 p-2 hover:bg-white rounded-lg transition-colors cursor-pointer border border-transparent hover:border-emerald-100"
+                  >
                     <input
                       type="checkbox"
+                      className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
                       checked={
                         Array.isArray(facForm.grade)
                           ? facForm.grade.includes(grade)
@@ -179,19 +190,23 @@ export default function AddFacilitatorPage() {
             </div>
           )}
 
-          {error && <div className="text-red-500 text-sm">{error}</div>}
-          <div className="flex gap-2 pt-4">
+          {error && (
+            <div className="text-red-500 text-sm font-medium bg-red-50 p-3 rounded-lg border border-red-100">
+              {error}
+            </div>
+          )}
+          <div className="flex gap-4 pt-6 border-t border-gray-100">
             <button
               type="submit"
               disabled={loading}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:transform-none"
             >
               {loading ? "Adding..." : "Add Facilitator"}
             </button>
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-4 py-2 border rounded hover:bg-gray-100"
+              className="flex-1 bg-white text-gray-700 font-bold py-3 px-4 rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 transition-all text-center hover:-translate-y-0.5"
             >
               Cancel
             </button>

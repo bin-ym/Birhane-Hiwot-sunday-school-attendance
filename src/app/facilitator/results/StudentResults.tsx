@@ -31,8 +31,8 @@ interface Result {
   assignment2: number;
   midTest: number;
   finalExam: number;
-  totalScore: number;      // 0–100
-  grade: string;           // A+, A, A-, B+, …
+  totalScore: number; // 0–100
+  grade: string; // A+, A, A-, B+, …
   remarks?: string;
   recordedDate: string;
 }
@@ -41,7 +41,7 @@ interface Result {
 const WEIGHTS = {
   assignment1: 10,
   assignment2: 10,
-  midTest:   30,
+  midTest: 30,
   finalExam: 50,
 };
 
@@ -69,13 +69,13 @@ export default function StudentResults() {
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newResult, setNewResult] = useState({
-    subjectId:   "",
+    subjectId: "",
     subjectName: "",
     assignment1: 0,
     assignment2: 0,
-    midTest:     0,
-    finalExam:   0,
-    remarks:     "",
+    midTest: 0,
+    finalExam: 0,
+    remarks: "",
   });
 
   // Fetch student, subjects, and results
@@ -90,13 +90,15 @@ export default function StudentResults() {
 
       // 2) Subjects for this grade & year
       const subjectsRes = await fetch(
-        `/api/subjects?grade=${studentData.Grade}&academicYear=${studentData.Academic_Year}`
+        `/api/subjects?grade=${studentData.Grade}&academicYear=${studentData.Academic_Year}`,
       );
       if (!subjectsRes.ok) throw new Error("Failed to fetch subjects");
       setSubjects(await subjectsRes.json());
 
       // 3) Existing results - use Unique_ID
-      const resultsRes = await fetch(`/api/student-results?studentId=${studentData.Unique_ID}`);
+      const resultsRes = await fetch(
+        `/api/student-results?studentId=${studentData.Unique_ID}`,
+      );
       if (!resultsRes.ok) throw new Error("Failed to fetch results");
       const resultsData: Result[] = await resultsRes.json();
       setResults(resultsData);
@@ -117,8 +119,8 @@ export default function StudentResults() {
   const computeTotal = (r: Partial<Result>) => {
     const a1 = r.assignment1! || 0;
     const a2 = r.assignment2! || 0;
-    const m  = r.midTest!     || 0;
-    const f  = r.finalExam!   || 0;
+    const m = r.midTest! || 0;
+    const f = r.finalExam! || 0;
     return a1 + a2 + m + f;
   };
 
@@ -139,21 +141,21 @@ export default function StudentResults() {
 
     try {
       const totalScore = computeTotal(newResult);
-      const grade      = getUniversityGrade(totalScore);
+      const grade = getUniversityGrade(totalScore);
 
       const payload: Omit<Result, "_id"> = {
-        studentId:   student!.Unique_ID, // Use Unique_ID instead of MongoDB _id
+        studentId: student!.Unique_ID, // Use Unique_ID instead of MongoDB _id
         studentName: `${student!.First_Name} ${student!.Father_Name}`,
-        subjectId:   newResult.subjectId,
+        subjectId: newResult.subjectId,
         subjectName: newResult.subjectName,
         academicYear: student!.Academic_Year,
-        assignment1:  newResult.assignment1,
-        assignment2:  newResult.assignment2,
-        midTest:      newResult.midTest,
-        finalExam:    newResult.finalExam,
+        assignment1: newResult.assignment1,
+        assignment2: newResult.assignment2,
+        midTest: newResult.midTest,
+        finalExam: newResult.finalExam,
         totalScore,
         grade,
-        remarks:      newResult.remarks,
+        remarks: newResult.remarks,
         recordedDate: getTodayEthiopianDateISO(),
       };
 
@@ -171,13 +173,13 @@ export default function StudentResults() {
       // reset
       setShowAddForm(false);
       setNewResult({
-        subjectId:   "",
+        subjectId: "",
         subjectName: "",
         assignment1: 0,
         assignment2: 0,
-        midTest:     0,
-        finalExam:   0,
-        remarks:     "",
+        midTest: 0,
+        finalExam: 0,
+        remarks: "",
       });
       setError(null);
     } catch (err) {
@@ -185,32 +187,19 @@ export default function StudentResults() {
     }
   };
 
-  // Delete a result
-  const deleteResult = async (rid: string) => {
-    try {
-      const resp = await fetch(`/api/student-results/${rid}`, {
-        method: "DELETE",
-      });
-      if (!resp.ok) {
-        const errorBody = await resp.json();
-        throw new Error(errorBody.error || resp.statusText);
-      }
-      setResults((p) => p.filter((r) => r._id !== rid));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete result");
-    }
-  };
-
-  if (loading) return <div className="text-gray-500">Loading…</div>;
-  if (error)   return <div className="text-red-500">{error}</div>;
+  if (error) return <div className="text-red-500">{error}</div>;
   if (!student) return <div className="text-red-500">Student not found</div>;
 
   return (
     <div className="space-y-6">
       <header className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Results for {student.First_Name} {student.Father_Name}</h2>
-          <p className="text-gray-600">{student.Grade} ({student.Academic_Year})</p>
+          <h2 className="text-2xl font-bold">
+            Results for {student.First_Name} {student.Father_Name}
+          </h2>
+          <p className="text-gray-600">
+            {student.Grade} ({student.Academic_Year})
+          </p>
         </div>
         <Link
           href="/facilitator/results/students"
@@ -251,7 +240,9 @@ export default function StudentResults() {
               >
                 <option value="">Select Subject</option>
                 {subjects.map((s) => (
-                  <option key={s._id} value={s._id}>{s.name}</option>
+                  <option key={s._id} value={s._id}>
+                    {s.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -267,7 +258,10 @@ export default function StudentResults() {
                   max={max}
                   value={(newResult as any)[field]}
                   onChange={(e) =>
-                    handleScoreChange(field as keyof typeof WEIGHTS, +e.target.value)
+                    handleScoreChange(
+                      field as keyof typeof WEIGHTS,
+                      +e.target.value,
+                    )
                   }
                   className="mt-1 p-2 border rounded w-full"
                 />
@@ -311,12 +305,13 @@ export default function StudentResults() {
                 <tr>
                   <th className="p-2 border">Subject</th>
                   {Object.keys(WEIGHTS).map((f) => (
-                    <th key={f} className="p-2 border">{f}</th>
+                    <th key={f} className="p-2 border">
+                      {f}
+                    </th>
                   ))}
                   <th className="p-2 border">Total</th>
                   <th className="p-2 border">Grade</th>
                   <th className="p-2 border">Date</th>
-                  <th className="p-2 border">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -324,19 +319,13 @@ export default function StudentResults() {
                   <tr key={r._id} className="hover:bg-gray-50">
                     <td className="p-2 border">{r.subjectName}</td>
                     {Object.keys(WEIGHTS).map((f) => (
-                      <td key={f} className="p-2 border">{(r as any)[f]}</td>
+                      <td key={f} className="p-2 border">
+                        {(r as any)[f]}
+                      </td>
                     ))}
                     <td className="p-2 border font-medium">{r.totalScore}</td>
                     <td className="p-2 border">{r.grade}</td>
                     <td className="p-2 border">{r.recordedDate}</td>
-                    <td className="p-2 border">
-                      <button
-                        onClick={() => deleteResult(r._id!)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Delete
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>

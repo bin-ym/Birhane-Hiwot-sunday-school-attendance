@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
         Unique_ID: uniqueId,
       });
       if (!student) {
-        return NextResponse.json({ error: "Student not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Student not found" },
+          { status: 404 },
+        );
       }
       return NextResponse.json(
         {
@@ -100,18 +103,13 @@ export async function POST(req: NextRequest) {
 
     // ✅ ENFORCE grade restrictions for Attendance Facilitator on NEW students
     if (userRole === "Attendance Facilitator" && isNewStudent) {
-      const restrictedGrades = [4, 6, 8, 12];
-      const gradeNumber = parseInt(body.Grade.match(/\d+/)?.[0] || "0");
-
-      if (restrictedGrades.includes(gradeNumber)) {
-        return NextResponse.json(
-          {
-            error: `Grade ${gradeNumber} is restricted for Attendance Facilitators. Please use "Request Admin Approval" instead.`,
-            code: "RESTRICTED_GRADE",
-          },
-          { status: 403 },
-        );
-      }
+      return NextResponse.json(
+        {
+          error: `Attendance Facilitators must request admin approval for all new students.`,
+          code: "RESTRICTED_GRADE",
+        },
+        { status: 403 },
+      );
     }
 
     // ✅ Generate QR Code for the student
