@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   if (!year || !studentId) {
     return NextResponse.json(
       { message: "Year and studentId are required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   // If not found, initialize with "Not Paid" for all months
   if (!record) {
     const emptyData = Object.fromEntries(
-      ETHIOPIAN_MONTHS.map((m) => [m, "Not Paid"])
+      ETHIOPIAN_MONTHS.map((m) => [m, "Not Paid"]),
     );
     const insertResult = await collection.insertOne({
       academicYear: year,
@@ -36,13 +36,17 @@ export async function GET(req: NextRequest) {
   if (!record) {
     return NextResponse.json(
       { error: "Record not found after creation" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
   return NextResponse.json(
-    { academicYear: record.academicYear, studentId: record.studentId, data: record.data },
-    { status: 200 }
+    {
+      academicYear: record.academicYear,
+      studentId: record.studentId,
+      data: record.data,
+    },
+    { status: 200 },
   );
 }
 
@@ -59,13 +63,26 @@ export async function POST(req: NextRequest) {
 
   // Normalize against ETHIOPIAN_MONTHS (prevents overwriting with partial data)
   const normalizedData = Object.fromEntries(
-    ETHIOPIAN_MONTHS.map((m) => [m, data[m] === "Paid" ? "Paid" : "Not Paid"])
+    ETHIOPIAN_MONTHS.map((m) => {
+      const monthData = data[m];
+      let status = "Not Paid";
+      let amount = "";
+
+      if (typeof monthData === "object" && monthData !== null) {
+        status = monthData.status === "Paid" ? "Paid" : "Not Paid";
+        amount = monthData.amount || "";
+      } else if (monthData === "Paid") {
+        status = "Paid";
+      }
+
+      return [m, { status, amount }];
+    }),
   );
 
   await collection.updateOne(
     { academicYear: year, studentId },
     { $set: { data: normalizedData } },
-    { upsert: true }
+    { upsert: true },
   );
 
   return NextResponse.json({ message: "Saved successfully" }, { status: 200 });

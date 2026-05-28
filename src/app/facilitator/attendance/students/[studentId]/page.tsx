@@ -91,6 +91,7 @@ export default function StudentDetailsPage() {
         currentDate={new Date()}
         handleGenerateReport={undefined}
         allowedTabs={["details", "attendance", "payment"]}
+        listBackHref="/facilitator/attendance/students"
       />
     </main>
   );

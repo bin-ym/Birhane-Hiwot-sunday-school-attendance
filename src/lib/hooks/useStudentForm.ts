@@ -3,13 +3,17 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
 import { Student, UserRole } from "@/lib/models";
 import { calculateAge, validateStudentForm } from "@/lib/formUtils";
-import { getCurrentEthiopianYear, isEthiopianLeapYear, mapAgeToGrade } from "@/lib/utils"; // FIXED: Import mapAgeToGrade from utils
+import {
+  getCurrentEthiopianYear,
+  isEthiopianLeapYear,
+  mapAgeToGrade,
+} from "@/lib/utils"; // FIXED: Import mapAgeToGrade from utils
 import { GRADES } from "@/lib/constants";
 
 export function useStudentForm(
   student: Student | null,
   onSave: (studentData: Omit<Student, "_id">) => Promise<void>,
-  userRole: UserRole
+  userRole: UserRole,
 ) {
   const currentEthiopianYear = getCurrentEthiopianYear();
 
@@ -48,11 +52,12 @@ export function useStudentForm(
   >({});
 
   // NEW STATE: Tracks if the latest AGE-based suggestion was restricted
-  const [isLatestAgeSuggestionRestricted, setIsLatestAgeSuggestionRestricted] = useState(false);
+  const [isLatestAgeSuggestionRestricted, setIsLatestAgeSuggestionRestricted] =
+    useState(false);
 
   const academicYears = useMemo(
     () => [currentEthiopianYear],
-    [currentEthiopianYear]
+    [currentEthiopianYear],
   );
 
   // Grades restricted for facilitators
@@ -63,16 +68,12 @@ export function useStudentForm(
     (grade: string, role: UserRole, isEditing = false): string | null => {
       if (!grade || isEditing) return null;
 
-      const gradeNumber = parseInt(grade.match(/\d+/)?.[0] || "0");
-      if (
-        role === "Attendance Facilitator" &&
-        restrictedGradesForFacilitator.includes(gradeNumber)
-      ) {
-        return `Attendance Facilitators cannot register students for Grade ${gradeNumber}. Please use "Request Admin Approval" instead.`;
+      if (role === "Attendance Facilitator") {
+        return `Attendance Facilitators cannot directly register students for any grade. Please use "Request Admin Approval" instead. (restricted)`;
       }
       return null;
     },
-    [restrictedGradesForFacilitator]
+    [],
   );
 
   // Initialize form data if editing
@@ -99,8 +100,8 @@ export function useStudentForm(
           ? 6
           : 30
         : isPagume
-        ? 5
-        : 30;
+          ? 5
+          : 30;
 
       const dobErrors: Partial<Record<keyof Omit<Student, "_id">, string>> = {};
       if (month < 1 || month > 13) dobErrors.DOB_Month = "Invalid month";
@@ -141,12 +142,9 @@ export function useStudentForm(
     }
 
     const suggestedGrade = mapAgeToGrade(formData.Age);
-    
     // Extract grade number from string like "ሦስተኛ ክፍል" or "Grade 4"
     const gradeNumber = parseInt(suggestedGrade?.match(/\d+/)?.[0] || "0");
-    const isRestricted = 
-      userRole === "Attendance Facilitator" && 
-      restrictedGradesForFacilitator.includes(gradeNumber);
+    const isRestricted = userRole === "Attendance Facilitator";
 
     console.log("🔍 Grade Suggestion Debug:", {
       age: formData.Age,
@@ -154,7 +152,7 @@ export function useStudentForm(
       gradeNumber,
       userRole,
       isRestricted,
-      currentGrade: formData.Grade
+      currentGrade: formData.Grade,
     });
 
     // Update the restriction flag
@@ -170,11 +168,11 @@ export function useStudentForm(
       setFormData((prev) => ({ ...prev, Grade: "" }));
       setErrors((prev) => ({
         ...prev,
-        Grade: `Suggested Grade ${gradeNumber} is restricted. Please select a valid grade or request admin approval.`,
+        Grade: `Direct registration is restricted. Please select a grade and request admin approval. (restricted)`,
       }));
       toast.error(
-        `⚠️ Grade ${gradeNumber} is restricted for Attendance Facilitators.`,
-        { duration: 5000 }
+        `⚠️ Direct registration is restricted for Attendance Facilitators.`,
+        { duration: 5000 },
       );
     } else {
       // Set suggested grade
@@ -183,7 +181,7 @@ export function useStudentForm(
       if (suggestedGrade) {
         toast.success(
           `✅ Grade suggested: ${suggestedGrade} (Age: ${formData.Age})`,
-          { duration: 3000 }
+          { duration: 3000 },
         );
       }
     }
@@ -209,7 +207,7 @@ export function useStudentForm(
       const year = formData.Academic_Year.slice(-2);
       const gradeNum = String(GRADES.indexOf(formData.Grade) + 1).padStart(
         2,
-        "0"
+        "0",
       );
 
       const gradeError = validateGradeByRole(formData.Grade, userRole);
@@ -233,7 +231,7 @@ export function useStudentForm(
           const data = await res.json();
           const newCount = data.count + 1;
           const newUniqueID = `ብሕ/${year}/${gradeNum}/${String(
-            newCount
+            newCount,
           ).padStart(3, "0")}`;
 
           setFormData((prev) => ({ ...prev, Unique_ID: newUniqueID }));
@@ -307,8 +305,8 @@ export function useStudentForm(
             ? 6
             : 30
           : isPagume
-          ? 5
-          : 30;
+            ? 5
+            : 30;
 
         if (month < 1 || month > 13) sectionErrors.DOB_Month = "Invalid month";
         if (date < 1 || date > maxDay)
@@ -327,7 +325,7 @@ export function useStudentForm(
       setErrors((prev) => ({ ...prev, ...sectionErrors }));
       return sectionErrors;
     },
-    [student, userRole, validateGradeByRole]
+    [student, userRole, validateGradeByRole],
   );
 
   // Handle admin request
@@ -349,12 +347,11 @@ export function useStudentForm(
         throw new Error(errData.error || "Failed to submit request");
       }
 
-      toast.success(
-        "✅ Admin approval request submitted successfully!",
-        { duration: 5000 }
-      );
+      toast.success("✅ Admin approval request submitted successfully!", {
+        duration: 5000,
+      });
       setError(null);
-      
+
       // Reset form
       setFormData({
         Unique_ID: "",
@@ -400,14 +397,11 @@ export function useStudentForm(
 
     // Check for restricted grade
     if (!student && userRole === "Attendance Facilitator" && formData.Grade) {
-      const gradeNumber = parseInt(formData.Grade.match(/\d+/)?.[0] || "0");
-      if (restrictedGradesForFacilitator.includes(gradeNumber)) {
-        const msg = `Grade ${gradeNumber} is restricted for Attendance Facilitators. Please use "Request Admin Approval" instead.`;
-        setError(msg);
-        toast.error(msg);
-        setLoading(false);
-        return;
-      }
+      const msg = `Attendance Facilitators cannot directly add students. Please use "Request Admin Approval" instead. (restricted)`;
+      setError(msg);
+      toast.error(msg);
+      setLoading(false);
+      return;
     }
 
     // Validate grade
@@ -461,7 +455,7 @@ export function useStudentForm(
       await onSave(dataToSubmit);
       setError(null);
       toast.success(
-        student ? "Student updated successfully" : "Student added successfully"
+        student ? "Student updated successfully" : "Student added successfully",
       );
     } catch (err) {
       const msg =
@@ -475,7 +469,7 @@ export function useStudentForm(
 
   // Change handler
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
 
@@ -532,7 +526,7 @@ export function useStudentForm(
     age: formData.Age,
     grade: formData.Grade,
     isLatestAgeSuggestionRestricted,
-    userRole
+    userRole,
   });
 
   return {
