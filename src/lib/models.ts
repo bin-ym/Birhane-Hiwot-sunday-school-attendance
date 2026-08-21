@@ -2,6 +2,8 @@
 
 import { ObjectId } from "mongodb";
 import { GRADES } from "./constants";
+export type StudentClassification = 'Regular' | 'Extension' | 'SignLanguage' | 'Summer';
+
 export interface Student {
   _id: ObjectId;
   Unique_ID: string;
@@ -27,6 +29,7 @@ export interface Student {
   Address_Other?: string;
   Academic_Year: string;
   Grade: (typeof GRADES)[number];
+  Classification?: StudentClassification;
   qr_code?: string;
 }
 
@@ -90,10 +93,20 @@ export interface Subject {
   _id?: ObjectId;
   name: string;
   grade: string;
+  gradeNumber?: number;
   academicYear: string;
   description?: string;
   teacherId?: string;
   students?: Student[];
+}
+
+/** Grouped subject document — one per academicYear + grade. */
+export interface SubjectGroup {
+  _id?: ObjectId;
+  academicYear: string;
+  grade: string;
+  gradeNumber?: number;
+  subjects: string[];
 }
 export interface Result {
   _id: ObjectId;

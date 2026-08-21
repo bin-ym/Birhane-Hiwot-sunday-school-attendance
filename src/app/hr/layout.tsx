@@ -13,8 +13,8 @@ const facilitatorLinks = [
 const hrAdminLinks = [
   { label: "Dashboard", href: "/hr" },
   { label: "Manage Attendance", href: "/hr/attendance" },
-  { label: "Attendance Facilitators", href: "/hr/manage-facilitators" },
   { label: "Manage Students", href: "/hr/students" },
+  { label: "Attendance Facilitators", href: "/hr/manage-facilitators" },
   { label: "Reports", href: "/hr/reports" },
 ];
 

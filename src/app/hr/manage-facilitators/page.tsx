@@ -171,7 +171,7 @@ export default function HRFacilitators() {
                 <tr className="bg-gray-50/80 border-b border-gray-100 uppercase tracking-widest text-xs font-black text-gray-500">
                   <th className="p-6 w-1/4">Staff Member</th>
                   <th className="p-6">Position & Grade</th>
-                  <th className="p-6 text-center">Permits App/Add</th>
+                  <th className="p-6 text-center">Add Student</th>
                   <th className="p-6 text-right">Admin Actions</th>
                 </tr>
               </thead>
@@ -235,8 +235,8 @@ export default function HRFacilitators() {
                           }`}
                           title={
                             fac.canAddStudent
-                              ? "Revoke Add Permission"
-                              : "Grant Add Permission"
+                              ? "Disable Add Student button for this facilitator"
+                              : "Enable Add Student button for this facilitator"
                           }
                         >
                           <span
@@ -373,7 +373,7 @@ export default function HRFacilitators() {
 
                 <div className="flex items-center justify-between mt-2 px-2">
                   <span className="font-black text-gray-700 text-sm uppercase tracking-wide">
-                    Write Access
+                    Add Student
                   </span>
                   <button
                     onClick={() =>

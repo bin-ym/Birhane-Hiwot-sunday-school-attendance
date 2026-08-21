@@ -182,7 +182,7 @@ export default function EducationFacilitators() {
                       </div>
                     </td>
                     <td className="p-6 text-right">
-                      <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-2 opacity-100 transition-opacity">
                         <Link
                           href={`/education/manage-facilitators/edit/${fac._id?.toString()}`}
                           className="bg-yellow-100 hover:bg-yellow-500 text-yellow-700 hover:text-white font-bold p-3 rounded-xl transition-colors shadow-sm"

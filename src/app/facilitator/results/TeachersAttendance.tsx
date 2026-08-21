@@ -88,7 +88,7 @@ export default function TeachersAttendance() {
   // Predefined subjects for selection
   const availableSubjects = [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
+    "ክርስቲያናዊ ስነ-ምግባር",
     "የቤተ-ክርስቲያን ታሪክ",
     "ሥርዓተ ቤተ-ክርስቲያን",
     "የመጽሐፍ ቅዱስ ጥናት",
@@ -247,7 +247,7 @@ export default function TeachersAttendance() {
       await fetchData();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to remove assignment"
+        err instanceof Error ? err.message : "Failed to remove assignment",
       );
     }
   };
@@ -541,7 +541,7 @@ export default function TeachersAttendance() {
                               setNewTeacher({
                                 ...newTeacher,
                                 subjects: newTeacher.subjects.filter(
-                                  (s) => s !== subject
+                                  (s) => s !== subject,
                                 ),
                               });
                             }
@@ -715,7 +715,7 @@ export default function TeachersAttendance() {
                             >
                               {subject.name}
                             </option>
-                          )
+                          ),
                         )}
                     </select>
                   </div>

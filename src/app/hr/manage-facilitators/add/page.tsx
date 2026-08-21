@@ -3,7 +3,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ROLE_VALUES, GRADES } from "@/lib/constants";
+import { ROLE_VALUES, GRADE_OPTIONS } from "@/lib/constants";
 
 interface FacForm {
   name: string;
@@ -126,34 +126,34 @@ export default function AddFacilitatorPage() {
                 Assign Grades *
               </label>
               <div className="space-y-2 max-h-40 overflow-y-auto border p-3 rounded">
-                {GRADES.map((grade) => (
-                  <label key={grade} className="flex items-center gap-2">
+                {GRADE_OPTIONS.map((grade) => (
+                  <label key={grade.value} className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={
                         Array.isArray(facForm.grade)
-                          ? facForm.grade.includes(grade)
-                          : facForm.grade === grade
+                          ? facForm.grade.includes(grade.value)
+                          : facForm.grade === grade.value
                       }
                       onChange={(e) => {
                         let newGrades: string | string[] | undefined;
 
                         if (Array.isArray(facForm.grade)) {
                           if (e.target.checked) {
-                            newGrades = [...facForm.grade, grade];
+                            newGrades = [...facForm.grade, grade.value];
                           } else {
                             newGrades = facForm.grade.filter(
-                              (g) => g !== grade,
+                              (g) => g !== grade.value,
                             );
                           }
                         } else {
                           if (e.target.checked) {
-                            if (facForm.grade === grade) {
+                            if (facForm.grade === grade.value) {
                               newGrades = undefined;
                             } else if (facForm.grade) {
-                              newGrades = [facForm.grade, grade];
+                              newGrades = [facForm.grade, grade.value];
                             } else {
-                              newGrades = grade;
+                              newGrades = grade.value;
                             }
                           } else {
                             newGrades = undefined;
@@ -172,7 +172,7 @@ export default function AddFacilitatorPage() {
                         }));
                       }}
                     />
-                    {grade}
+                    {grade.label}
                   </label>
                 ))}
               </div>

@@ -1,14 +1,22 @@
 // src/components/tabs/DetailsTab.tsx
 "use client";
 
+import Link from "next/link";
 import { Student } from "@/lib/models";
+import { getGradeLabel } from "@/lib/constants";
 import { useState } from "react";
 
 interface DetailsTabProps {
   student: Student;
+  showEditButton?: boolean;
+  editHref?: string;
 }
 
-export default function DetailsTab({ student }: DetailsTabProps) {
+export default function DetailsTab({
+  student,
+  showEditButton = false,
+  editHref,
+}: DetailsTabProps) {
   const [generating, setGenerating] = useState(false);
   const [localQR, setLocalQR] = useState(student.qr_code);
 
@@ -61,8 +69,18 @@ export default function DetailsTab({ student }: DetailsTabProps) {
               />
             ) : (
               <div className="w-48 h-48 border-4 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50">
-                <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                <svg
+                  className="w-12 h-12 text-gray-400 mb-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
                 </svg>
                 <span className="text-sm text-gray-500">No Photo</span>
               </div>
@@ -73,19 +91,25 @@ export default function DetailsTab({ student }: DetailsTabProps) {
           <div className="text-center mb-4">
             <h2 className="text-xl font-bold text-gray-800">
               {fullName}
-              {christianName && <span className="text-gray-600 text-base">{christianName}</span>}
+              {christianName && (
+                <span className="text-gray-600 text-base">{christianName}</span>
+              )}
             </h2>
           </div>
 
           {/* ID Number */}
           <div className="bg-blue-50 rounded-lg p-3 mb-6 text-center">
             <p className="text-xs text-gray-600 mb-1">ID Number</p>
-            <p className="text-lg font-bold text-blue-700">{student.Unique_ID}</p>
+            <p className="text-lg font-bold text-blue-700">
+              {student.Unique_ID}
+            </p>
           </div>
 
           {/* QR Code Section */}
           <div className="border-t pt-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 text-center">QR Code</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 text-center">
+              QR Code
+            </h3>
             {localQR && student._id ? (
               <div className="flex flex-col items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -118,38 +142,73 @@ export default function DetailsTab({ student }: DetailsTabProps) {
       {/* Right Content - Student Details */}
       <div className="flex-1">
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-3">Student Information</h3>
-          
+          <div className="flex items-center justify-between border-b pb-3 mb-6">
+            <h3 className="text-2xl font-bold text-gray-800">
+              Student Information
+            </h3>
+            {showEditButton && editHref && (
+              <Link
+                href={editHref}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium text-sm transition shadow-sm"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+                Edit
+              </Link>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Personal Information */}
             <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-gray-700 mb-3">Personal Details</h4>
-              
+              <h4 className="text-lg font-semibold text-gray-700 mb-3">
+                Personal Details
+              </h4>
+
               {dobAndAge && (
                 <div>
                   <p className="text-sm text-gray-600">Date of Birth</p>
-                  <p className="text-base font-medium text-gray-800">{dobAndAge}</p>
+                  <p className="text-base font-medium text-gray-800">
+                    {dobAndAge}
+                  </p>
                 </div>
               )}
 
               {student.Sex && (
                 <div>
                   <p className="text-sm text-gray-600">Gender</p>
-                  <p className="text-base font-medium text-gray-800">{student.Sex}</p>
+                  <p className="text-base font-medium text-gray-800">
+                    {student.Sex}
+                  </p>
                 </div>
               )}
 
               {student.Phone_Number && (
                 <div>
                   <p className="text-sm text-gray-600">Phone Number</p>
-                  <p className="text-base font-medium text-gray-800">{student.Phone_Number}</p>
+                  <p className="text-base font-medium text-gray-800">
+                    {student.Phone_Number}
+                  </p>
                 </div>
               )}
 
               {student.Mothers_Name && (
                 <div>
                   <p className="text-sm text-gray-600">Mother&apos;s Name</p>
-                  <p className="text-base font-medium text-gray-800">{student.Mothers_Name}</p>
+                  <p className="text-base font-medium text-gray-800">
+                    {student.Mothers_Name}
+                  </p>
                 </div>
               )}
 
@@ -165,26 +224,34 @@ export default function DetailsTab({ student }: DetailsTabProps) {
 
             {/* Academic Information */}
             <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-gray-700 mb-3">Academic Details</h4>
-              
+              <h4 className="text-lg font-semibold text-gray-700 mb-3">
+                Academic Details
+              </h4>
+
               {student.Grade && (
                 <div>
                   <p className="text-sm text-gray-600">Grade (Sunday School)</p>
-                  <p className="text-base font-medium text-gray-800">{student.Grade}</p>
+                  <p className="text-base font-medium text-gray-800">
+                    {getGradeLabel(student.Grade)}
+                  </p>
                 </div>
               )}
 
               {student.Academic_Year && (
                 <div>
                   <p className="text-sm text-gray-600">Academic Year</p>
-                  <p className="text-base font-medium text-gray-800">{student.Academic_Year}</p>
+                  <p className="text-base font-medium text-gray-800">
+                    {student.Academic_Year}
+                  </p>
                 </div>
               )}
 
               {student.Class && (
                 <div>
                   <p className="text-sm text-gray-600">Class (World School)</p>
-                  <p className="text-base font-medium text-gray-800">{student.Class}</p>
+                  <p className="text-base font-medium text-gray-800">
+                    {student.Class}
+                  </p>
                 </div>
               )}
 
@@ -199,22 +266,30 @@ export default function DetailsTab({ student }: DetailsTabProps) {
 
               {student.Educational_Background && (
                 <div>
-                  <p className="text-sm text-gray-600">Educational Background</p>
-                  <p className="text-base font-medium text-gray-800">{student.Educational_Background}</p>
+                  <p className="text-sm text-gray-600">
+                    Educational Background
+                  </p>
+                  <p className="text-base font-medium text-gray-800">
+                    {student.Educational_Background}
+                  </p>
                 </div>
               )}
 
               {student.Occupation && (
                 <div>
                   <p className="text-sm text-gray-600">Occupation</p>
-                  <p className="text-base font-medium text-gray-800">{student.Occupation}</p>
+                  <p className="text-base font-medium text-gray-800">
+                    {student.Occupation}
+                  </p>
                 </div>
               )}
 
               {student.Place_of_Work && (
                 <div>
                   <p className="text-sm text-gray-600">Place of Work</p>
-                  <p className="text-base font-medium text-gray-800">{student.Place_of_Work}</p>
+                  <p className="text-base font-medium text-gray-800">
+                    {student.Place_of_Work}
+                  </p>
                 </div>
               )}
             </div>

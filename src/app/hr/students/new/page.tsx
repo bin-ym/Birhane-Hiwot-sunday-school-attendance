@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { StudentForm } from "@/components/StudentForm";
-import { Student } from "@/lib/models";
+import { StudentCategorySelector } from "@/components/StudentCategorySelector";
+import { Student, StudentClassification } from "@/lib/models";
 import { useAuth } from "@/lib/auth";
 
 const ADMIN_ROLES = ["Admin", "Super Admin", "HR Admin"];
@@ -12,6 +13,8 @@ export default function NewStudentPage() {
   const router = useRouter();
   const { user, status } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] =
+    useState<StudentClassification | null>(null);
 
   if (status === "loading") {
     return (
@@ -31,12 +34,29 @@ export default function NewStudentPage() {
     return null;
   }
 
+  // Step 1: Show category selector
+  if (!selectedCategory) {
+    return (
+      <div className="py-6 min-h-screen bg-gray-50 flex flex-col items-center">
+        <StudentCategorySelector
+          onSelectCategory={setSelectedCategory}
+          onCancel={() => router.push("/hr/students")}
+          cancelLabel="ወደ ተማሪዎች መዝገብ ተመለስ"
+          badge="HR Admin"
+        />
+      </div>
+    );
+  }
+
+  // Step 2: Show registration form with selected category
   return (
     <div className="py-6">
       {error && <div className="text-red-500 mb-4">{error}</div>}
       <StudentForm
         student={null}
         title="Add New Student"
+        initialClassification={selectedCategory}
+        onChangeCategory={() => setSelectedCategory(null)}
         onCancel={() => router.push("/hr/students")}
         onSave={async (studentData: Omit<Student, "_id">) => {
           try {
@@ -46,7 +66,8 @@ export default function NewStudentPage() {
               body: JSON.stringify({
                 ...studentData,
                 userRole: user.role,
-                isNewStudent: true, // Always true for new student page
+                userEmail: user.email,
+                isNewStudent: true,
               }),
             });
             if (!res.ok) {

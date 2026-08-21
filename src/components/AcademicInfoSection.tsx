@@ -1,16 +1,26 @@
-// src/components/AcademicInfoSection.tsx
-"use client";
 import { useEffect, useMemo } from "react";
 import { FormField } from "@/components/ui/FormField";
 import { Student, UserRole } from "@/lib/models";
-import { schools, addresses, GRADES } from "@/lib/constants";
-import { getCurrentEthiopianYear, mapAgeToGrade } from "@/lib/utils";
+import {
+  schools,
+  addresses,
+  GRADE_OPTIONS,
+  CLASSIFICATION_GRADE_OPTIONS,
+  getGradeLabel,
+  STUDENT_CLASSIFICATIONS,
+  StudentClassification,
+} from "@/lib/constants";
+import {
+  getCurrentEthiopianYear,
+  mapAgeToGrade,
+  getGradeNumber,
+} from "@/lib/utils";
 
 interface AcademicInfoSectionProps {
   formData: Omit<Student, "_id">;
   errors: Partial<Record<keyof Omit<Student, "_id">, string>>;
   handleChangeAction: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => void;
   isLoadingUniqueID: boolean;
   student: Student | null;
@@ -34,6 +44,9 @@ export function AcademicInfoSection({
   loading = false,
 }: AcademicInfoSectionProps) {
   const currentEthiopianYear = getCurrentEthiopianYear();
+  const classification = ((formData as any).Classification ||
+    "Regular") as StudentClassification;
+
   const occupationOptions = [
     { value: "Student", label: "Student" },
     { value: "Worker", label: "Worker" },
@@ -56,7 +69,7 @@ export function AcademicInfoSection({
     { value: "Private", label: "Private" },
   ];
 
-  // Grades that Attendance Facilitators cannot assign
+  // Grades that Attendance Facilitators cannot assign (numeric grades 4, 6, 8, 12)
   const restrictedGradesForFacilitator = useMemo(() => [4, 6, 8, 12], []);
 
   // Determine if field is disabled
@@ -66,31 +79,71 @@ export function AcademicInfoSection({
   const isGradeDisabled =
     isFieldDisabled || (userRole === "Attendance Facilitator" && !student);
 
-  // Get allowed grades based on role and edit mode
+  // Helper: check if a grade name matches a restricted numeric grade
+  const isGradeRestricted = (gradeName: string) =>
+    restrictedGradesForFacilitator.includes(getGradeNumber(gradeName));
+
+  // Get allowed grades based on role, classification, and edit mode
   const getAllowedGrades = () => {
     if (student) {
-      // For editing existing students, show only current grade
+      // For editing existing students, show current grade
       return [
         {
           value: formData.Grade || "",
-          label: formData.Grade || "Select Grade",
+          label: formData.Grade
+            ? getGradeLabel(formData.Grade)
+            : "Select Grade",
         },
       ];
     }
 
+    const availableOptions =
+      CLASSIFICATION_GRADE_OPTIONS[classification] || GRADE_OPTIONS;
+
     if (userRole === "Attendance Facilitator") {
       // Filter out restricted grades for facilitators
-      return GRADES.filter((grade) => {
-        const gradeNumber = parseInt(grade.match(/\d+/)?.[0] || "0");
-        return !restrictedGradesForFacilitator.includes(gradeNumber);
-      }).map((grade) => ({ value: grade, label: grade }));
+      return availableOptions
+        .filter((opt) => !isGradeRestricted(opt.value))
+        .map((opt) => ({ value: opt.value, label: opt.label }));
     }
 
-    // Admin can access all grades
-    return GRADES.map((grade) => ({ value: grade, label: grade }));
+    return availableOptions.map((opt) => ({
+      value: opt.value,
+      label: opt.label,
+    }));
   };
 
   const gradeOptions = getAllowedGrades();
+
+  // Auto-adjust grade when classification changes during new student creation
+  useEffect(() => {
+    if (student) return;
+
+    const currentOptions =
+      CLASSIFICATION_GRADE_OPTIONS[classification] || GRADE_OPTIONS;
+    const isValidGradeForClass = currentOptions.some(
+      (opt) => opt.value === formData.Grade,
+    );
+
+    if (!isValidGradeForClass) {
+      let defaultGrade = "";
+      if (classification === "SignLanguage") {
+        defaultGrade = "ምልክት ቋንቋ";
+      } else if (classification === "Extension") {
+        defaultGrade = "1ኛ ዓመት";
+      } else if (classification === "Summer") {
+        defaultGrade = "ሰባተኛ ክፍል ጥዋት";
+      } else if (classification === "Regular" && formData.Age > 0) {
+        defaultGrade = mapAgeToGrade(formData.Age);
+      }
+
+      if (defaultGrade) {
+        handleChange({
+          target: { name: "Grade", value: defaultGrade },
+        } as React.ChangeEvent<HTMLSelectElement>);
+      }
+    }
+  }, [classification, formData.Grade, formData.Age, student, handleChange]);
 
   // Calculate suggested grade based on age
   const suggestedGrade = formData.Age > 0 ? mapAgeToGrade(formData.Age) : "";
@@ -103,9 +156,8 @@ export function AcademicInfoSection({
       const shouldUpdate = !formData.Grade || formData.Grade !== suggestedGrade;
 
       if (suggestedGrade && shouldUpdate) {
-        // Check if the grade is restricted
-        const gradeNumber = parseInt(suggestedGrade.match(/\d+/)?.[0] || "0");
-        if (!restrictedGradesForFacilitator.includes(gradeNumber)) {
+        // Check if the suggested grade is restricted (grades 4, 6, 8, 12)
+        if (!isGradeRestricted(suggestedGrade)) {
           // Create a synthetic event to update the grade
           const event = {
             target: {
@@ -117,7 +169,7 @@ export function AcademicInfoSection({
           // Update the grade
           handleChange(event);
           console.log(
-            `Auto-updating grade to ${suggestedGrade} based on age ${formData.Age}`
+            `Auto-updating grade to ${suggestedGrade} based on age ${formData.Age}`,
           );
         }
       }
@@ -138,9 +190,14 @@ export function AcademicInfoSection({
         isReadOnly ? "border-2 border-gray-200" : ""
       }`}
     >
-      <h4 className="text-lg sm:text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">
-        Academic & School Information
-      </h4>
+      <div className="flex items-center justify-between border-b-2 border-blue-200 pb-2 mb-4">
+        <h4 className="text-lg sm:text-xl font-semibold text-blue-700">
+          Academic & School Information
+        </h4>
+        <span className="text-xs font-bold px-3 py-1 bg-blue-100 text-blue-800 rounded-full border border-blue-200">
+          ምድብ: {classification}
+        </span>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Occupation field */}
         <FormField
@@ -325,6 +382,20 @@ export function AcademicInfoSection({
           disabled={isGradeDisabled}
         />
 
+        {/* Classification field - read-only since it is selected upfront */}
+        <FormField
+          label="Classification (ምድብ)"
+          name="Classification"
+          value={(() => {
+            const cls = STUDENT_CLASSIFICATIONS.find((c) => c.value === classification);
+            return cls ? `${cls.label} - ${cls.description}` : classification;
+          })()}
+          readOnly
+          disabled
+          className="text-responsive"
+          inputClassName="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+        />
+
         {/* Academic Year field */}
         <FormField
           label="Academic Year (Ethiopian Calendar)"
@@ -355,33 +426,36 @@ export function AcademicInfoSection({
 
       {/* Warning message for restricted grades */}
       {userRole === "Attendance Facilitator" &&
-  !student &&
-  formData.Grade &&
-  restrictedGradesForFacilitator.includes(
-    parseInt(formData.Grade.match(/\d+/)?.[0] || "0")
-  ) && (
-    <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 mt-4">
-      <div className="flex items-start space-x-2">
-        <div className="text-red-600 mt-0.5">🚫</div>
-        <div>
-          <p className="text-sm font-semibold text-red-800">
-            Access Restricted
-          </p>
-          <p className="text-sm text-red-700">
-            Grade {formData.Grade.match(/\d+/)?.[0]} is restricted for Attendance Facilitators. 
-            Please select a valid grade or contact an administrator.
-          </p>
-          <button
-            type="button"
-            onClick={() => handleChange({ target: { name: "Grade", value: "" } } as any)}
-            className="mt-2 text-sm text-blue-600 hover:underline"
-          >
-            Clear Grade
-          </button>
-        </div>
-      </div>
-    </div>
-  )}
+        !student &&
+        formData.Grade &&
+        isGradeRestricted(formData.Grade) && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 mt-4">
+            <div className="flex items-start space-x-2">
+              <div className="text-red-600 mt-0.5">🚫</div>
+              <div>
+                <p className="text-sm font-semibold text-red-800">
+                  Access Restricted
+                </p>
+                <p className="text-sm text-red-700">
+                  Grade {getGradeNumber(formData.Grade)} is restricted for
+                  Attendance Facilitators. Please select a valid grade or
+                  contact an administrator.
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleChange({
+                      target: { name: "Grade", value: "" },
+                    } as any)
+                  }
+                  className="mt-2 text-sm text-blue-600 hover:underline"
+                >
+                  Clear Grade
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* Suggested grade button for facilitators */}
       {userRole === "Attendance Facilitator" &&

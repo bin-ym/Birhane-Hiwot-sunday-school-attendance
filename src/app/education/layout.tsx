@@ -1,7 +1,8 @@
 "use client";
-import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import LogoutButton from "@/components/LogoutButton";
+import { getRoleThemeClass } from "@/lib/roleThemes";
 
 const SECTIONS = [
   {
@@ -42,6 +43,7 @@ export default function EducationFacilitatorLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const roleClass = getRoleThemeClass("Education Admin");
 
   const getCurrentSection = () => {
     if (pathname.includes("/subjects")) return "subjects";
@@ -57,15 +59,7 @@ export default function EducationFacilitatorLayout({
       getCurrentSection() === key ? "bg-blue-700" : "hover:bg-blue-700"
     }`;
 
-  const logoutBtn = (
-    <button
-      type="button"
-      className="w-full rounded-lg bg-red-500/15 px-4 py-3 text-left text-sm font-semibold text-red-200 transition-colors hover:bg-red-600 hover:text-white"
-      onClick={() => signOut({ callbackUrl: "/login" })}
-    >
-      Logout
-    </button>
-  );
+  const logoutBtn = <LogoutButton minimal />;
 
   const sharedAsideInner = (
     <>
@@ -84,7 +78,7 @@ export default function EducationFacilitatorLayout({
   );
 
   return (
-    <div className="flex min-h-[calc(100vh-var(--app-navbar-height))] flex-1 flex-col bg-gray-50 md:min-h-0 md:flex-row">
+    <div className={`flex min-h-[calc(100vh-var(--app-navbar-height))] flex-1 flex-col bg-gray-50 md:min-h-0 md:flex-row ${roleClass}`}>
       {/* Small screens: strip under global NavBar */}
       <aside className="sticky top-0 z-30 border-b border-white/10 bg-blue-900 p-3 text-white shadow md:hidden">
         <h2 className="mb-2 text-lg font-bold">Education Admin</h2>
@@ -99,7 +93,7 @@ export default function EducationFacilitatorLayout({
       </aside>
 
       {/* Desktop: in-flow sidebar — flush under NavBar, no gap */}
-      <aside className="hidden min-h-[calc(100vh-var(--app-navbar-height))] w-64 shrink-0 flex-col border-r border-white/10 bg-blue-900 p-6 text-white shadow-lg md:flex">
+      <aside className="hidden min-h-[calc(100vh-var(--app-navbar-height))] w-64 shrink-0 flex-col border-r border-white/10 bg-blue-900 p-6 text-white shadow-lg md:flex sticky top-[var(--app-navbar-height)] self-start">
         {sharedAsideInner}
       </aside>
 

@@ -84,11 +84,10 @@ export async function POST(req: NextRequest) {
     const db = await getDb();
     const { name, email, password, grade, assignedSubjects } = await req.json();
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+    const effectivePassword = password || "Teacher123!";
+
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
     const existing = await db.collection("users").findOne({ email });
@@ -99,7 +98,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(effectivePassword, 10);
 
     const newUser = {
       name,

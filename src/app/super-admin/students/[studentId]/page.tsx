@@ -4,14 +4,10 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Student, Attendance } from "@/lib/models";
 import StudentDetails from "@/components/StudentDetails";
-import { StudentResultsPanel } from "@/components/StudentResultsPanel";
-
-type Tab = "profile" | "results";
 
 export default function SuperAdminStudentDetailPage() {
   const params = useParams();
   const studentId = params.studentId as string;
-  const [tab, setTab] = useState<Tab>("profile");
   const [student, setStudent] = useState<Student | null>(null);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +19,7 @@ export default function SuperAdminStudentDetailPage() {
       try {
         const [studentRes, attendanceRes] = await Promise.all([
           fetch(`/api/students/${studentId}`),
-          fetch(`/api/attendance/${studentId}`),
+          fetch(`/api/attendance?studentId=${studentId}`),
         ]);
 
         if (!studentRes.ok || !attendanceRes.ok) {
@@ -83,63 +79,17 @@ export default function SuperAdminStudentDetailPage() {
     );
   }
 
-  const tabBtn = (id: Tab, label: string) => (
-    <button
-      type="button"
-      key={id}
-      onClick={() => setTab(id)}
-      className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
-        tab === id
-          ? "bg-indigo-600 text-white shadow-md"
-          : "bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50"
-      }`}
-    >
-      {label}
-    </button>
-  );
-
   return (
-    <main className="container-responsive space-y-6 py-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">
-            Super Admin · Student
-          </p>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {student.First_Name} {student.Father_Name}
-          </h1>
-          <p className="text-sm text-gray-600">
-            {student.Grade} · {student.Academic_Year} · {student.Unique_ID}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {tabBtn("profile", "Profile & attendance")}
-          {tabBtn("results", "Academic results")}
-        </div>
-      </div>
-
-      {tab === "profile" && (
-        <StudentDetails
-          student={student}
-          attendanceRecords={attendance}
-          userRole="Super Admin"
-          currentDate={new Date()}
-          handleGenerateReport={undefined}
-          allowedTabs={["details", "attendance", "payment"]}
-          listBackHref="/super-admin/students"
-          listBackLabel="Back to all students"
-        />
-      )}
-
-      {tab === "results" && (
-        <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-4 md:p-6">
-          <StudentResultsPanel
-            studentMongoId={studentId}
-            backHref="/super-admin/students"
-            backLabel="Back to all students"
-          />
-        </div>
-      )}
+    <main className="container-responsive py-6">
+      <StudentDetails
+        student={student}
+        attendanceRecords={attendance}
+        userRole="Super Admin"
+        currentDate={new Date()}
+        listBackHref="/super-admin/students"
+        listBackLabel="Back to all students"
+        showEditButton={true}
+      />
     </main>
   );
 }

@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect } from "react";
+import LogoutButton from "@/components/LogoutButton";
+import { getRoleThemeClass } from "@/lib/roleThemes";
 
 export default function EducationAdminLayout({
   children,
@@ -31,8 +33,8 @@ export default function EducationAdminLayout({
   }
 
   return (
-    <div className="min-h-[calc(100vh-var(--app-navbar-height))] bg-gray-50">
-      <nav className="sticky top-[var(--app-navbar-height)] z-30 bg-blue-700 p-4 text-white shadow-md">
+    <div className={`min-h-[calc(100vh-var(--app-navbar-height))] bg-gray-50 ${getRoleThemeClass("Education Admin")}`}>
+      <nav className="sticky top-[var(--app-navbar-height)] z-30 p-4 text-white shadow-md role-header-gradient">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-xl font-bold">Education Admin Panel</h1>
           <div className="flex gap-4">
@@ -45,12 +47,7 @@ export default function EducationAdminLayout({
             <Link href="/education-admin/results" className="hover:underline">
               Results
             </Link>
-            <button
-              onClick={() => router.push("/api/auth/signout")}
-              className="hover:underline"
-            >
-              Logout
-            </button>
+            <LogoutButton minimal className="!p-1 !text-sm !font-normal !bg-transparent hover:!underline !text-inherit" />
           </div>
         </div>
       </nav>

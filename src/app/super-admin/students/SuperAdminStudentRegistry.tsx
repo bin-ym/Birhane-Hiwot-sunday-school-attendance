@@ -11,12 +11,12 @@ const fetcher = async (url: string) => {
 };
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import * as XLSX from "xlsx";
 import toast, { Toaster } from "react-hot-toast";
 
 export default function SuperAdminStudentRegistry() {
-  const { data, error, isLoading } = useSWR<Student[]>(
+  const { data, error, isLoading, mutate } = useSWR<Student[]>(
     "/api/students",
     fetcher,
     {
@@ -111,6 +111,27 @@ export default function SuperAdminStudentRegistry() {
     }
   };
 
+  const handleDelete = useCallback(async (studentId: string) => {
+    try {
+      const res = await fetch("/api/students", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: studentId }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to delete student");
+      }
+
+      toast.success("Student deleted successfully");
+      // Refresh the student list
+      mutate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete student");
+    }
+  }, [mutate]);
+
   return (
     <div className="w-full relative flex flex-col min-h-0 bg-transparent">
       <Toaster position="top-right" />
@@ -177,6 +198,7 @@ export default function SuperAdminStudentRegistry() {
         description="Search every enrolled student in one place. Filter by year, grade, or gender, then open a profile or academic results from the student page."
         hideYearFilter={false}
         actionLabel="View"
+        onDelete={handleDelete}
       />
     </div>
   );

@@ -86,7 +86,7 @@ export default function TeachersAttendance() {
   // Predefined subjects for selection
   const availableSubjects = [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
+    "ክርስቲያናዊ ስነ-ምግባር",
     "የቤተ-ክርስቲያን ታሪክ",
     "ሥርዓተ ቤተ-ክርስቲያን",
     "የመጽሐፍ ቅዱስ ጥናት",
@@ -263,7 +263,10 @@ export default function TeachersAttendance() {
         </p>
       </div>
 
-      <section className="space-y-6" aria-labelledby="teachers-overview-heading">
+      <section
+        className="space-y-6"
+        aria-labelledby="teachers-overview-heading"
+      >
         <h3
           id="teachers-overview-heading"
           className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2"
@@ -601,7 +604,10 @@ export default function TeachersAttendance() {
         </div>
       </section>
 
-      <section className="space-y-6" aria-labelledby="teachers-assignments-heading">
+      <section
+        className="space-y-6"
+        aria-labelledby="teachers-assignments-heading"
+      >
         <h3
           id="teachers-assignments-heading"
           className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2"

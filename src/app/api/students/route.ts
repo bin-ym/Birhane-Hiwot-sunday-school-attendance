@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { Student, UserRole } from "@/lib/models";
 import { createSignedQrText } from "@/lib/qr";
+import { withLock } from "@/lib/distributedLock";
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,13 +12,20 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const grades = searchParams.getAll("grade");
     const uniqueId = searchParams.get("uniqueId");
+    const limitParam = searchParams.get("limit");
+    const academicYear = searchParams.get("academicYear");
+    const sex = searchParams.get("sex");
 
     const query: any = {};
 
+    if (academicYear) query.Academic_Year = academicYear;
+    if (sex) query.Sex = sex;
+
     if (uniqueId) {
-      const student = await db.collection<Student>("students").findOne({
-        Unique_ID: uniqueId,
-      });
+      const student = await db.collection<Student>("students").findOne(
+        { Unique_ID: uniqueId },
+        { projection: { photo_data_url: 0, qr_code: 0 } },
+      );
       if (!student) {
         return NextResponse.json(
           { error: "Student not found" },
@@ -37,10 +45,19 @@ export async function GET(req: NextRequest) {
       query.Grade = { $in: grades };
     }
 
-    const students = await db
+    // Build find with projection to exclude large fields not needed for listings
+    let find = db
       .collection<Student>("students")
-      .find(query)
-      .toArray();
+      .find(query, { projection: { photo_data_url: 0, qr_code: 0 } })
+      .sort({ _id: -1 });
+
+    // Optional limit parameter for pagination
+    const limit = parseInt(limitParam || "0", 10);
+    if (limit > 0) {
+      find = find.limit(limit);
+    }
+
+    const students = await find.toArray();
 
     const serializedStudents = students.map((student) => ({
       ...student,
@@ -59,9 +76,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const db = await getDb();
-    const body: Omit<Student, "_id"> & { userRole?: UserRole } =
-      await req.json();
+    const body: Omit<Student, "_id"> & {
+      userRole?: UserRole;
+      userEmail?: string;
+    } = await req.json();
     const userRole = body.userRole || "Admin";
+    const userEmail = body.userEmail?.trim();
 
     const requiredFields = [
       "Unique_ID",
@@ -94,40 +114,89 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check if this is a new student by seeing if Unique_ID already exists
-    const existingStudent = await db.collection("students").findOne({
-      Unique_ID: body.Unique_ID,
-    });
+    // Distributed lock on the Unique_ID so concurrent creates can't both pass
+    // the existence check and insert duplicates. Gracefully no-ops without Redis.
+    const lockKey = `lock:student:${body.Unique_ID}`;
+    return withLock(
+      lockKey,
+      async () => {
+        // Check if this is a new student by seeing if Unique_ID already exists
+        const existingStudent = await db.collection("students").findOne({
+          Unique_ID: body.Unique_ID,
+        });
 
-    const isNewStudent = !existingStudent; // True if no existing student with this ID
+        const isNewStudent = !existingStudent;
 
-    // ✅ ENFORCE grade restrictions for Attendance Facilitator on NEW students
-    if (userRole === "Attendance Facilitator" && isNewStudent) {
-      return NextResponse.json(
-        {
-          error: `Attendance Facilitators must request admin approval for all new students.`,
-          code: "RESTRICTED_GRADE",
-        },
-        { status: 403 },
-      );
-    }
+        const adminRoles: UserRole[] = ["Admin", "Super Admin", "HR Admin"];
 
-    // ✅ Generate QR Code for the student
-    try {
-      const qrText = createSignedQrText(body.Unique_ID);
-      const QRCode = await import("qrcode");
-      body.qr_code = await QRCode.toDataURL(qrText);
-    } catch (qrError) {
-      console.error("Failed to generate QR code:", qrError);
-      // ✅ Do NOT block student creation if QR_SECRET is missing or QR fails.
-      // Student will be created, but QR scanning will not work until QR_SECRET is set.
-      delete (body as any).qr_code;
-    }
+        if (userRole === "Attendance Facilitator" && isNewStudent) {
+          if (!userEmail) {
+            return NextResponse.json(
+              { error: "User email is required for facilitator student creation." },
+              { status: 403 },
+            );
+          }
 
-    const result = await db.collection("students").insertOne(body as Student);
-    return NextResponse.json(
-      { _id: result.insertedId.toString() },
-      { status: 201 },
+          const facilitator = await db.collection("users").findOne({
+            email: { $regex: new RegExp(`^${userEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+          });
+
+          if (!facilitator?.canAddStudent) {
+            return NextResponse.json(
+              {
+                error:
+                  "You do not have permission to add students. Contact HR to enable this.",
+                code: "ADD_STUDENT_DENIED",
+              },
+              { status: 403 },
+            );
+          }
+
+          const assignedGrades = Array.isArray(facilitator.grade)
+            ? facilitator.grade
+            : facilitator.grade
+              ? [facilitator.grade]
+              : [];
+
+          if (assignedGrades.length > 0 && !assignedGrades.includes(body.Grade)) {
+            return NextResponse.json(
+              {
+                error: `You can only add students to your assigned grade(s): ${assignedGrades.join(", ")}`,
+                code: "RESTRICTED_GRADE",
+              },
+              { status: 403 },
+            );
+          }
+        } else if (isNewStudent && !adminRoles.includes(userRole)) {
+          return NextResponse.json(
+            { error: "You do not have permission to add students." },
+            { status: 403 },
+          );
+        }
+
+        // Remove client-only fields before insert
+        delete (body as { userRole?: UserRole }).userRole;
+        delete (body as { userEmail?: string }).userEmail;
+
+        // ✅ Generate QR Code for the student
+        try {
+          const qrText = createSignedQrText(body.Unique_ID);
+          const QRCode = await import("qrcode");
+          body.qr_code = await QRCode.toDataURL(qrText);
+        } catch (qrError) {
+          console.error("Failed to generate QR code:", qrError);
+          // ✅ Do NOT block student creation if QR_SECRET is missing or QR fails.
+          // Student will be created, but QR scanning will not work until QR_SECRET is set.
+          delete (body as any).qr_code;
+        }
+
+        const result = await db.collection("students").insertOne(body as Student);
+        return NextResponse.json(
+          { _id: result.insertedId.toString() },
+          { status: 201 },
+        );
+      },
+      { ttlMs: 15_000, waitMs: 10_000 },
     );
   } catch (error) {
     return NextResponse.json(
