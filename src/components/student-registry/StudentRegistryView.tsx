@@ -81,6 +81,8 @@ export type StudentRegistryViewProps = {
   actionLabel?: string;
   showAddButton?: boolean;
   canAddStudent?: boolean;
+  /** Optional delete handler. When provided, a delete button appears next to the action. */
+  onDelete?: (studentId: string) => void;
 };
 
 export function StudentRegistryView({
@@ -96,6 +98,7 @@ export function StudentRegistryView({
   actionLabel = "View",
   showAddButton = false,
   canAddStudent = true,
+  onDelete,
 }: StudentRegistryViewProps) {
   const t = THEME[theme];
   const currentYear = getCurrentEthiopianYear();
@@ -104,6 +107,7 @@ export function StudentRegistryView({
   const [gradeFilter, setGradeFilter] = useState("");
   const [sexFilter, setSexFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
+  const [classificationFilter, setClassificationFilter] = useState("");
 
   const yearOptions = useMemo(() => {
     const ys = [...new Set(students.map((s) => String(s.Academic_Year)))].sort(
@@ -123,10 +127,19 @@ export function StudentRegistryView({
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     return students.filter((s) => {
-      if (!hideYearFilter && yearFilter && String(s.Academic_Year) !== yearFilter)
+      if (
+        !hideYearFilter &&
+        yearFilter &&
+        String(s.Academic_Year) !== yearFilter
+      )
         return false;
       if (gradeFilter && s.Grade !== gradeFilter) return false;
       if (sexFilter && s.Sex !== sexFilter) return false;
+      if (
+        classificationFilter &&
+        (s.Classification || "Regular") !== classificationFilter
+      )
+        return false;
       if (!q) return true;
       return (
         (s.Unique_ID || "").toLowerCase().includes(q) ||
@@ -135,7 +148,15 @@ export function StudentRegistryView({
         (s.Grade || "").toLowerCase().includes(q)
       );
     });
-  }, [students, searchTerm, gradeFilter, sexFilter, yearFilter, hideYearFilter]);
+  }, [
+    students,
+    searchTerm,
+    gradeFilter,
+    sexFilter,
+    yearFilter,
+    classificationFilter,
+    hideYearFilter,
+  ]);
 
   const thisYearCount = students.filter(
     (s) => String(s.Academic_Year) === String(currentYear),
@@ -160,7 +181,49 @@ export function StudentRegistryView({
               {description}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+            {showAddButton &&
+              (canAddStudent ? (
+                <Link
+                  href={`${basePath}/new`}
+                  className={`col-span-2 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-lg transition sm:col-span-1 sm:rounded-2xl sm:px-5 sm:py-3 ${t.btn}`}
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Add Student
+                </Link>
+              ) : (
+                <span
+                  className="col-span-2 inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white/60 sm:col-span-1 sm:rounded-2xl sm:px-5 sm:py-3"
+                  title="Contact HR to enable Add Student permission"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Add Student
+                </span>
+              ))}
             <div
               className={`rounded-xl px-3 py-2.5 text-center backdrop-blur sm:min-w-[100px] sm:rounded-2xl sm:px-4 sm:py-3 ${t.statCard}`}
             >
@@ -210,6 +273,56 @@ export function StudentRegistryView({
       )}
 
       <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6 lg:p-8">
+        <div className="mb-5 border-b border-gray-100 pb-5">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
+            የተማሪዎች ዓይነት (Student Classification)
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: "", label: "ሁሉም (All Students)", desc: null },
+              { value: "Regular", label: "መደበኛ (Regular)", desc: "እሁድ እሁድ" },
+              {
+                value: "Extension",
+                label: "ርቀት (Extension)",
+                desc: "የወሩ 1ኛ እሁድ",
+              },
+              {
+                value: "SignLanguage",
+                label: "ምልክት (Sign Language)",
+                desc: "ምልክት ቋንቋ",
+              },
+              { value: "Summer", label: "ክረምት (Summer Class)", desc: "ክረምት" },
+            ].map((tab) => {
+              const active = classificationFilter === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => setClassificationFilter(tab.value)}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-extrabold transition-all shadow-sm ${
+                    active
+                      ? "bg-slate-900 text-white ring-2 ring-slate-900 shadow-md scale-[1.02]"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  {tab.desc && (
+                    <span
+                      className={`text-[10px] font-normal px-1.5 py-0.5 rounded ${
+                        active
+                          ? "bg-white/20 text-white"
+                          : "bg-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {tab.desc}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
           Filters
         </h2>
@@ -270,14 +383,23 @@ export function StudentRegistryView({
               ({filtered.length} shown)
             </span>
           </h2>
-          {showAddButton && (
+          {showAddButton && canAddStudent && (
             <Link
               href={`${basePath}/new`}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-white shadow-sm transition sm:rounded-xl sm:px-4 sm:text-sm ${t.btn} ${!canAddStudent ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
-              aria-disabled={!canAddStudent}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-white shadow-sm transition sm:rounded-xl sm:px-4 sm:text-sm ${t.btn}`}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               Add Student
             </Link>
@@ -308,6 +430,9 @@ export function StudentRegistryView({
                   <th className="hidden px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 sm:table-cell sm:px-5 sm:py-3 sm:text-xs">
                     Grade
                   </th>
+                  <th className="hidden px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 md:table-cell sm:px-5 sm:py-3 sm:text-xs">
+                    Type
+                  </th>
                   {!hideYearFilter && (
                     <th className="hidden px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 md:table-cell sm:px-5 sm:py-3 sm:text-xs">
                       Year
@@ -322,43 +447,96 @@ export function StudentRegistryView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map((s) => (
-                  <tr key={s._id.toString()} className={t.rowHover}>
-                    <td className="px-3 py-2.5 sm:px-5 sm:py-3">
-                      <span
-                        className={`inline-block max-w-[8rem] truncate rounded-lg border px-2 py-1 font-mono text-[10px] font-bold sm:max-w-none sm:px-2.5 sm:text-xs ${t.pill}`}
-                      >
-                        {s.Unique_ID || "—"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-xs font-semibold text-gray-900 sm:px-5 sm:py-3 sm:text-sm">
-                      {s.First_Name} {s.Father_Name}
-                      <span className="mt-0.5 block text-[10px] font-normal text-gray-500 sm:hidden">
-                        {s.Grade}
-                        {!hideYearFilter && ` · ${s.Academic_Year}`} · {s.Sex}
-                      </span>
-                    </td>
-                    <td className="hidden px-3 py-2.5 text-gray-700 sm:table-cell sm:px-5 sm:py-3">
-                      {s.Grade}
-                    </td>
-                    {!hideYearFilter && (
-                      <td className="hidden px-3 py-2.5 text-gray-600 md:table-cell sm:px-5 sm:py-3">
-                        {s.Academic_Year}
+                {filtered.map((s) => {
+                  const classification = s.Classification || "Regular";
+                  const classBadge: Record<
+                    string,
+                    { label: string; bg: string }
+                  > = {
+                    Regular: {
+                      label: "መደበኛ",
+                      bg: "bg-blue-50 text-blue-700 border-blue-200",
+                    },
+                    Extension: {
+                      label: "ርቀት",
+                      bg: "bg-amber-50 text-amber-800 border-amber-200",
+                    },
+                    SignLanguage: {
+                      label: "ምልክት",
+                      bg: "bg-purple-50 text-purple-700 border-purple-200",
+                    },
+                    Summer: {
+                      label: "ክረምት",
+                      bg: "bg-emerald-50 text-emerald-800 border-emerald-200",
+                    },
+                  };
+                  const badgeInfo =
+                    classBadge[classification] || classBadge.Regular;
+
+                  return (
+                    <tr key={s._id.toString()} className={t.rowHover}>
+                      <td className="px-3 py-2.5 sm:px-5 sm:py-3">
+                        <span
+                          className={`inline-block max-w-[8rem] truncate rounded-lg border px-2 py-1 font-mono text-[10px] font-bold sm:max-w-none sm:px-2.5 sm:text-xs ${t.pill}`}
+                        >
+                          {s.Unique_ID || "—"}
+                        </span>
                       </td>
-                    )}
-                    <td className="hidden px-3 py-2.5 text-gray-600 lg:table-cell sm:px-5 sm:py-3">
-                      {s.Sex}
-                    </td>
-                    <td className="px-3 py-2.5 text-right sm:px-5 sm:py-3">
-                      <Link
-                        href={`${basePath}/${s._id.toString()}`}
-                        className={`inline-flex rounded-lg px-3 py-1.5 text-[10px] font-bold text-white shadow-sm transition sm:rounded-xl sm:px-4 sm:py-2 sm:text-xs ${t.btn}`}
-                      >
-                        {actionLabel}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="px-3 py-2.5 text-xs font-semibold text-gray-900 sm:px-5 sm:py-3 sm:text-sm">
+                        {s.First_Name} {s.Father_Name}
+                        <span className="mt-0.5 block text-[10px] font-normal text-gray-500 sm:hidden">
+                          {s.Grade} · {badgeInfo.label}
+                          {!hideYearFilter && ` · ${s.Academic_Year}`} · {s.Sex}
+                        </span>
+                      </td>
+                      <td className="hidden px-3 py-2.5 text-gray-700 sm:table-cell sm:px-5 sm:py-3">
+                        {s.Grade}
+                      </td>
+                      <td className="hidden px-3 py-2.5 md:table-cell sm:px-5 sm:py-3">
+                        <span
+                          className={`inline-block rounded-md border px-2 py-0.5 text-[10px] font-bold ${badgeInfo.bg}`}
+                        >
+                          {badgeInfo.label}
+                        </span>
+                      </td>
+                      {!hideYearFilter && (
+                        <td className="hidden px-3 py-2.5 text-gray-600 md:table-cell sm:px-5 sm:py-3">
+                          {s.Academic_Year}
+                        </td>
+                      )}
+                      <td className="hidden px-3 py-2.5 text-gray-600 lg:table-cell sm:px-5 sm:py-3">
+                        {s.Sex}
+                      </td>
+                      <td className="px-3 py-2.5 text-right sm:px-5 sm:py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`${basePath}/${s._id.toString()}`}
+                            className={`inline-flex rounded-lg px-3 py-1.5 text-[10px] font-bold text-white shadow-sm transition sm:rounded-xl sm:px-4 sm:py-2 sm:text-xs ${t.btn}`}
+                          >
+                            {actionLabel}
+                          </Link>
+                          {onDelete && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    "Are you sure you want to delete this student? This action cannot be undone.",
+                                  )
+                                ) {
+                                  onDelete(s._id.toString());
+                                }
+                              }}
+                              className="inline-flex rounded-lg border border-red-200 bg-white px-3 py-1.5 text-[10px] font-bold text-red-600 shadow-sm transition hover:bg-red-50 hover:border-red-300 sm:rounded-xl sm:px-4 sm:py-2 sm:text-xs"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

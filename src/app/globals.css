@@ -173,6 +173,144 @@
   }
 }
 
+/* ===== Role Theme System ===== */
+
+/* Base role class — defaults (Admin / Super Admin: indigo/blue) */
+.role-admin {
+  --role-accent: #4f46e5;
+  --role-accent-light: #e0e7ff;
+  --role-accent-dark: #3730a3;
+  --role-gradient-from: #4f46e5;
+  --role-gradient-to: #2563eb;
+  --role-shadow-color: rgba(79, 70, 229, 0.35);
+  --role-bg-subtle: #eef2ff;
+  --role-border-light: #c7d2fe;
+}
+
+/* HR Admin / Attendance Facilitator: cyan/blue */
+.role-hr {
+  --role-accent: #0891b2;
+  --role-accent-light: #cffafe;
+  --role-accent-dark: #155e75;
+  --role-gradient-from: #0891b2;
+  --role-gradient-to: #3b82f6;
+  --role-shadow-color: rgba(8, 145, 178, 0.35);
+  --role-bg-subtle: #ecfeff;
+  --role-border-light: #a5f3fc;
+}
+
+/* Education Admin / Facilitator: emerald/teal */
+.role-education {
+  --role-accent: #059669;
+  --role-accent-light: #d1fae5;
+  --role-accent-dark: #065f46;
+  --role-gradient-from: #059669;
+  --role-gradient-to: #0d9488;
+  --role-shadow-color: rgba(5, 150, 105, 0.35);
+  --role-bg-subtle: #ecfdf5;
+  --role-border-light: #a7f3d0;
+}
+
+/* Facilitator: violet/purple */
+.role-facilitator {
+  --role-accent: #7c3aed;
+  --role-accent-light: #ede9fe;
+  --role-accent-dark: #5b21b6;
+  --role-gradient-from: #7c3aed;
+  --role-gradient-to: #9333ea;
+  --role-shadow-color: rgba(124, 58, 237, 0.35);
+  --role-bg-subtle: #f5f3ff;
+  --role-border-light: #ddd6fe;
+}
+
+/* Utility classes — use these in page components */
+
+/* Hero / page header gradient background */
+.role-header-gradient {
+  background-image: linear-gradient(
+    135deg,
+    var(--role-gradient-from),
+    var(--role-gradient-to)
+  );
+}
+
+/* Gradient text */
+.role-text-gradient {
+  background-image: linear-gradient(
+    135deg,
+    var(--role-gradient-from),
+    var(--role-gradient-to)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Primary button */
+.role-btn-primary {
+  background-image: linear-gradient(
+    135deg,
+    var(--role-gradient-from),
+    var(--role-gradient-to)
+  ) !important;
+  color: white !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px var(--role-shadow-color) !important;
+  transition: all 0.2s ease !important;
+}
+.role-btn-primary:hover {
+  box-shadow: 0 6px 20px var(--role-shadow-color) !important;
+  transform: scale(1.02);
+}
+.role-btn-primary:active {
+  transform: scale(0.95);
+}
+.role-btn-primary:disabled {
+  opacity: 0.5;
+  transform: none;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+
+/* Accent border */
+.role-border-accent {
+  border-color: var(--role-border-light) !important;
+}
+
+/* Subtle background */
+.role-bg-subtle {
+  background-color: var(--role-bg-subtle) !important;
+}
+
+/* Card hover accent border */
+.role-card-hover {
+  transition: all 0.2s ease;
+}
+.role-card-hover:hover {
+  border-color: var(--role-border-light) !important;
+  box-shadow: 0 4px 14px var(--role-shadow-color);
+}
+
+/* Quick link hover accent */
+.role-link-hover {
+  transition: all 0.2s ease;
+}
+.role-link-hover:hover {
+  border-color: var(--role-border-light) !important;
+  background-color: var(--role-bg-subtle) !important;
+}
+
+/* Icon background */
+.role-icon-bg {
+  background-color: var(--role-accent-light) !important;
+  color: var(--role-accent) !important;
+}
+
+/* Accent text color */
+.role-text-accent {
+  color: var(--role-accent) !important;
+}
+
 /* Mobile alignment fixes */
 @media (max-width: 639px) {
   /* Ensure left alignment on small screens */

@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Student, Attendance, UserRole } from "@/lib/models";
 import DetailsTab from "@/components/tabs/DetailsTab";
 import AttendanceTab from "@/components/tabs/AttendanceTab";
@@ -19,6 +20,8 @@ interface StudentDetailsProps {
   /** Override default "Back to Students" link (e.g. super-admin or hr list). */
   listBackHref?: string;
   listBackLabel?: string;
+  /** Whether to show an edit button */
+  showEditButton?: boolean;
 }
 
 type TabID = "details" | "attendance" | "payment" | "results";
@@ -39,8 +42,10 @@ export default function StudentDetails({
   allowedTabs,
   listBackHref = "/admin/students",
   listBackLabel = "Back to Students",
+  showEditButton = false,
 }: StudentDetailsProps) {
   const [activeTab, setActiveTab] = useState<TabID>("details");
+  const router = useRouter();
 
   const getAllowedTabs = (role: UserRole): TabID[] => {
     switch (role) {
@@ -61,7 +66,7 @@ export default function StudentDetails({
 
   const validTabs = allowedTabs
     ? (allowedTabs as TabID[]).filter((tab) =>
-        Object.keys(TAB_LABELS).includes(tab)
+        Object.keys(TAB_LABELS).includes(tab),
       )
     : getAllowedTabs(userRole);
 
@@ -71,12 +76,14 @@ export default function StudentDetails({
         <h1 className="heading-responsive font-serif text-primary">
           {student.First_Name} {student.Father_Name} {student.Grandfather_Name}
         </h1>
-        <Link
-          href={listBackHref}
-          className="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg hover:bg-secondary/80"
-        >
-          {listBackLabel}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={listBackHref}
+            className="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg hover:bg-secondary/80"
+          >
+            {listBackLabel}
+          </Link>
+        </div>
       </header>
 
       {/* Tabs Navigation */}
@@ -96,14 +103,23 @@ export default function StudentDetails({
         ))}
       </nav>
 
-      {/* Tab Content */}
-      {activeTab === "details" && <DetailsTab student={student} />}
+      {activeTab === "details" && (
+        <DetailsTab
+          student={student}
+          showEditButton={
+            showEditButton || userRole === "Super Admin" || userRole === "Admin"
+          }
+          editHref={`${listBackHref}/${student._id?.toString() || student._id}/edit`}
+        />
+      )}
       {activeTab === "attendance" && (
         <AttendanceTab
           student={student}
           attendanceRecords={attendanceRecords}
           currentDate={currentDate}
-          {...(ADMIN_ROLES.includes(userRole) ? { handleGenerateReport: () => {} } : {})}
+          {...(ADMIN_ROLES.includes(userRole)
+            ? { handleGenerateReport: () => {} }
+            : {})}
         />
       )}
       {activeTab === "payment" && (
@@ -112,7 +128,13 @@ export default function StudentDetails({
           studentId={student.Unique_ID}
         />
       )}
-      {activeTab === "results" && <ResultsTab studentId={student.Unique_ID} />}
+      {activeTab === "results" && (
+        <ResultsTab
+          studentId={student.Unique_ID}
+          student={student}
+          userRole={userRole}
+        />
+      )}
     </div>
   );
 }

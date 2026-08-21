@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 // ✅ FIX 1: Import useParams in addition to useRouter
 import { useRouter, useParams } from "next/navigation";
-import { GRADES, ROLE_VALUES } from "@/lib/constants";
+import { GRADE_OPTIONS, ROLE_VALUES } from "@/lib/constants";
 
 interface FacForm {
   name: string;
@@ -222,9 +222,9 @@ export default function EditFacilitatorPage() {
                 Assign Grades *
               </label>
               <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                {GRADES.map((grade) => (
+                {GRADE_OPTIONS.map((grade) => (
                   <label
-                    key={grade}
+                    key={grade.value}
                     className="flex items-center gap-3 p-2 hover:bg-white rounded-lg transition-colors cursor-pointer border border-transparent hover:border-indigo-100"
                   >
                     <input
@@ -232,14 +232,14 @@ export default function EditFacilitatorPage() {
                       className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                       checked={
                         Array.isArray(facForm.grade)
-                          ? facForm.grade.includes(grade)
-                          : facForm.grade === grade
+                          ? facForm.grade.includes(grade.value)
+                          : facForm.grade === grade.value
                       }
                       onChange={(e) =>
-                        handleGradeChange(grade, e.target.checked)
+                        handleGradeChange(grade.value, e.target.checked)
                       }
                     />
-                    {grade}
+                    {grade.label}
                   </label>
                 ))}
               </div>

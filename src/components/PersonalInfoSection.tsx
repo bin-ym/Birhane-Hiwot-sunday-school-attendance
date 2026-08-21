@@ -4,14 +4,14 @@
 
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/FormField";
-import { Student, UserRole } from "@/lib/models";
+import { Student, UserRole, StudentClassification } from "@/lib/models";
 import { ETHIOPIAN_MONTHS, getCurrentEthiopianYear } from "@/lib/utils";
 
 interface PersonalInfoSectionProps {
   formData: Omit<Student, "_id">;
   errors: Partial<Record<keyof Omit<Student, "_id">, string>>;
   handleChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => void;
   onPhotoChange: (file: File | null) => void;
   onNext: () => void;
@@ -32,6 +32,9 @@ export function PersonalInfoSection({
   isReadOnly = false,
   loading = false,
 }: PersonalInfoSectionProps) {
+  const classification = (formData.Classification ||
+    "Regular") as StudentClassification;
+
   const sexOptions = [
     { value: "Male", label: "Male" },
     { value: "Female", label: "Female" },
@@ -50,6 +53,7 @@ export function PersonalInfoSection({
         isReadOnly ? "border-2 border-gray-200" : ""
       }`}
     >
+
       <h4 className="text-lg sm:text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">
         Personal Information
       </h4>

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { StudentForm } from "@/components/StudentForm";
-import { Student } from "@/lib/models";
+import { StudentCategorySelector } from "@/components/StudentCategorySelector";
+import { Student, StudentClassification } from "@/lib/models";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
@@ -10,6 +11,8 @@ export default function RegisterStudentPage() {
   const router = useRouter();
   const { user, status } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] =
+    useState<StudentClassification | null>(null);
 
   if (status === "loading") {
     return <main className="container-responsive py-6"><div className="card-responsive">Loading...</div></main>;
@@ -25,13 +28,29 @@ export default function RegisterStudentPage() {
     return null;
   }
 
+  // Step 1: Show category selector
+  if (!selectedCategory) {
+    return (
+      <div className="py-6 min-h-screen bg-gray-50 flex flex-col items-center">
+        <StudentCategorySelector
+          onSelectCategory={setSelectedCategory}
+          onCancel={() => router.push("/hr")}
+          cancelLabel="ወደ ተማሪዎች ዝርዝር ተመለስ"
+          badge="Facilitator"
+        />
+      </div>
+    );
+  }
+
+  // Step 2: Show registration form with selected category
   return (
     <main className="flex-1 p-8 bg-gray-50">
-      <h1 className="text-2xl font-bold mb-4">Register New Student</h1>
       {error && <div className="text-red-500 mb-4">{error}</div>}
       <StudentForm
         student={null}
         title="Register New Student"
+        initialClassification={selectedCategory}
+        onChangeCategory={() => setSelectedCategory(null)}
         onCancel={() => router.push("/hr")}
         onSave={async (studentData: Omit<Student, "_id">) => {
           try {

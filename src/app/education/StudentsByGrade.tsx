@@ -11,10 +11,15 @@ const fetcher = async (url: string) => {
 };
 
 export default function StudentsByGrade() {
-  const { data, error, isLoading } = useSWR<Student[]>("/api/students", fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 600000,
-  });
+  const targetGrade = "ሰባተኛ ክፍል ጥዋት";
+  const { data, error, isLoading } = useSWR<Student[]>(
+    `/api/students?grade=${encodeURIComponent(targetGrade)}`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 600000,
+    },
+  );
 
   return (
     <StudentRegistryView
@@ -24,8 +29,8 @@ export default function StudentsByGrade() {
       basePath="/education/students"
       theme="emerald"
       badge="Education"
-      title="Student records"
-      description="Browse all registered students. Filter by academic year and grade, then open a student to view or edit results."
+      title="Student records (ሰባተኛ ክፍል ጥዋት · 7-1)"
+      description="Browse registered students for ሰባተኛ ክፍል ጥዋት · 7-1. Open a student to view or edit results."
       hideYearFilter={false}
       actionLabel="Open"
     />

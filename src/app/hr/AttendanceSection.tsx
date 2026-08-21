@@ -4,8 +4,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 import { gregorianToEthiopian, formatEthiopianDate } from "@/lib/utils";
 import { Student } from "@/lib/models";
 import toast, { Toaster } from "react-hot-toast";
@@ -239,17 +237,6 @@ export default function AttendanceSection() {
     );
   };
 
-  const generateExcel = (data: unknown[]) => {
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Attendance");
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([buffer], { type: "application/octet-stream" }),
-      `Attendance_${formattedDate.replace(/[\s,]+/g, "_")}.xlsx`,
-    );
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let allRecords = attendance;
@@ -305,27 +292,6 @@ export default function AttendanceSection() {
       if (!res.ok) {
         throw new Error(responseData.message || "Failed to submit attendance");
       }
-
-      // Generate Excel
-      const data = currentYearStudents.map((student: Student) => {
-        const record = allRecords.find(
-          (r: AttendanceRecord) =>
-            r.studentId === student._id?.toString() && r.date === formattedDate,
-        );
-        return {
-          Unique_ID: student.Unique_ID,
-          First_Name: student.First_Name,
-          Father_Name: student.Father_Name,
-          Grade: student.Grade,
-          Status: record?.present
-            ? "Present"
-            : record?.hasPermission
-              ? `Permission${record.reason ? ` (${record.reason})` : ""}`
-              : "Absent",
-          Date: formattedDate,
-        };
-      });
-      generateExcel(data);
 
       toast.success("Attendance submitted successfully!");
       setAttendance([]);

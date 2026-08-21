@@ -2,23 +2,25 @@
 import { useState, useEffect } from "react";
 import { getSundaysInEthiopianYear } from "@/lib/utils";
 
-interface Subject {
-  _id?: string;
-  name: string;
-  grade: string;
+/** A grade+year group returned by the API. */
+interface SubjectGroup {
+  _id: string;
   academicYear: string;
+  grade: string;
+  gradeNumber?: number;
+  subjects: string[];
 }
 
 interface Grade {
   name: string;
-  subjects: Subject[];
+  group: SubjectGroup | null;
 }
 
 // Predefined subjects for each grade
 const GRADE_SUBJECTS = {
   "Grade 1": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
+    "ክርስቲያናዊ ስነ-ምግባር",
     "የቤተ-ክርስቲያን ታሪክ",
     "ሥርዓተ ቤተ-ክርስቲያን",
     "የመጽሐፍ ቅዱስ ጥናት",
@@ -26,96 +28,102 @@ const GRADE_SUBJECTS = {
   ],
   "Grade 2": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
+    "ክርስቲያናዊ ስነ-ምግባር",
     "የቤተ-ክርስቲያን ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያን",
+    "ስርዓተ ቤተ-ክርስቲያን",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 3": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
+    "ክርስቲያናዊ ስነ-ምግባር",
     "የቤተ-ክርስቲያን ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያን",
+    "ስርዓተ ቤተ-ክርስቲያን",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 4": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
+    "ክርስቲያናዊ ስነ-ምግባር",
     "የቤተ-ክርስቲያን ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያን",
+    "ስርዓተ ቤተ-ክርስቲያን",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 5": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያኝ ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "ክርስቲያናዊ ስነ-ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ስርዓተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 6": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያኝ ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "ክርስቲያናዊ ስነ-ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ስርዓተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 7": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያኝ ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "ክርስቲያናዊ ስነ-ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ስርዓተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 8": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያኝ ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "ክርስቲያናዊ ስነ-ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ስርዓተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 9": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያኝ ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "ክርስቲያናዊ ስነ-ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ስርዓተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 10": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያኝ ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "ክርስቲያናዊ ስነ-ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ስርዓተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 11": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያኝ ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "ክርስቲያናዊ ስነ-ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ስርዓተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
   "Grade 12": [
     "መሠረተ ሃይማኖት",
-    "ክርስቲያናዊ ሥነ ምግባር",
-    "የቤተ-ክርስቲያኝ ታሪክ",
-    "ሥሷተ ቤተ-ክርስቲያኝ",
+    "ክርስቲያናዊ ስነ-ምግባር",
+    "የቤተ-ክርስቲያን ታሪክ",
+    "ስርዓተ ቤተ-ክርስቲያኝ",
     "የመጽሐፍ ቅዱስ ጥናት",
     "የግእዝ ቋንቋ ት/ት",
   ],
 };
 
+/** Derive a numeric grade number from a grade name string. */
+function getGradeNumber(name: string): number {
+  if (name === "ቅድመ መደበኛ") return 0;
+  const match = name.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 0;
+}
+
 export default function Subjects() {
-  const [grades, setGrades] = useState<Grade[]>([]);
   const [selectedGrade, setSelectedGrade] = useState("");
   const [newSubject, setNewSubject] = useState("");
   const [academicYear, setAcademicYear] = useState("");
@@ -141,7 +149,7 @@ export default function Subjects() {
 
   // Academic year options (e.g., last 5 years)
   const academicYearOptions = Array.from({ length: 5 }, (_, i) =>
-    String(currentEthiopianYear - i)
+    String(currentEthiopianYear - i),
   );
 
   // Update Sundays when academic year changes
@@ -156,6 +164,8 @@ export default function Subjects() {
     loadSubjects();
   }, []);
 
+  const [groups, setGroups] = useState<SubjectGroup[]>([]);
+
   const loadSubjects = async () => {
     setLoading(true);
     try {
@@ -164,22 +174,8 @@ export default function Subjects() {
       if (!response.ok)
         throw new Error(data.error || "Failed to load subjects");
 
-      const gradeMap = new Map<string, Subject[]>();
-      data.forEach((subject: Subject) => {
-        if (!gradeMap.has(subject.grade)) {
-          gradeMap.set(subject.grade, []);
-        }
-        gradeMap.get(subject.grade)!.push(subject);
-      });
-
-      const gradesData: Grade[] = Array.from(gradeMap.entries()).map(
-        ([gradeName, subjects]) => ({
-          name: gradeName,
-          subjects: subjects,
-        })
-      );
-
-      setGrades(gradesData);
+      // API returns grouped format directly
+      setGroups(data);
       setError(null);
     } catch (err) {
       setError("Failed to load subjects");
@@ -188,28 +184,40 @@ export default function Subjects() {
     }
   };
 
+  // Build Grade[] for display from grouped data
+  const buildGrades = (groupList: SubjectGroup[]): Grade[] => {
+    const groupMap = new Map<string, SubjectGroup>();
+    groupList.forEach((g) => groupMap.set(g.grade, g));
+    return gradeOptions.map((name) => ({
+      name,
+      group: groupMap.get(name) || null,
+    }));
+  };
+
+  const grades = buildGrades(groups);
+
   const initializeSubjectsForGrade = async (gradeName: string) => {
     const subjectsForGrade =
       GRADE_SUBJECTS[gradeName as keyof typeof GRADE_SUBJECTS] || [];
+    if (subjectsForGrade.length === 0) return;
 
     try {
-      for (const subjectName of subjectsForGrade) {
-        const subject: Subject = {
-          name: subjectName,
-          grade: gradeName,
-          academicYear: academicYear,
-        };
+      const response = await fetch("/api/subjects/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subjects: subjectsForGrade.map((name) => ({
+            name,
+            grade: gradeName,
+            gradeNumber: getGradeNumber(gradeName),
+            academicYear,
+          })),
+        }),
+      });
 
-        const response = await fetch("/api/subjects", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(subject),
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          console.warn(`Failed to add subject ${subjectName}:`, data.error);
-        }
+      if (!response.ok) {
+        const data = await response.json();
+        console.warn("Batch init failed:", data.error);
       }
 
       await loadSubjects();
@@ -225,16 +233,17 @@ export default function Subjects() {
     }
 
     try {
-      const subject: Subject = {
+      const payload = {
         name: newSubject.trim(),
         grade: selectedGrade,
+        gradeNumber: getGradeNumber(selectedGrade),
         academicYear: academicYear,
       };
 
       const response = await fetch("/api/subjects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(subject),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -251,18 +260,12 @@ export default function Subjects() {
     }
   };
 
-  const removeSubject = async (gradeName: string, subjectName: string) => {
+  const removeSubject = async (groupId: string, subjectName: string) => {
     try {
-      const grade = grades.find((g) => g.name === gradeName);
-      const subject = grade?.subjects.find((s) => s.name === subjectName);
-
-      if (!subject?._id) {
-        setError("Subject not found");
-        return;
-      }
-
-      const response = await fetch(`/api/subjects/${subject._id}`, {
+      const response = await fetch(`/api/subjects/${groupId}`, {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: subjectName }),
       });
 
       if (!response.ok) {
@@ -316,10 +319,8 @@ export default function Subjects() {
             >
               <option value="">Select Year</option>
               {[
-                `${new Date().getFullYear() - 8
-                }`, // Current Ethiopian Year
-                `${new Date().getFullYear() - 7
-                }`, // Next Ethiopian Year
+                `${new Date().getFullYear() - 8}`, // Current Ethiopian Year
+                `${new Date().getFullYear() - 7}`, // Next Ethiopian Year
               ].map((year) => (
                 <option key={year} value={year}>
                   {year}
@@ -376,10 +377,8 @@ export default function Subjects() {
             >
               <option value="">Select Year</option>
               {[
-                `${new Date().getFullYear() - 8
-                }`, // Current Ethiopian Year
-                `${new Date().getFullYear() - 7
-                }`, // Next Ethiopian Year
+                `${new Date().getFullYear() - 8}`, // Current Ethiopian Year
+                `${new Date().getFullYear() - 7}`, // Next Ethiopian Year
               ].map((year) => (
                 <option key={year} value={year}>
                   {year}
@@ -416,7 +415,7 @@ export default function Subjects() {
         {grades.map((grade) => (
           <div key={grade.name} className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-lg font-semibold mb-4">{grade.name}</h3>
-            {grade.subjects.length === 0 ? (
+            {!grade.group || grade.group.subjects.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500">
                   No subjects assigned to this grade.
@@ -428,19 +427,19 @@ export default function Subjects() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {grade.subjects.map((subject) => (
+                {grade.group.subjects.map((subject) => (
                   <div
-                    key={subject.name}
+                    key={subject}
                     className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
                   >
                     <div>
-                      <span className="font-medium">{subject.name}</span>
+                      <span className="font-medium">{subject}</span>
                       <div className="text-sm text-gray-500">
-                        {subject.academicYear}
+                        {grade.group!.academicYear}
                       </div>
                     </div>
                     <button
-                      onClick={() => removeSubject(grade.name, subject.name)}
+                      onClick={() => removeSubject(grade.group!._id, subject)}
                       className="text-red-600 hover:text-red-800"
                     >
                       Remove

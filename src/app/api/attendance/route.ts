@@ -2,11 +2,58 @@
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { formatEthiopianDate } from "@/lib/utils";
+import { withLock } from "@/lib/distributedLock";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
-    const attendance = await db.collection("attendance").find({}).toArray();
+    const url = new URL(req.url);
+    const date = url.searchParams.get("date");
+    const studentId = url.searchParams.get("studentId");
+    const limitParam = url.searchParams.get("limit");
+    const summary = url.searchParams.get("summary") === "true";
+    const grades = url.searchParams.getAll("grade");
+    const academicYear = url.searchParams.get("academicYear");
+
+    const query: any = {};
+    if (date) query.date = date;
+    if (studentId) query.studentId = studentId;
+
+    // Per-grade scoping: attendance rows don't store a grade, so resolve the
+    // student IDs for the requested grade(s) first, then filter by those IDs.
+    // Lets facilitators/dashboards count only their own classes.
+    if (grades.length > 0) {
+      const studentFilter: any = { Grade: { $in: grades } };
+      if (academicYear) studentFilter.Academic_Year = academicYear;
+      const studentDocs = await db
+        .collection("students")
+        .find(studentFilter, { projection: { _id: 1 } })
+        .toArray();
+      const studentIds = studentDocs.map((s) => s._id.toString());
+      if (studentIds.length === 0) {
+        if (summary) return NextResponse.json({ total: 0, present: 0 }, { status: 200 });
+        return NextResponse.json([], { status: 200 });
+      }
+      query.studentId = { $in: studentIds };
+    }
+
+    const collection = db.collection("attendance");
+
+    // Summary mode: return counts only — used by dashboards instead of
+    // downloading the entire attendance collection just to compute a rate.
+    if (summary) {
+      const [total, present] = await Promise.all([
+        collection.countDocuments(query),
+        collection.countDocuments({ ...query, present: true }),
+      ]);
+      return NextResponse.json({ total, present }, { status: 200 });
+    }
+
+    let find = collection.find(query).sort({ _id: -1 });
+    const limit = parseInt(limitParam || "0", 10);
+    if (limit > 0) find = find.limit(limit);
+
+    const attendance = await find.toArray();
     return NextResponse.json(attendance, { status: 200 });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
@@ -21,18 +68,43 @@ export async function POST(req: NextRequest) {
     }
     const db = await getDb();
     const timestamp = formatEthiopianDate(new Date()); // Use Ethiopian date for timestamp
-    const result = await db.collection("attendance").insertMany(
-      attendance.map((record: any) => ({
-        studentId: record.studentId,
-        date: record.date,
-        present: record.present,
-        hasPermission: record.hasPermission,
-        reason: record.reason || "",
-        markedBy: record.markedBy || "Attendance Facilitator", // Default to role; replace with actual user ID if available
-        timestamp: record.timestamp || timestamp,
-      }))
+
+    // Serialize bulk marking per date so concurrent double-submits can't insert
+    // duplicate attendance rows. Gracefully no-ops without Redis.
+    const lockKey = `lock:attendance:${date}`;
+    const result = await withLock(
+      lockKey,
+      async () => {
+        // Idempotent upsert keyed on (studentId, date): re-submitting the same
+        // date updates existing rows instead of inserting duplicates, so
+        // facilitators can still correct marks on a second submit.
+        const operations = attendance.map((record: any) => ({
+          updateOne: {
+            filter: { studentId: record.studentId, date: record.date || date },
+            update: {
+              $set: {
+                present: record.present,
+                hasPermission: record.hasPermission,
+                reason: record.reason || "",
+                markedBy: record.markedBy || "Attendance Facilitator", // Default to role; replace with actual user ID if available
+                timestamp: record.timestamp || timestamp,
+              },
+            },
+            upsert: true,
+          },
+        }));
+        return db.collection("attendance").bulkWrite(operations);
+      },
+      { ttlMs: 15_000, waitMs: 10_000 },
     );
-    return NextResponse.json({ success: true, insertedCount: result.insertedCount }, { status: 200 });
+    return NextResponse.json(
+      {
+        success: true,
+        insertedCount: result.upsertedCount,
+        updatedCount: result.modifiedCount,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }

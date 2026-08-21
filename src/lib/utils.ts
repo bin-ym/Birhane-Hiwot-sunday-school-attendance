@@ -1,8 +1,13 @@
 // src/lib/utils.ts
 
-import { addDays, startOfDay } from 'date-fns';
-import { GRADES } from './constants';
-import { Student } from './models'; // ensure this resolves correctly
+import { addDays, startOfDay } from "date-fns";
+import {
+  ATTENDANCE_CALENDAR_MODE,
+  GRADES,
+  GRADE_OPTIONS,
+  getGradeNumberByName,
+} from "./constants";
+import { Student } from "./models"; // ensure this resolves correctly
 
 export function cn(...classes: (string | undefined | null | false)[]) {
   return classes.filter(Boolean).join(" ");
@@ -10,8 +15,19 @@ export function cn(...classes: (string | undefined | null | false)[]) {
 
 // Ethiopian Calendar months
 export const ETHIOPIAN_MONTHS = [
-  'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
-  'Megabit', 'Miyazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagumē'
+  "Meskerem",
+  "Tikimt",
+  "Hidar",
+  "Tahsas",
+  "Tir",
+  "Yekatit",
+  "Megabit",
+  "Miyazia",
+  "Ginbot",
+  "Sene",
+  "Hamle",
+  "Nehase",
+  "Pagumē",
 ];
 
 // Fixed leap year calculation
@@ -34,11 +50,13 @@ export function gregorianToEthiopian(date: Date) {
 
   // Fixed: Uses eYear-1 leap status (NOT current year)
   const leapPrevYear = isEthiopianLeapYear(eYear - 1);
-  const gNewYear = startOfDay(new Date(
-    eYear + 7,  // Correct Gregorian correspondence
-    8,          // September (0-indexed)
-    leapPrevYear ? 12 : 11
-  ));
+  const gNewYear = startOfDay(
+    new Date(
+      eYear + 7, // Correct Gregorian correspondence
+      8, // September (0-indexed)
+      leapPrevYear ? 12 : 11,
+    ),
+  );
 
   // Proper day calculation
   const diff = baseDate.getTime() - gNewYear.getTime();
@@ -51,20 +69,28 @@ export function gregorianToEthiopian(date: Date) {
 }
 
 // Critical fix: Proper end-of-year handling
-export function ethiopianToGregorian(year: number, month: number, day: number): Date {
+export function ethiopianToGregorian(
+  year: number,
+  month: number,
+  day: number,
+): Date {
   const leapPrevYear = isEthiopianLeapYear(year - 1);
-  const gNewYear = startOfDay(new Date(
-    year + 7,  // Correct year offset
-    8,         // September
-    leapPrevYear ? 12 : 11
-  ));
+  const gNewYear = startOfDay(
+    new Date(
+      year + 7, // Correct year offset
+      8, // September
+      leapPrevYear ? 12 : 11,
+    ),
+  );
 
   // Validate day count against leap year
   const maxDays = isEthiopianLeapYear(year) ? 366 : 365;
   const dayCount = (month - 1) * 30 + day - 1;
-  
+
   if (dayCount >= maxDays) {
-    throw new RangeError(`Invalid day ${day} for ${month} in Ethiopian year ${year}`);
+    throw new RangeError(
+      `Invalid day ${day} for ${month} in Ethiopian year ${year}`,
+    );
   }
 
   return addDays(gNewYear, dayCount);
@@ -73,13 +99,21 @@ export function ethiopianToGregorian(year: number, month: number, day: number): 
 // Enhanced with proper day validation
 export function formatEthiopianDate(date: Date): string {
   const { year, month, day } = gregorianToEthiopian(date);
-  
+
   // Handle Pagumē (13th month) edge cases
   const isPagume = month === 13;
-  const maxDay = isEthiopianLeapYear(year) ? (isPagume ? 6 : 30) : (isPagume ? 5 : 30);
-  
+  const maxDay = isEthiopianLeapYear(year)
+    ? isPagume
+      ? 6
+      : 30
+    : isPagume
+      ? 5
+      : 30;
+
   if (day > maxDay) {
-    throw new RangeError(`Invalid day ${day} for ${ETHIOPIAN_MONTHS[month-1]}`);
+    throw new RangeError(
+      `Invalid day ${day} for ${ETHIOPIAN_MONTHS[month - 1]}`,
+    );
   }
 
   return `${day} ${ETHIOPIAN_MONTHS[month - 1]} ${year}`;
@@ -96,20 +130,58 @@ export function getSundaysInEthiopianYear(eYear: number): string[] {
   const endGregorian = ethiopianToGregorian(
     eYear,
     13,
-    isEthiopianLeapYear(eYear) ? 6 : 5
+    isEthiopianLeapYear(eYear) ? 6 : 5,
   );
 
   const sundays: string[] = [];
   let current = startOfDay(startGregorian);
 
   while (current <= endGregorian) {
-    if (current.getDay() === 0) { // Sunday
+    if (current.getDay() === 0) {
+      // Sunday
       sundays.push(formatEthiopianDate(current));
     }
     current = addDays(current, 1);
   }
 
   return sundays;
+}
+
+/** Every day in an Ethiopian calendar year (for testing attendance UI). */
+export function getAllDaysInEthiopianYear(eYear: number): string[] {
+  const days: string[] = [];
+
+  for (let month = 1; month <= 13; month++) {
+    const isPagume = month === 13;
+    const maxDay = isEthiopianLeapYear(eYear)
+      ? isPagume
+        ? 6
+        : 30
+      : isPagume
+        ? 5
+        : 30;
+
+    for (let day = 1; day <= maxDay; day++) {
+      days.push(`${day} ${ETHIOPIAN_MONTHS[month - 1]} ${eYear}`);
+    }
+  }
+
+  return days;
+}
+
+/** Days shown on student attendance detail (all days in test mode, Sundays in production). */
+export function getAttendanceDaysForEthiopianYear(eYear: number): string[] {
+  return ATTENDANCE_CALENDAR_MODE === "all_days"
+    ? getAllDaysInEthiopianYear(eYear)
+    : getSundaysInEthiopianYear(eYear);
+}
+
+/** Parse numeric Ethiopian year from stored Academic_Year (e.g. "2017", "2017-2018"). */
+export function parseAcademicYearStart(academicYear: string): number {
+  const raw = String(academicYear).trim();
+  const digits = raw.replace(/\D/g, "").slice(0, 4);
+  const n = parseInt(digits, 10);
+  return Number.isNaN(n) ? getCurrentEthiopianYear() : n;
 }
 
 export function getCurrentEthiopianYear(): number {
@@ -138,43 +210,55 @@ export function academicYearMatchesEthiopian(
   return raw === String(ethiopianYear);
 }
 
-// NEW: Map age to grade number (returns a numeric grade)
+/** Grade names sorted by name length (longest first) for fuzzy matching against partial names. */
+const GRADES_BY_LENGTH = [...GRADES].sort((a, b) => b.length - a.length);
+
+/**
+ * Extract a numeric grade from a grade name.
+ * Handles both English ("Grade 4") and Amharic ("አራተኛ ክፍል") formats.
+ * Uses GRADE_OPTIONS so both "ሰባተኛ ክፍል ጥዋት" / "ከሰዓት" streams map to 7
+ * and grades 8-12 resolve correctly.
+ */
 export function getGradeNumber(gradeName: string): number {
   if (!gradeName) return 0;
-  
-  // Try to extract a latin digit first
+
+  // Try to extract a latin digit first (for English "Grade 4" style)
   const m = gradeName.match(/\d+/);
   if (m) {
     const n = parseInt(m[0], 10);
     if (!isNaN(n)) return n;
   }
 
-  const s = gradeName;
-  // Amharic hints for typical grades
-  if (s.includes("አንደኛ") || s.includes("አንደኛ")) return 1;
-  if (s.includes("ሁለተኛ")) return 2;
-  if (s.includes("ሶስተኛ")) return 3;
-  if (s.includes("አራተኛ")) return 4;
-  if (s.includes("አምስተኛ")) return 5;
-  if (s.includes("ስድስተኛ")) return 6;
-  if (s.includes("ሰባተኛ")) return 7;
-  // Fallback for other text forms
+  // Exact match against canonical grade names
+  const known = GRADE_OPTIONS.find((g) => g.value === gradeName);
+  if (known) return known.number;
+
+  // Fuzzy match: iterate the canonical names (longest-name-first) to find
+  // which entry is contained in or contains the given name.
+  for (const grade of GRADES_BY_LENGTH) {
+    if (gradeName.includes(grade) || grade.includes(gradeName)) {
+      return getGradeNumberByName(grade);
+    }
+  }
+
   return 0;
 }
 
 export function mapAgeToGrade(age: number): string {
-  if (age < 7) return GRADES[0];
-  if (age <= 8) return GRADES[1];
-  if (age <= 10) return GRADES[2];
-  if (age <= 12) return GRADES[3];
-  if (age <= 14) return GRADES[4];
-  if (age <= 16) return GRADES[5];
-  if (age <= 18) return GRADES[6];
-  if (age <= 25) return GRADES[7];
-  return GRADES[8];
+  if (age < 7) return "ቅድመ መደበኛ";
+  if (age <= 8) return "አንደኛ ክፍል";
+  if (age <= 10) return "ሁለተኛ ክፍል";
+  if (age <= 12) return "ሦስተኛ ክፍል";
+  if (age <= 14) return "አራተኛ ክፍል";
+  if (age <= 16) return "አምስተኛ ክፍል";
+  if (age <= 18) return "ስድስተኛ ክፍል";
+  return "ሰባተኛ ክፍል ከሰዓት"; // Age > 18 assigns to ሰባተኛ ክፍል ከሰዓት
 }
 
-export function validateStudentForm(formData: Omit<Student, "_id">, isNew: boolean): Partial<Record<keyof Omit<Student, "_id">, string>> {
+export function validateStudentForm(
+  formData: Omit<Student, "_id">,
+  isNew: boolean,
+): Partial<Record<keyof Omit<Student, "_id">, string>> {
   const errors: Partial<Record<keyof Omit<Student, "_id">, string>> = {};
   // Build a display-friendly required field list
   const requiredFields: (keyof Omit<Student, "_id">)[] = [
@@ -232,7 +316,13 @@ export function validateStudentForm(formData: Omit<Student, "_id">, isNew: boole
     const month = parseInt(formData.DOB_Month);
     const date = parseInt(formData.DOB_Date);
     const isPagume = month === 13;
-    const maxDay = isEthiopianLeapYear(year) ? (isPagume ? 6 : 30) : (isPagume ? 5 : 30);
+    const maxDay = isEthiopianLeapYear(year)
+      ? isPagume
+        ? 6
+        : 30
+      : isPagume
+        ? 5
+        : 30;
     if (month < 1 || month > 13) {
       errors.DOB_Month = "Invalid month";
     }

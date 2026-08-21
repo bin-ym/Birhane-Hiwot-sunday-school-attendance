@@ -4,8 +4,10 @@ import React, { useState } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Student, Attendance } from "@/lib/models";
+import { ATTENDANCE_CALENDAR_MODE } from "@/lib/constants";
 import {
-  getSundaysInEthiopianYear,
+  getAttendanceDaysForEthiopianYear,
+  parseAcademicYearStart,
   ethiopianToGregorian,
   ETHIOPIAN_MONTHS,
 } from "@/lib/utils";
@@ -31,25 +33,8 @@ export default function AttendanceTab({
 }: AttendanceTabProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Parse academic year into a number (e.g., "2017-2018" -> 2017)
-  const numericYear = parseInt(student.Academic_Year.split("-")[0], 10);
-
-  // For testing: Get ALL days in the Ethiopian year (not just Sundays)
-  const getAllDaysInEthiopianYear = (year: number): string[] => {
-    const days: string[] = [];
-    const monthDays = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 5]; // 13 months
-    
-    for (let month = 1; month <= 13; month++) {
-      const daysInMonth = monthDays[month - 1];
-      for (let day = 1; day <= daysInMonth; day++) {
-        const monthName = ETHIOPIAN_MONTHS[month - 1];
-        days.push(`${day} ${monthName} ${year}`);
-      }
-    }
-    return days;
-  };
-
-  const allDays = getAllDaysInEthiopianYear(numericYear);
+  const numericYear = parseAcademicYearStart(student.Academic_Year);
+  const allDays = getAttendanceDaysForEthiopianYear(numericYear);
 
   // Group days by their month name
   const daysByMonth = allDays.reduce((acc, dateStr) => {
@@ -178,6 +163,11 @@ export default function AttendanceTab({
       </div>
 
       <div className="flex flex-wrap gap-4 text-sm text-gray-800 font-medium mb-6">
+        {ATTENDANCE_CALENDAR_MODE === "all_days" && (
+          <div className="bg-blue-100 px-3 py-1 rounded-full text-blue-800">
+            Testing mode: showing all days in the year
+          </div>
+        )}
         <div className="bg-green-100 px-3 py-1 rounded-full">
           Present: {present}/{total} ({((present / total) * 100).toFixed(0)}%)
         </div>

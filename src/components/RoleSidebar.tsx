@@ -1,7 +1,7 @@
 "use client";
 import { useSidebar } from "./SidebarProvider";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import LogoutButton from "./LogoutButton";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -114,26 +114,7 @@ function SidebarNavPanel({
       </div>
 
       <div className="shrink-0 border-t border-white/5 bg-black/20 p-4">
-        <button
-          type="button"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/10 px-4 py-3 text-sm font-bold text-red-400 transition-all hover:bg-red-500 hover:text-white"
-        >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-            />
-          </svg>
-          Sign Out
-        </button>
+        <LogoutButton />
       </div>
     </aside>
   );
@@ -183,7 +164,7 @@ export default function RoleSidebar({
         links={links}
         pathname={pathname}
         theme={theme}
-        className="hidden min-h-[calc(100vh-var(--app-navbar-height))] w-64 shrink-0 lg:w-72 md:flex"
+        className="hidden min-h-[calc(100vh-var(--app-navbar-height))] w-64 shrink-0 lg:w-72 md:flex sticky top-[var(--app-navbar-height)] self-start"
       />
     </>
   );

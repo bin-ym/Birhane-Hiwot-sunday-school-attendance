@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { getGradeLabel } from "@/lib/constants";
 import { getTodayEthiopianDateISO } from "@/lib/utils";
 
 interface Student {
@@ -12,6 +13,16 @@ interface Student {
   Academic_Year: string;
 }
 
+/** Grouped subject doc from the API. */
+interface SubjectGroup {
+  _id: string;
+  academicYear: string;
+  grade: string;
+  gradeNumber?: number;
+  subjects: string[];
+}
+
+/** Flattened subject for display. */
 interface Subject {
   _id: string;
   name: string;
@@ -109,14 +120,26 @@ export function StudentResultsPanel({
 
       const subjectsRes = await fetch("/api/subjects");
       if (!subjectsRes.ok) throw new Error("Failed to fetch subjects");
-      const allSubjects: Subject[] = await subjectsRes.json();
+      const allGroups: SubjectGroup[] = await subjectsRes.json();
 
+      // Flatten: find matching groups for this student's grade + year
       const yStu = normalizeYearToken(studentData.Academic_Year);
-      const forGrade = allSubjects.filter(
-        (s) =>
-          s.grade === studentData.Grade &&
-          normalizeYearToken(s.academicYear) === yStu,
-      );
+      const forGrade: Subject[] = [];
+      for (const group of allGroups) {
+        if (
+          group.grade === studentData.Grade &&
+          normalizeYearToken(group.academicYear) === yStu
+        ) {
+          for (const name of group.subjects) {
+            forGrade.push({
+              _id: `${group._id}_${name}`,
+              name,
+              grade: group.grade,
+              academicYear: group.academicYear,
+            });
+          }
+        }
+      }
       setSubjects(forGrade);
 
       const resultsRes = await fetch(
@@ -285,7 +308,7 @@ export function StudentResultsPanel({
             {student.First_Name} {student.Father_Name}
           </h2>
           <p className="mt-1 text-lg text-gray-700">
-            <span className="font-semibold">{student.Grade}</span>
+            <span className="font-semibold">{getGradeLabel(student.Grade)}</span>
             <span className="mx-2 text-gray-400">·</span>
             <span>{yearLabel}</span>
             <span className="mx-2 text-gray-400">·</span>
@@ -326,7 +349,7 @@ export function StudentResultsPanel({
             {subjects.length === 0 ? (
               <tr>
                 <td className="p-6 text-gray-600" colSpan={7}>
-                  No subjects are defined for {student.Grade} in{" "}
+                  No subjects are defined for {getGradeLabel(student.Grade)} in{" "}
                   {student.Academic_Year}. Add subjects under Subject Management.
                 </td>
               </tr>
@@ -409,7 +432,7 @@ export function StudentResultsPanel({
               {activeSubject.name}
             </h3>
             <p className="text-sm text-gray-600">
-              {student.Grade} · {yearLabel}
+              {getGradeLabel(student.Grade)} · {yearLabel}
             </p>
 
             <div className="mt-4 space-y-4">

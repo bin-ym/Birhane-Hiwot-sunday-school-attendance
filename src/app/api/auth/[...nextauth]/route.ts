@@ -66,6 +66,25 @@ const authOptions: AuthOptions = {
         token.grade = user.grade;
         token.canAddStudent = user.canAddStudent;
       }
+
+      // Refresh permissions from DB so HR toggles apply without re-login
+      if (token.id) {
+        try {
+          const db = await getDb();
+          const { ObjectId } = await import("mongodb");
+          const dbUser = await db.collection<User>("users").findOne({
+            _id: new ObjectId(token.id as string),
+          });
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.grade = dbUser.grade;
+            token.canAddStudent = dbUser.canAddStudent ?? false;
+          }
+        } catch {
+          // Keep existing token values if refresh fails
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

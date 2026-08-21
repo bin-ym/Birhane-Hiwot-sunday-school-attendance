@@ -5,7 +5,7 @@
   import { useMemo, useState } from "react";
   import { Button } from "@/components/ui/button";
   import { toast } from "react-hot-toast";
-  import { Student, UserRole } from "@/lib/models";
+  import { Student, UserRole, StudentClassification } from "@/lib/models";
   import { PersonalInfoSection } from "@/components/PersonalInfoSection";
   import { AcademicInfoSection } from "@/components/AcademicInfoSection";
   import { useStudentForm } from "@/lib/hooks/useStudentForm";
@@ -20,6 +20,8 @@
     onCancel: () => void;
     title?: string;
     userRole: UserRole;
+    initialClassification?: StudentClassification;
+    onChangeCategory?: () => void;
   }
 
   export function StudentForm({
@@ -28,6 +30,8 @@
     onCancel,
     title,
     userRole,
+    initialClassification,
+    onChangeCategory,
   }: StudentFormProps) {
     const currentEthiopianYear = getCurrentEthiopianYear();
     const {
@@ -44,7 +48,7 @@
       handleRequestAdmin,
       isRequestingAdmin,
       isLatestAgeSuggestionRestricted, // NEW: Get this flag from hook
-    } = useStudentForm(student, onSave, userRole);
+    } = useStudentForm(student, onSave, userRole, initialClassification);
 
     const [currentSection, setCurrentSection] = useState<"personal" | "academic">(
       "personal"
@@ -165,9 +169,35 @@
         <Toaster position="top-right" />
         <div className="w-full max-w-4xl mx-auto">
           {title && (
-            <h1 className="text-responsive text-blue-900 mb-6 font-bold text-2xl sm:text-3xl">
-              {title}
-            </h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+              <h1 className="text-responsive text-blue-900 font-bold text-2xl sm:text-3xl">
+                {title}
+              </h1>
+              <div className="flex items-center gap-3">
+                {initialClassification && (
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
+                    initialClassification === "Regular"
+                      ? "bg-blue-50 text-blue-800 border-blue-200"
+                      : initialClassification === "Extension"
+                        ? "bg-amber-50 text-amber-900 border-amber-200"
+                        : initialClassification === "SignLanguage"
+                          ? "bg-purple-50 text-purple-900 border-purple-200"
+                          : "bg-emerald-50 text-emerald-900 border-emerald-200"
+                  }`}>
+                    ምድብ: {initialClassification === "Regular" ? "መደበኛ" : initialClassification === "Extension" ? "ርቀት" : initialClassification === "SignLanguage" ? "ምልክት ቋንቋ" : "የክረምት"}
+                  </span>
+                )}
+                {onChangeCategory && (
+                  <button
+                    type="button"
+                    onClick={onChangeCategory}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs"
+                  >
+                    ← ምድብ ቀይር
+                  </button>
+                )}
+              </div>
+            </div>
           )}
           <form onSubmit={handleSubmit}>
             {currentSection === "personal" && (
