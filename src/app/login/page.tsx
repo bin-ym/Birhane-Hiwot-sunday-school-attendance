@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function LoginPage() {
   const { data: session, status } = useSession();
@@ -82,10 +83,13 @@ export default function LoginPage() {
       {/* Left side (branding / info) */}
       <div className="hidden lg:flex w-full lg:w-1/2 bg-gradient-to-br from-blue-600 to-green-600 text-white items-center justify-center p-8 xl:p-16">
         <div className="max-w-lg text-center">
-          <img
+          <Image
             src="/logo.png"
             alt="Birhane Hiwot Logo"
-            className="mx-auto mb-6 w-28 h-28 rounded-full bg-white p-2 shadow-2xl"
+            width={112}
+            height={112}
+            className="mx-auto mb-6 rounded-full bg-white p-2 shadow-2xl"
+            priority
           />
           <h1 className="text-3xl xl:text-4xl 2xl:text-5xl font-extrabold mb-6 leading-tight">
             Birhane Hiwot Sunday School
@@ -100,10 +104,12 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="bg-white shadow-2xl rounded-2xl p-6 sm:p-8 lg:p-12 w-full max-w-sm sm:max-w-md lg:max-w-lg border border-gray-100">
           <div className="flex items-center justify-center gap-3 mb-6 sm:mb-8">
-            <img
+            <Image
               src="/logo.png"
               alt="Logo"
-              className="w-10 h-10 rounded-full lg:hidden"
+              width={40}
+              height={40}
+              className="rounded-full lg:hidden"
             />
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-blue-800">
               Sign In
