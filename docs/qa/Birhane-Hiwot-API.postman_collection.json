@@ -1,0 +1,1020 @@
+{
+  "info": {
+    "_postman_id": "bh-ss-api-collection",
+    "name": "Birhane Hiwot Sunday School - QA API",
+    "description": "QA Postman collection for the Birhane Hiwot Sunday School Attendance Management System.\n\n## Setup\n1. Import this collection and `Birhane-Hiwot.postman_environment.json`.\n2. Update environment variables with valid credentials and `baseUrl`.\n3. Run **Auth → Get CSRF Token**, then **Auth → Login (Credentials)** before protected endpoints.\n4. Postman stores session cookies automatically after login.\n\n## Roles\n- Super Admin\n- HR Admin\n- Education Admin\n- Attendance Facilitator\n- Education Facilitator\n- Teacher\n\n## Notes\n- Most API routes do not enforce auth at the route level; the UI uses NextAuth middleware for pages.\n- Facilitators, teachers, admin-users, and education-facilitators routes check JWT role.\n- Student creation enforces role rules via `userRole` and `userEmail` in the request body.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000" }],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get CSRF Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('csrfToken', json.csrfToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/csrf"
+          }
+        },
+        {
+          "name": "Login (Credentials)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login succeeds', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 302]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "csrfToken",
+                  "value": "{{csrfToken}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{superAdminEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{superAdminPassword}}",
+                  "type": "text"
+                },
+                { "key": "json", "value": "true", "type": "text" },
+                {
+                  "key": "callbackUrl",
+                  "value": "{{baseUrl}}/login",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/auth/callback/credentials"
+          }
+        },
+        {
+          "name": "Get Session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/session"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "csrfToken",
+                  "value": "{{csrfToken}}",
+                  "type": "text"
+                },
+                {
+                  "key": "callbackUrl",
+                  "value": "{{baseUrl}}/login",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/auth/signout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Setup",
+      "item": [
+        {
+          "name": "Create Super Admin (one-time)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Super Admin\",\n  \"email\": \"{{superAdminEmail}}\",\n  \"password\": \"{{superAdminPassword}}\",\n  \"confirm\": \"CREATE_SUPER_ADMIN\"\n}"
+            },
+            "url": "{{baseUrl}}/api/setup/super-admin"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Students",
+      "item": [
+        {
+          "name": "List Students",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/students?grade={{grade}}&academicYear={{academicYear}}&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students"],
+              "query": [
+                { "key": "grade", "value": "{{grade}}" },
+                { "key": "academicYear", "value": "{{academicYear}}" },
+                { "key": "limit", "value": "50" },
+                { "key": "sex", "value": "Male", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Student by Unique ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/students?uniqueId={{studentUniqueId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students"],
+              "query": [{ "key": "uniqueId", "value": "{{studentUniqueId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get Student by Mongo ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/students/{{studentId}}"
+          }
+        },
+        {
+          "name": "Create Student (Super Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('studentId', json._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Unique_ID\": \"{{studentUniqueId}}\",\n  \"First_Name\": \"Test\",\n  \"Father_Name\": \"Student\",\n  \"Grandfather_Name\": \"QA\",\n  \"Mothers_Name\": \"Mother\",\n  \"Christian_Name\": \"Gabriel\",\n  \"DOB_Date\": \"15\",\n  \"DOB_Month\": \"05\",\n  \"DOB_Year\": \"2010\",\n  \"Age\": 15,\n  \"Sex\": \"Male\",\n  \"Phone_Number\": \"0911000000\",\n  \"Class\": \"Regular\",\n  \"Occupation\": \"Student\",\n  \"School\": \"ሀና\",\n  \"Address\": \"ሲቪል ሰርቪስ አካባቢ\",\n  \"Academic_Year\": \"{{academicYear}}\",\n  \"Grade\": \"{{grade}}\",\n  \"Classification\": \"Regular\",\n  \"userRole\": \"Super Admin\"\n}"
+            },
+            "url": "{{baseUrl}}/api/students"
+          }
+        },
+        {
+          "name": "Create Student (Attendance Facilitator)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Unique_ID\": \"BH-FAC-001\",\n  \"First_Name\": \"Facilitator\",\n  \"Father_Name\": \"Created\",\n  \"Grandfather_Name\": \"Student\",\n  \"Mothers_Name\": \"Mother\",\n  \"Christian_Name\": \"Michael\",\n  \"DOB_Date\": \"01\",\n  \"DOB_Month\": \"01\",\n  \"DOB_Year\": \"2011\",\n  \"Age\": 14,\n  \"Sex\": \"Female\",\n  \"Phone_Number\": \"0911000001\",\n  \"Class\": \"Regular\",\n  \"Occupation\": \"Student\",\n  \"Address\": \"ሲቪል ሰርቪስ አካባቢ\",\n  \"Academic_Year\": \"{{academicYear}}\",\n  \"Grade\": \"{{grade}}\",\n  \"Classification\": \"Regular\",\n  \"userRole\": \"Attendance Facilitator\",\n  \"userEmail\": \"{{attendanceFacilitatorEmail}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/students"
+          }
+        },
+        {
+          "name": "Update Student (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Phone_Number\": \"0911223344\",\n  \"Occupation\": \"Student\"\n}"
+            },
+            "url": "{{baseUrl}}/api/students/{{studentId}}"
+          }
+        },
+        {
+          "name": "Update Student Photo (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"photo_data_url\": \"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=\"\n}"
+            },
+            "url": "{{baseUrl}}/api/students/{{studentId}}"
+          }
+        },
+        {
+          "name": "Generate QR Code (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"generateQR\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/students/{{studentId}}"
+          }
+        },
+        {
+          "name": "Check Duplicate Student",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"First_Name\": \"Test\",\n  \"Father_Name\": \"Student\",\n  \"Grandfather_Name\": \"QA\",\n  \"Mothers_Name\": \"Mother\",\n  \"Sex\": \"Male\"\n}"
+            },
+            "url": "{{baseUrl}}/api/students/check-duplicate"
+          }
+        },
+        {
+          "name": "Get Student Count by Grades",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grades\": [\"{{grade}}\"],\n  \"academicYear\": \"{{academicYear}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/students/count"
+          }
+        },
+        {
+          "name": "Get Total Students",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/students/total"
+          }
+        },
+        {
+          "name": "Get Student QR Image",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/students/{{studentId}}/qr"
+          }
+        },
+        {
+          "name": "Get Student Payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/students/{{studentId}}/payments"
+          }
+        },
+        {
+          "name": "Delete Student",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{studentId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/students"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "item": [
+        {
+          "name": "List Attendance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendance?date={{attendanceDate}}&grade={{grade}}&academicYear={{academicYear}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendance"],
+              "query": [
+                { "key": "date", "value": "{{attendanceDate}}" },
+                { "key": "grade", "value": "{{grade}}" },
+                { "key": "academicYear", "value": "{{academicYear}}" },
+                {
+                  "key": "studentId",
+                  "value": "{{studentId}}",
+                  "disabled": true
+                },
+                { "key": "limit", "value": "100", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Attendance Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendance?date={{attendanceDate}}&grade={{grade}}&academicYear={{academicYear}}&summary=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendance"],
+              "query": [
+                { "key": "date", "value": "{{attendanceDate}}" },
+                { "key": "grade", "value": "{{grade}}" },
+                { "key": "academicYear", "value": "{{academicYear}}" },
+                { "key": "summary", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Attendance (Bulk Upsert)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{attendanceDate}}\",\n  \"attendance\": [\n    {\n      \"studentId\": \"{{studentId}}\",\n      \"date\": \"{{attendanceDate}}\",\n      \"present\": true,\n      \"hasPermission\": false,\n      \"reason\": \"\",\n      \"markedBy\": \"Attendance Facilitator\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/attendance"
+          }
+        },
+        {
+          "name": "Get Student Attendance History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/attendance/{{studentId}}"
+          }
+        },
+        {
+          "name": "Get Temp Attendance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendance/temp?date={{attendanceDate}}&grade={{grade}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendance", "temp"],
+              "query": [
+                { "key": "date", "value": "{{attendanceDate}}" },
+                { "key": "grade", "value": "{{grade}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Facilitators",
+      "item": [
+        {
+          "name": "List Facilitators",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/facilitators"
+          }
+        },
+        {
+          "name": "Get Facilitator by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/facilitators?id={{facilitatorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "facilitators"],
+              "query": [{ "key": "id", "value": "{{facilitatorId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Create Attendance Facilitator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('facilitatorId', pm.response.json()._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA Attendance Facilitator\",\n  \"email\": \"qa.facilitator@example.com\",\n  \"password\": \"Facilitator123!\",\n  \"role\": \"Attendance Facilitator\",\n  \"grade\": [\"{{grade}}\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/facilitators"
+          }
+        },
+        {
+          "name": "Update Facilitator",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{facilitatorId}}\",\n  \"name\": \"Updated Facilitator\",\n  \"email\": \"qa.facilitator@example.com\",\n  \"role\": \"Attendance Facilitator\",\n  \"grade\": [\"{{grade}}\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/facilitators"
+          }
+        },
+        {
+          "name": "Toggle canAddStudent",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"canAddStudent\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/facilitators/{{facilitatorId}}"
+          }
+        },
+        {
+          "name": "Get Total Facilitators",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/facilitators/total"
+          }
+        },
+        {
+          "name": "Delete Facilitator",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{facilitatorId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/facilitators"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Education Facilitators",
+      "item": [
+        {
+          "name": "List Education Facilitators",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/education-facilitators"
+          }
+        },
+        {
+          "name": "Create Education Facilitator",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA Education Facilitator\",\n  \"email\": \"qa.education.fac@example.com\",\n  \"password\": \"Facilitator123!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/education-facilitators"
+          }
+        },
+        {
+          "name": "Update Education Facilitator",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{facilitatorId}}\",\n  \"name\": \"Updated Education Facilitator\",\n  \"email\": \"qa.education.fac@example.com\"\n}"
+            },
+            "url": "{{baseUrl}}/api/education-facilitators"
+          }
+        },
+        {
+          "name": "Delete Education Facilitator",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{facilitatorId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/education-facilitators"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Teachers",
+      "item": [
+        {
+          "name": "List Teachers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/teachers"
+          }
+        },
+        {
+          "name": "Get Teacher by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/teachers?id={{teacherId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "teachers"],
+              "query": [{ "key": "id", "value": "{{teacherId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Create Teacher",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('teacherId', pm.response.json()._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA Teacher\",\n  \"email\": \"qa.teacher@example.com\",\n  \"password\": \"Teacher123!\",\n  \"grade\": \"{{grade}}\",\n  \"assignedSubjects\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/teachers"
+          }
+        },
+        {
+          "name": "Update Teacher",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{teacherId}}\",\n  \"name\": \"Updated Teacher\",\n  \"email\": \"qa.teacher@example.com\",\n  \"grade\": \"{{grade}}\",\n  \"assignedSubjects\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/teachers"
+          }
+        },
+        {
+          "name": "Delete Teacher",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{teacherId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/teachers"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subjects",
+      "item": [
+        {
+          "name": "List Subjects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/subjects?academicYear={{academicYear}}&grade={{grade}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subjects"],
+              "query": [
+                { "key": "academicYear", "value": "{{academicYear}}" },
+                { "key": "grade", "value": "{{grade}}" },
+                { "key": "gradeNumber", "value": "1", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Subject to Group",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('subjectGroupId', pm.response.json()._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Amharic\",\n  \"grade\": \"{{grade}}\",\n  \"gradeNumber\": 1,\n  \"academicYear\": \"{{academicYear}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/subjects"
+          }
+        },
+        {
+          "name": "Batch Add Subjects",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"academicYear\": \"{{academicYear}}\",\n  \"grade\": \"{{grade}}\",\n  \"gradeNumber\": 1,\n  \"subjects\": [\"English\", \"Math\", \"Bible Study\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/subjects/batch"
+          }
+        },
+        {
+          "name": "Delete Subject Group",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/subjects/{{subjectGroupId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Teacher Assignments",
+      "item": [
+        {
+          "name": "List Assignments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/teacher-assignments"
+          }
+        },
+        {
+          "name": "Create Assignment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"subjectId\": \"{{subjectGroupId}}\",\n  \"grade\": \"{{grade}}\",\n  \"academicYear\": \"{{academicYear}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/teacher-assignments"
+          }
+        },
+        {
+          "name": "Delete Assignment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/teacher-assignments/{{assignmentId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Student Results",
+      "item": [
+        {
+          "name": "List All Results",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/student-results"
+          }
+        },
+        {
+          "name": "List Results by Student",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/student-results?studentId={{studentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "student-results"],
+              "query": [{ "key": "studentId", "value": "{{studentId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Create Result",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('resultId', pm.response.json()._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"studentName\": \"Test Student\",\n  \"subjectId\": \"{{subjectGroupId}}\",\n  \"subjectName\": \"Amharic\",\n  \"academicYear\": \"{{academicYear}}\",\n  \"assignment1\": 8,\n  \"assignment2\": 9,\n  \"midTest\": 25,\n  \"finalExam\": 42,\n  \"remarks\": \"Good progress\"\n}"
+            },
+            "url": "{{baseUrl}}/api/student-results"
+          }
+        },
+        {
+          "name": "Get Result by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/student-results/{{resultId}}"
+          }
+        },
+        {
+          "name": "Update Result",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentName\": \"Test Student\",\n  \"subjectName\": \"Amharic\",\n  \"assignment1\": 9,\n  \"assignment2\": 9,\n  \"midTest\": 28,\n  \"finalExam\": 45,\n  \"remarks\": \"Updated score\"\n}"
+            },
+            "url": "{{baseUrl}}/api/student-results/{{resultId}}"
+          }
+        },
+        {
+          "name": "Delete Result",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/student-results/{{resultId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Student Requests",
+      "item": [
+        {
+          "name": "List Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/student-requests?status=pending",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "student-requests"],
+              "query": [{ "key": "status", "value": "pending" }]
+            }
+          }
+        },
+        {
+          "name": "Get Request by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/student-requests/{{studentRequestId}}"
+          }
+        },
+        {
+          "name": "Submit Student Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('studentRequestId', pm.response.json()._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentData\": {\n    \"Unique_ID\": \"BH-REQ-001\",\n    \"First_Name\": \"Request\",\n    \"Father_Name\": \"Student\",\n    \"Grandfather_Name\": \"Test\",\n    \"Mothers_Name\": \"Mother\",\n    \"Christian_Name\": \"Raphael\",\n    \"DOB_Date\": \"10\",\n    \"DOB_Month\": \"03\",\n    \"DOB_Year\": \"2012\",\n    \"Age\": 13,\n    \"Sex\": \"Male\",\n    \"Phone_Number\": \"0911000099\",\n    \"Class\": \"Regular\",\n    \"Occupation\": \"Student\",\n    \"Address\": \"ሲቪል ሰርቪስ አካባቢ\",\n    \"Academic_Year\": \"{{academicYear}}\",\n    \"Grade\": \"{{grade}}\",\n    \"Classification\": \"Regular\"\n  },\n  \"requestedBy\": \"Attendance Facilitator\",\n  \"requestedByName\": \"QA Facilitator\"\n}"
+            },
+            "url": "{{baseUrl}}/api/student-requests"
+          }
+        },
+        {
+          "name": "Approve Request",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{studentRequestId}}\",\n  \"status\": \"approved\",\n  \"approvedBy\": \"Super Admin\"\n}"
+            },
+            "url": "{{baseUrl}}/api/student-requests"
+          }
+        },
+        {
+          "name": "Reject Request",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{studentRequestId}}\",\n  \"status\": \"rejected\",\n  \"approvedBy\": \"Super Admin\",\n  \"rejectionReason\": \"Incomplete information\"\n}"
+            },
+            "url": "{{baseUrl}}/api/student-requests"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Get Payment Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payment?year={{academicYear}}&studentId={{studentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment"],
+              "query": [
+                { "key": "year", "value": "{{academicYear}}" },
+                { "key": "studentId", "value": "{{studentId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Save Payment Status",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"year\": \"{{academicYear}}\",\n  \"studentId\": \"{{studentId}}\",\n  \"data\": {\n    \"Meskerem\": { \"status\": \"Paid\", \"amount\": \"500\" },\n    \"Tikimt\": { \"status\": \"Not Paid\", \"amount\": \"\" },\n    \"Hidar\": { \"status\": \"Paid\", \"amount\": \"500\" }\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/payment"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Users",
+      "item": [
+        {
+          "name": "List Department Admins",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin-users"
+          }
+        },
+        {
+          "name": "Create HR Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA HR Admin\",\n  \"email\": \"{{hrAdminEmail}}\",\n  \"password\": \"{{hrAdminPassword}}\",\n  \"role\": \"HR Admin\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin-users"
+          }
+        },
+        {
+          "name": "Create Education Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA Education Admin\",\n  \"email\": \"{{educationAdminEmail}}\",\n  \"password\": \"{{educationAdminPassword}}\",\n  \"role\": \"Education Admin\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin-users"
+          }
+        },
+        {
+          "name": "Update Department Admin",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{adminUserId}}\",\n  \"name\": \"Updated Admin\",\n  \"email\": \"{{hrAdminEmail}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin-users"
+          }
+        },
+        {
+          "name": "Delete Department Admin",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{adminUserId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin-users"
+          }
+        }
+      ]
+    },
+    {
+      "name": "QR",
+      "item": [
+        {
+          "name": "Verify QR Code",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"PASTE_SIGNED_QR_TEXT_HERE\"\n}"
+            },
+            "url": "{{baseUrl}}/api/qr/verify"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Utilities",
+      "item": [
+        {
+          "name": "Sheet Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/sheet/health"
+          }
+        },
+        {
+          "name": "Get Sheet Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sheet?sheet=students",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sheet"],
+              "query": [{ "key": "sheet", "value": "students" }]
+            }
+          }
+        },
+        {
+          "name": "Cron - Aggregate Attendance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/cron/aggregate-attendance"
+          }
+        }
+      ]
+    }
+  ]
+}

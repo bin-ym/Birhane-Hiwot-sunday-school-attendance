@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Student, Attendance, UserRole } from "@/lib/models";
 import StudentDetails from "@/components/StudentDetails";
+import { useAuth } from "@/lib/auth";
 
 export default function StudentDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,8 +15,8 @@ export default function StudentDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Get user role from your authentication system
-  const userRole: UserRole = 'Admin'; // Replace with actual role from auth
+  const { user } = useAuth();
+  const userRole: UserRole = (user?.role as UserRole) || 'HR Admin';
 
   useEffect(() => {
     if (!id) return;

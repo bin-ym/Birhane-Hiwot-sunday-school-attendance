@@ -7,7 +7,7 @@ import { StudentCategorySelector } from "@/components/StudentCategorySelector";
 import { Student, StudentClassification } from "@/lib/models";
 import { useAuth } from "@/lib/auth";
 
-const ADMIN_ROLES = ["Admin", "Super Admin", "HR Admin"];
+const ADMIN_ROLES = ["Super Admin", "HR Admin"];
 
 export default function NewStudentPage() {
   const router = useRouter();

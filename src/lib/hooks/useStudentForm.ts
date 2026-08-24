@@ -42,7 +42,10 @@ export function useStudentForm(
     Address_Other: "",
     Academic_Year: String(currentEthiopianYear),
     Grade: "",
-    Classification: (student?.Classification as StudentClassification) || initialClassification || "Regular",
+    Classification:
+      (student?.Classification as StudentClassification) ||
+      initialClassification ||
+      "Regular",
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -159,7 +162,8 @@ export function useStudentForm(
 
     // Only suggest grades based on age for Regular classification
     // Extension, SignLanguage, and Summer have their own fixed grade options
-    const currentClassification = formData.Classification || initialClassification || "Regular";
+    const currentClassification =
+      formData.Classification || initialClassification || "Regular";
     if (currentClassification !== "Regular") {
       setIsLatestAgeSuggestionRestricted(false);
       return;
@@ -230,6 +234,7 @@ export function useStudentForm(
       Extension: "ር/",
       SignLanguage: "ም/",
       Summer: "ክ/",
+      begena: "በ/",
     }),
     [],
   );
@@ -264,6 +269,7 @@ export function useStudentForm(
             body: JSON.stringify({
               academicYear: formData.Academic_Year,
               grade: formData.Grade,
+              classification: formData.Classification || "Regular",
             }),
           });
           if (!res.ok) throw new Error(`Failed to get count: ${res.status}`);
@@ -283,6 +289,8 @@ export function useStudentForm(
           } else if (formData.Grade === "2ኛ ዓመት") {
             gradeStream = "02";
           } else if (formData.Grade === "ምልክት ቋንቋ") {
+            gradeStream = "01";
+          } else if (formData.Grade === "በገና") {
             gradeStream = "01";
           }
 

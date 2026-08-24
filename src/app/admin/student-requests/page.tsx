@@ -46,7 +46,7 @@ export default function StudentRequests() {
         body: JSON.stringify({
           id: requestId,
           status: "approved",
-          approvedBy: "Admin",
+          approvedBy: "Super Admin",
         }),
       });
 

@@ -62,7 +62,7 @@ export default function StudentRequestDetailPage() {
         body: JSON.stringify({
           id: request._id,
           status: "approved",
-          approvedBy: "Admin",
+          approvedBy: "Super Admin",
         }),
       });
       if (!res.ok) throw new Error("Failed to approve request");

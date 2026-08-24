@@ -2,7 +2,6 @@
 import { withAuth } from "next-auth/middleware";
 
 const ADMIN_ROLES = [
-  "Admin",
   "Super Admin",
   "HR Admin",
   "Education Admin",

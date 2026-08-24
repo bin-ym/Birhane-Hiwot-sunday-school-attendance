@@ -51,7 +51,6 @@ function getUniversityGrade(score: number): string {
 }
 
 const MANAGERIAL_ROLES: UserRole[] = [
-  "Admin",
   "Super Admin",
   "Education Admin",
   "Education Facilitator",
