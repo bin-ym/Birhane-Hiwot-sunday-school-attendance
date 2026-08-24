@@ -182,6 +182,7 @@ export function AcademicInfoSection({
     handleChange,
     restrictedGradesForFacilitator,
     suggestedGrade,
+    isGradeRestricted,
   ]);
 
   return (

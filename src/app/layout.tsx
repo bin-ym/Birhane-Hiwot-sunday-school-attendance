@@ -6,8 +6,11 @@ import { SidebarProvider } from "@/components/SidebarProvider";
 import ClientSessionProvider from "@/components/ClientSessionProvider";
 
 export const metadata = {
-  title: "Ethiopian Orthodox Sunday School",
-  description: "Attendance management for Sunday School",
+  title: "Birhane Hiwot Sunday School",
+  description: "Attendance management for Birhane Hiwot Sunday School",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({
