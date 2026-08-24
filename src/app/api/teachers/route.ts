@@ -5,7 +5,7 @@ import { ObjectId } from "mongodb";
 import { getToken } from "next-auth/jwt";
 
 // Manage permissions for Teachers
-const MANAGERIAL_ROLES = ["Admin", "Super Admin", "Education Admin"];
+const MANAGERIAL_ROLES = ["Super Admin", "Education Admin"];
 
 async function getRequesterRole(req: NextRequest): Promise<string> {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });

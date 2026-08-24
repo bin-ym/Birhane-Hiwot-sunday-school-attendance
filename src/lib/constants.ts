@@ -51,6 +51,7 @@ export const CLASSIFICATION_GRADE_OPTIONS: Record<
     { value: "ሰባተኛ ክፍል ጥዋት", label: "ሰባተኛ ክፍል ጥዋት · 7-1", number: 7 },
     { value: "ሰባተኛ ክፍል ከሰዓት", label: "ሰባተኛ ክፍል ከሰዓት · 7-2", number: 7 },
   ],
+  begena: [{ value: "በገና", label: "በገና · BeGena", number: 1 }],
 };
 
 /** Look up the numeric grade for an Amharic grade name across all classifications. */
@@ -58,6 +59,7 @@ export function getGradeNumberByName(gradeName: string): number {
   if (gradeName === "1ኛ ዓመት") return 1;
   if (gradeName === "2ኛ ዓመት") return 2;
   if (gradeName === "ምልክት ቋንቋ") return 1;
+  if (gradeName === "በገና") return 1;
   return GRADE_OPTIONS.find((g) => g.value === gradeName)?.number ?? 0;
 }
 
@@ -66,6 +68,7 @@ export function getGradeLabel(gradeName: string): string {
   if (gradeName === "1ኛ ዓመት") return "1ኛ ዓመት · Level 1";
   if (gradeName === "2ኛ ዓመት") return "2ኛ ዓመት · Level 2";
   if (gradeName === "ምልክት ቋንቋ") return "ምልክት ቋንቋ · Sign Language Class";
+  if (gradeName === "በገና") return "በገና · BeGena";
   return GRADE_OPTIONS.find((g) => g.value === gradeName)?.label ?? gradeName;
 }
 
@@ -79,7 +82,8 @@ export type StudentClassification =
   | "Regular"
   | "Extension"
   | "SignLanguage"
-  | "Summer";
+  | "Summer"
+  | "begena";
 
 export const STUDENT_CLASSIFICATIONS: {
   value: StudentClassification;
@@ -106,6 +110,11 @@ export const STUDENT_CLASSIFICATIONS: {
     label: "Summer Class",
     description: "Summer session classes",
   },
+  {
+    value: "begena",
+    label: "BeGena",
+    description: "BeGena class - 6 month program",
+  },
 ];
 
 /** Attendance schedule for each classification */
@@ -114,6 +123,7 @@ export const CLASSIFICATION_SCHEDULE: Record<StudentClassification, string> = {
   Extension: "First Sunday of every month (except 13th)",
   SignLanguage: "Every Sunday (with sign language)",
   Summer: "Summer session schedule",
+  begena: "BeGena session schedule",
 };
 
 export const schools = [

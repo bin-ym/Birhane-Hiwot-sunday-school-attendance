@@ -6,7 +6,7 @@ import { StudentForm } from "@/components/StudentForm";
 import { Student } from "@/lib/models";
 import { useAuth } from "@/lib/auth";
 
-const ADMIN_ROLES = ["Admin", "Super Admin", "HR Admin"];
+const ADMIN_ROLES = ["Super Admin", "HR Admin"];
 
 export default function EditStudentPage() {
   const router = useRouter();

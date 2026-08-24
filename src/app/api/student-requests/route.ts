@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     // Build the request document
     const doc: any = {
       studentData: body.studentData,
-      requestedBy: body.requestedBy || "Admin",
+      requestedBy: body.requestedBy || "Super Admin",
       requestedByName: body.requestedByName || "",
       status: 'pending',
       createdAt: new Date(),

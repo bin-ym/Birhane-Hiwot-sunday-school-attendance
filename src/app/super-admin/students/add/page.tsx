@@ -28,7 +28,7 @@ export default function SuperAdminAddStudentPage() {
   }
 
   // Double check authorization for super admin role specifically (optional, since layout may handle, but good to be safe)
-  if (user.role !== "Super Admin" && user.role !== "Admin") {
+  if (user.role !== "Super Admin") {
     return (
       <main className="container-responsive py-6">
         <div className="card-responsive">

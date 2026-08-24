@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     if (uniqueId) {
       const student = await db.collection<Student>("students").findOne(
         { Unique_ID: uniqueId },
-        { projection: { photo_data_url: 0, qr_code: 0 } },
+        { projection: { qr_code: 0 } },
       );
       if (!student) {
         return NextResponse.json(
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       userRole?: UserRole;
       userEmail?: string;
     } = await req.json();
-    const userRole = body.userRole || "Admin";
+    const userRole = body.userRole || "Super Admin";
     const userEmail = body.userEmail?.trim();
 
     const requiredFields = [
@@ -114,6 +114,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
+        // Check if registration is closed for this classification
+    const classification = (body as any).Classification || "Regular";
+    const academicYear = body.Academic_Year;
+    if (academicYear) {
+      const period = await db.collection("category_periods").findOne({
+        classification,
+        academicYear: String(academicYear),
+      });
+      if (period && period.registrationClosedDate) {
+        const closedDate = new Date(period.registrationClosedDate);
+        if (new Date() > closedDate) {
+          return NextResponse.json(
+            { error: "Registration is closed for this category. The registration period has ended." },
+            { status: 403 },
+          );
+        }
+      }
+    }
+
     // Distributed lock on the Unique_ID so concurrent creates can't both pass
     // the existence check and insert duplicates. Gracefully no-ops without Redis.
     const lockKey = `lock:student:${body.Unique_ID}`;
@@ -127,7 +146,7 @@ export async function POST(req: NextRequest) {
 
         const isNewStudent = !existingStudent;
 
-        const adminRoles: UserRole[] = ["Admin", "Super Admin", "HR Admin"];
+        const adminRoles: UserRole[] = ["Super Admin", "HR Admin"];
 
         if (userRole === "Attendance Facilitator" && isNewStudent) {
           if (!userEmail) {

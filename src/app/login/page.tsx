@@ -22,8 +22,6 @@ export default function LoginPage() {
         router.replace("/super-admin/dashboard");
       } else if (session.user.role === "HR Admin") {
         router.replace("/hr");
-      } else if (session.user.role === "Admin") {
-        router.replace("/admin/dashboard");
       } else if (session.user.role === "Education Admin") {
         router.replace("/education");
       } else if (session.user.role === "Attendance Facilitator") {

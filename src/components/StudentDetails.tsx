@@ -25,7 +25,7 @@ interface StudentDetailsProps {
 }
 
 type TabID = "details" | "attendance" | "payment" | "results";
-const ADMIN_ROLES: UserRole[] = ["Admin", "Super Admin", "HR Admin"];
+const ADMIN_ROLES: UserRole[] = ["Super Admin", "HR Admin"];
 
 const TAB_LABELS: Record<TabID, string> = {
   details: "Details",
@@ -49,7 +49,6 @@ export default function StudentDetails({
 
   const getAllowedTabs = (role: UserRole): TabID[] => {
     switch (role) {
-      case "Admin":
       case "Super Admin":
         return ["details", "attendance", "payment", "results"];
       case "HR Admin":
@@ -107,7 +106,7 @@ export default function StudentDetails({
         <DetailsTab
           student={student}
           showEditButton={
-            showEditButton || userRole === "Super Admin" || userRole === "Admin"
+            showEditButton || userRole === "Super Admin"
           }
           editHref={`${listBackHref}/${student._id?.toString() || student._id}/edit`}
         />

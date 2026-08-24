@@ -31,10 +31,10 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { data: session } = useSession();
-  const role = String(session?.user?.role || "Admin");
+  const role = String(session?.user?.role || "Super Admin");
 
   let links = baseAdminLinks;
-  let roleTitle = "Admin";
+  let roleTitle = "Super Admin";
 
   if (role === "HR Admin" || role === "Attendance Facilitator") {
     links = hrAdminLinks;

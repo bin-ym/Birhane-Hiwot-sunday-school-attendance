@@ -57,9 +57,8 @@ export function PersonalInfoSection({
       <h4 className="text-lg sm:text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">
         Personal Information
       </h4>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Student Photo (JPG/PNG)
+      <div>          <label className="block text-sm font-medium text-gray-700 mb-1">
+          Student Photo (JPG/PNG) <span className="text-gray-400">- Optional, can be added later</span>
         </label>
         <div className="flex items-center gap-4">
           <div className="w-20 h-20 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">

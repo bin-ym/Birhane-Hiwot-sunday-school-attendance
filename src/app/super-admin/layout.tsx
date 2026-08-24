@@ -8,6 +8,7 @@ const superAdminLinks = [
   { label: "Department Admins", href: "/super-admin/department-admins" },
   { label: "Global Facilitators", href: "/super-admin/facilitators" },
   { label: "Reports", href: "/super-admin/reports" },
+  { label: "Settings", href: "/super-admin/settings" },
 ];
 
 export default function SuperAdminLayout({

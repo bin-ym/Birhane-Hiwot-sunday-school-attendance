@@ -12,7 +12,7 @@ const ROLE_VALUES: { value: UserRole; label: string }[] = [
   { value: "Education Facilitator", label: "Education Facilitator" },
 ];
 
-const FULL_ACCESS_ADMIN_ROLES = ["Admin", "Super Admin"];
+const FULL_ACCESS_ADMIN_ROLES = ["Super Admin"];
 const HR_ADMIN_ROLE = "HR Admin";
 const EDUCATION_ADMIN_ROLE = "Education Admin";
 const ATTENDANCE_FACILITATOR_ROLE = "Attendance Facilitator";

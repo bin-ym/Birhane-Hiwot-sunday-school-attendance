@@ -2,7 +2,12 @@
 
 import { ObjectId } from "mongodb";
 import { GRADES } from "./constants";
-export type StudentClassification = 'Regular' | 'Extension' | 'SignLanguage' | 'Summer';
+export type StudentClassification =
+  | "Regular"
+  | "Extension"
+  | "SignLanguage"
+  | "Summer"
+  | "begena";
 
 export interface Student {
   _id: ObjectId;
@@ -67,10 +72,22 @@ export type UserRole =
   | "Super Admin"
   | "HR Admin"
   | "Education Admin"
-  | "Admin"
   | "Attendance Facilitator"
   | "Education Facilitator"
   | "Teacher";
+
+/** Category registration period settings — managed by Super Admin */
+export interface CategoryPeriod {
+  _id?: ObjectId;
+  classification: StudentClassification;
+  academicYear: string;
+  startDate: string; // ISO date string or Ethiopian date
+  endDate: string; // ISO date string or Ethiopian date
+  registrationClosedDate: string; // When registration closes
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 export interface User {
   _id?: ObjectId;

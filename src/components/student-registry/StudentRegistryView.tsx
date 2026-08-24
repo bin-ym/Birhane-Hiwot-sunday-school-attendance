@@ -292,6 +292,7 @@ export function StudentRegistryView({
                 desc: "ምልክት ቋንቋ",
               },
               { value: "Summer", label: "ክረምት (Summer Class)", desc: "ክረምት" },
+              { value: "begena", label: "በገና (BeGena)", desc: "6 months" },
             ].map((tab) => {
               const active = classificationFilter === tab.value;
               return (
