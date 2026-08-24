@@ -248,12 +248,19 @@ export default function AttendancePage({ user, onLogout }: AttendancePageProps) 
 
       <header className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-green-600 px-4 py-4 shadow-lg">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-bold text-white">BH Attendance</h1>
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="Logo"
+              className="w-10 h-10 rounded-full bg-white p-0.5 shrink-0"
+            />
+            <div>
+              <h1 className="text-lg font-bold text-white">BH Attendance</h1>
             <p className="text-sm text-blue-100">{formattedDate}</p>
             {grades.length > 0 && (
               <p className="text-xs text-green-100 font-medium">{grades.join(", ")}</p>
             )}
+            </div>
           </div>
           <button
             type="button"
