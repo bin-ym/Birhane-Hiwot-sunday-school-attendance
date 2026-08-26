@@ -8,6 +8,7 @@ import { withLock } from "@/lib/distributedLock";
 import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
+import { createNotification } from "@/lib/notifications";
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAuth(req);
@@ -232,6 +233,15 @@ export async function POST(req: NextRequest) {
           userEmail: userEmail || "unknown",
           userRole,
           summary: `Created student ${body.Unique_ID} (${body.First_Name} ${body.Father_Name})`,
+        });
+
+        // Notify admins of new student
+        createNotification({
+          type: "student_created",
+          title: "New Student Enrolled",
+          message: `${body.First_Name} ${body.Father_Name} (${body.Unique_ID}) enrolled in ${body.Grade}.`,
+          targetRoles: ["Super Admin", "HR Admin"],
+          href: `/super-admin/students/${result.insertedId.toString()}`,
         });
 
         return NextResponse.json(

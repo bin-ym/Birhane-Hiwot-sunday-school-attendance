@@ -4,10 +4,7 @@
 **Application:** Birhane Hiwot Sunday School Attendance & Education Management System (Web & API)  
 **Version:** 1.0.0  
 **Last updated:** August 26, 2026  
-**Related assets:**  
-- [Postman Collection](file:///c:/Users/Ym/Desktop/b/ss/Birhane-Hiwot-sunday-school-attendance/docs/qa/Birhane-Hiwot-API.postman_collection.json)  
-- [Postman Environment](file:///c:/Users/Ym/Desktop/b/ss/Birhane-Hiwot-sunday-school-attendance/docs/qa/Birhane-Hiwot.postman_environment.json)  
-- [OpenAPI Specification](file:///c:/Users/Ym/Desktop/b/ss/Birhane-Hiwot-sunday-school-attendance/public/openapi.json) (Interactive Swagger UI at `/api-docs`)  
+**Security hardening:** Rate limiting, audit logging, notifications, system health dashboard added  
 
 ---
 
@@ -58,7 +55,7 @@
 
 | Module | Total Cases | Priority High |
 |--------|-------------|---------------|
-| Authentication & Setup (Web & Mobile) | 18 | 14 |
+| Authentication & Setup (Web & Mobile) | 19 | 15 |
 | Authorization / RBAC | 18 | 16 |
 | Student Management | 31 | 22 |
 | Attendance | 16 | 13 |
@@ -71,7 +68,11 @@
 | QR Code Generation & Verification | 6 | 5 |
 | Reports & Export | 8 | 4 |
 | Negative & Security Edge Cases | 8 | 4 |
-| **Total** | **173** | **127** |
+| Rate Limiting & Security Hardening | 12 | 7 |
+| Audit Logging | 10 | 5 |
+| Notification System | 10 | 3 |
+| System Health Dashboard | 8 | 3 |
+| **Total** | **214** | **146** |
 
 ---
 
@@ -92,11 +93,12 @@
 | AUTH-011 | CSRF token flow | GET `/api/auth/csrf` then POST to credentials callback | Login succeeds with valid CSRF token | Medium |
 | AUTH-012 | Super Admin setup (one-time) | POST `/api/setup/super-admin` with `confirm: "CREATE_SUPER_ADMIN"`, email, and password | 201 Created, `{ message, created: true, userId }` | High |
 | AUTH-013 | Setup — invalid confirm token | POST setup with wrong `confirm` string | 400 `Setup confirmation is invalid` | High |
-| AUTH-014 | Setup — password too short | POST setup with password < 6 characters | 400 `Password must be at least 6 characters` | Medium |
+| AUTH-014 | Setup — password too short | POST setup with password < 8 characters | 400 `Password must be at least 8 characters` | Medium |
+| AUTH-016 | Setup — weak password rejected | POST setup with password missing uppercase or number | 400 `Password must include uppercase, lowercase, and a number` | Medium |
 | AUTH-015 | Setup — idempotent when exists | POST setup again after Super Admin exists | 200 OK, `{ created: false, message: "Super Admin already exists" }` | Medium |
 | MOB-001 | Mobile login valid credentials | POST `/api/mobile/auth` with valid facilitator credentials | 200 OK, returns `{ token, user: { id, email, name, role, grade } }` | High |
 | MOB-002 | Mobile login invalid credentials | POST `/api/mobile/auth` with wrong password | 401 `Invalid email or password` | High |
-| MOB-003 | Mobile CORS preflight | OPTIONS `/api/mobile/auth` | 204 No Content with `Access-Control-Allow-Origin: *` | Medium |
+| MOB-003 | Mobile CORS preflight | OPTIONS `/api/mobile/auth` | 204 No Content with configured origin (not `*`) | Medium |
 
 ---
 
@@ -339,6 +341,74 @@
 
 ---
 
+## 17. Rate Limiting & Security Hardening
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| SEC-001 | Rate limit on login attempts | Send 6+ rapid requests to `/api/auth/callback/credentials` | 429 Too Many Requests after threshold | High |
+| SEC-002 | Rate limit on setup endpoint | Send 11+ rapid requests to `/api/setup/super-admin` | 429 Too Many Requests after 10 attempts in 15 minutes | High |
+| SEC-003 | Rate limit on student creation | Send 11+ rapid POSTs to `/api/students` | 429 Too Many Requests after 10 requests per minute | Medium |
+| SEC-004 | Rate limit on attendance marking | Send 11+ rapid POSTs to `/api/attendance` | 429 Too Many Requests after 10 requests per minute | Medium |
+| SEC-005 | Rate limit on payment writes | Send 21+ rapid POSTs to `/api/payment` | 429 Too Many Requests after 20 requests per minute | Medium |
+| SEC-006 | Unauthorized API access blocked | GET `/api/students/total` without session cookie | 401 Unauthorized | High |
+| SEC-007 | Unauthorized payment access blocked | GET `/api/payment?year=2018&studentId=x` without session | 401 Unauthorized | High |
+| SEC-008 | Unauthorized attendance read blocked | GET `/api/attendance?date=2018-05-15` without session | 401 Unauthorized | High |
+| SEC-009 | Cron endpoint requires secret | GET `/api/cron/aggregate-attendance` without `x-cron-secret` header (production) | 403 Forbidden | High |
+| SEC-010 | Cron endpoint works in dev | GET `/api/cron/aggregate-attendance` from localhost in development | 200 OK (localhost bypass for dev convenience) | Medium |
+| SEC-011 | Error messages sanitized | Trigger a MongoDB error (e.g. invalid query) | Response contains generic error message, not connection strings or file paths | High |
+| SEC-012 | CORS restricted on mobile auth | OPTIONS `/api/mobile/auth` with `Origin: https://evil.com` | Response does NOT include `Access-Control-Allow-Origin: https://evil.com` | High |
+
+---
+
+## 18. Audit Logging
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| AUD-001 | Student creation logged | Create student via `/api/students` | Audit log entry created in `audit_logs` collection with action: create, collection: students | High |
+| AUD-002 | Student deletion logged | Delete student via `/api/students` | Audit log entry with action: delete, summary includes student name and ID | High |
+| AUD-003 | Attendance submission logged | POST attendance via `/api/attendance` | Audit log entry with date, counts (inserted/updated) | High |
+| AUD-004 | User creation logged | Create facilitator via `/api/facilitators` | Audit log entry with role and email | High |
+| AUD-005 | User deletion logged | Delete facilitator via `/api/facilitators` | Audit log entry with deleted user info | High |
+| AUD-006 | Audit logs API — super admin only | GET `/api/audit-logs` as Super Admin | 200 OK array of audit entries | High |
+| AUD-007 | Audit logs API — non-super admin blocked | GET `/api/audit-logs` as HR Admin | 403 Forbidden | High |
+| AUD-008 | Audit logs filter by collection | GET `/api/audit-logs?collection=students` | Returns only student-related audit entries | Medium |
+| AUD-009 | Audit logs filter by action | GET `/api/audit-logs?action=delete` | Returns only delete actions | Medium |
+| AUD-010 | Audit logs UI page | Navigate to `/super-admin/audit-logs` | Page renders with filterable table of audit entries | Medium |
+
+---
+
+## 19. Notification System
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| NOT-001 | Notification created on student enrollment | Create student via `/api/students` | Notification entry created targeting Super Admin & HR Admin roles | High |
+| NOT-002 | Notification created on attendance submission | POST attendance via `/api/attendance` | Notification entry created for admins | High |
+| NOT-003 | Notifications API — authenticated user | GET `/api/notifications` with valid session | 200 OK `{ notifications: [...], unreadCount: N }` | High |
+| NOT-004 | Notifications API — unauthenticated | GET `/api/notifications` without session | 401 Unauthorized | High |
+| NOT-005 | Mark notification as read | PATCH `/api/notifications` with `{ notifId: "..." }` | 200 OK; notification marked read | Medium |
+| NOT-006 | Mark all notifications read | PATCH `/api/notifications` with `{ markAll: true }` | 200 OK; all unread notifications marked read | Medium |
+| NOT-007 | Notification bell UI | Click bell icon in navbar when logged in | Dropdown shows notifications with read/unread state | Medium |
+| NOT-008 | Notification bell badge count | Have unread notifications; view navbar | Red badge shows unread count on bell icon | Medium |
+| NOT-009 | Create notification via API (super admin) | POST `/api/notifications` with `{ type: "system", title: "Test", message: "Hello", targetRoles: ["Super Admin"] }` | 201 Created | Medium |
+| NOT-010 | Create notification — non-super admin blocked | POST `/api/notifications` as HR Admin | 403 Forbidden | Medium |
+
+---
+
+## 20. System Health Dashboard
+
+| ID | Test Case | Steps | Expected Result | Priority |
+|----|-----------|-------|-----------------|----------|
+| HLTH-001 | Health API — super admin only | GET `/api/health` as Super Admin | 200 OK `{ status: "healthy", database: {...}, collections: {...}, activity: {...} }` | High |
+| HLTH-002 | Health API — non-super admin blocked | GET `/api/health` as HR Admin | 403 Forbidden | High |
+| HLTH-003 | Health API — unauthenticated | GET `/api/health` without session | 401 Unauthorized | High |
+| HLTH-004 | Health API — database info | GET `/api/health` | Response includes `database.name`, `database.connected: true`, `database.sizeMB` | Medium |
+| HLTH-005 | Health API — collection counts | GET `/api/health` | Response includes document counts for students, attendance, users, etc. | Medium |
+| HLTH-006 | Health API — activity metrics | GET `/api/health` | Response includes `activity.recentActions24h` and `activity.unreadNotifications` | Medium |
+| HLTH-007 | Health dashboard page | Navigate to `/super-admin/system-health` | Dashboard renders with status banner, stat cards, collection table | Medium |
+| HLTH-008 | Health dashboard — non-super admin blocked | Navigate to `/super-admin/system-health` as HR Admin | Redirected or access denied | High |
+
+---
+
 ## 17. Test Execution Checklist
 
 ### Prerequisites
@@ -404,4 +474,7 @@
 | POST | `/api/qr/verify` | HMAC QR code verification | Public / Session Cookie |
 | GET | `/api/sheet/health` | Google Sheets health check | Session Cookie |
 | GET | `/api/sheet` | Fetch Google Sheets rows | Session Cookie |
-| GET | `/api/cron/aggregate-attendance` | Aggregate attendance cron | Internal / Admin |
+| GET | `/api/cron/aggregate-attendance` | Aggregate attendance cron | `x-cron-secret` header (or localhost in dev) |
+| GET | `/api/audit-logs` | Audit log entries | Super Admin only |
+| GET, POST, PATCH | `/api/notifications` | Notification management | Authenticated users |
+| GET | `/api/health` | System health check | Super Admin only |

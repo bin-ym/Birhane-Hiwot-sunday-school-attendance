@@ -7,8 +7,8 @@ import { sanitizeError } from "@/lib/apiAuth";
 const SETUP_CONFIRM_TEXT = "CREATE_SUPER_ADMIN";
 
 export async function POST(req: NextRequest) {
-  // Strict rate limit: 3 attempts per 15 minutes
-  const rl = await enforceRateLimit(req, { maxRequests: 3, windowMs: 15 * 60_000, keyPrefix: "setup" });
+  // Rate limit: 10 attempts per 15 minutes (setup is already guarded by confirmation text)
+  const rl = await enforceRateLimit(req, { maxRequests: 10, windowMs: 15 * 60_000, keyPrefix: "setup" });
   if (rl) return rl;
 
   try {

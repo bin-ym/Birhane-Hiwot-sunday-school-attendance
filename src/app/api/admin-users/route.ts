@@ -1,30 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import bcrypt from "bcryptjs";
 import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
+import { requireSuperAdmin, sanitizeError } from "@/lib/apiAuth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logAudit } from "@/lib/auditLog";
 
 const MANAGED_ROLES = ["HR Admin", "Education Admin"] as const;
 type ManagedRole = (typeof MANAGED_ROLES)[number];
-
-async function requireSuperAdmin(req: NextRequest) {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  const role = String(token?.role || "");
-
-  if (role !== "Super Admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  return null;
-}
 
 function isManagedRole(role: string): role is ManagedRole {
   return MANAGED_ROLES.includes(role as ManagedRole);
 }
 
 export async function GET(req: NextRequest) {
-  const denied = await requireSuperAdmin(req);
-  if (denied) return denied;
+  const { error } = await requireSuperAdmin(req);
+  if (error) return error;
 
   try {
     const db = await getDb();
@@ -38,17 +29,17 @@ export async function GET(req: NextRequest) {
       users.map((u) => ({ ...u, _id: u._id.toString() })),
       { status: 200 },
     );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to load department admins" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await requireSuperAdmin(req);
-  if (denied) return denied;
+  const { token, error } = await requireSuperAdmin(req);
+  if (error) return error;
+
+  const rl = await enforceRateLimit(req, { maxRequests: 5, windowMs: 60_000 });
+  if (rl) return rl;
 
   try {
     const { name, email, password, role } = await req.json();
@@ -92,21 +83,28 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     });
 
+    logAudit({
+      action: "create",
+      collection: "users",
+      documentId: result.insertedId.toString(),
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: String(token.role || ""),
+      summary: `Created ${role} account for ${email}`,
+    });
+
     return NextResponse.json(
       { _id: result.insertedId.toString(), name, email, role },
       { status: 201 },
     );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to create department admin" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
-  const denied = await requireSuperAdmin(req);
-  if (denied) return denied;
+  const { token, error } = await requireSuperAdmin(req);
+  if (error) return error;
 
   try {
     const { id, name, email, password } = await req.json();
@@ -158,21 +156,29 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    logAudit({
+      action: "update",
+      collection: "users",
+      documentId: id,
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: String(token.role || ""),
+      summary: `Updated admin ${id}: ${Object.keys(update).join(", ")}`,
+      changedFields: Object.keys(update),
+    });
+
     return NextResponse.json(
       { message: "Department admin updated" },
       { status: 200 },
     );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to update department admin" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
-  const denied = await requireSuperAdmin(req);
-  if (denied) return denied;
+  const { token, error } = await requireSuperAdmin(req);
+  if (error) return error;
 
   try {
     const { id } = await req.json();
@@ -184,6 +190,13 @@ export async function DELETE(req: NextRequest) {
     }
 
     const db = await getDb();
+
+    // Fetch before delete for audit
+    const user = await db.collection("users").findOne({
+      _id: new ObjectId(id),
+      role: { $in: [...MANAGED_ROLES] },
+    });
+
     const result = await db.collection("users").deleteOne({
       _id: new ObjectId(id),
       role: { $in: [...MANAGED_ROLES] },
@@ -196,14 +209,21 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    logAudit({
+      action: "delete",
+      collection: "users",
+      documentId: id,
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: String(token.role || ""),
+      summary: `Deleted ${user?.role || "admin"} account: ${user?.email || id}`,
+    });
+
     return NextResponse.json(
       { message: "Department admin deleted" },
       { status: 200 },
     );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to delete department admin" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }

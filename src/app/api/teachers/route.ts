@@ -2,20 +2,25 @@ import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { ObjectId } from "mongodb";
-import { getToken } from "next-auth/jwt";
+import { requireAuth, sanitizeError } from "@/lib/apiAuth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logAudit } from "@/lib/auditLog";
 
 // Manage permissions for Teachers
 const MANAGERIAL_ROLES = ["Super Admin", "Education Admin"];
 
-async function getRequesterRole(req: NextRequest): Promise<string> {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  return String(token?.role || "");
+async function getRequesterInfo(req: NextRequest): Promise<{ role: string; token: Record<string, unknown> } | NextResponse> {
+  const { token, error } = await requireAuth(req);
+  if (error) return error;
+  return { role: String(token.role || ""), token };
 }
 
 /* ===================== GET ===================== */
 export async function GET(req: NextRequest) {
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!MANAGERIAL_ROLES.includes(requesterRole)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -64,19 +69,20 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json(transformed, { status: 200 });
-  } catch (error) {
-    console.error("Teacher GET error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch teachers" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 /* ===================== POST ===================== */
 export async function POST(req: NextRequest) {
+  const rl = await enforceRateLimit(req, { maxRequests: 20, windowMs: 60_000 });
+  if (rl) return rl;
+
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!MANAGERIAL_ROLES.includes(requesterRole)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -112,6 +118,16 @@ export async function POST(req: NextRequest) {
 
     const result = await db.collection("users").insertOne(newUser);
 
+    logAudit({
+      action: "create",
+      collection: "users",
+      documentId: result.insertedId.toString(),
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: requesterRole,
+      summary: `Created Teacher account for ${email}`,
+    });
+
     return NextResponse.json(
       {
         _id: result.insertedId.toString(),
@@ -123,19 +139,17 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 },
     );
-  } catch (error) {
-    console.error("Teacher POST error:", error);
-    return NextResponse.json(
-      { error: "Failed to create teacher" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 /* ===================== PUT ===================== */
 export async function PUT(req: NextRequest) {
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!MANAGERIAL_ROLES.includes(requesterRole)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -176,23 +190,31 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
     }
 
+    logAudit({
+      action: "update",
+      collection: "users",
+      documentId: id,
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: requesterRole,
+      summary: `Updated Teacher ${id}`,
+    });
+
     return NextResponse.json(
       { message: "Updated successfully" },
       { status: 200 },
     );
-  } catch (error) {
-    console.error("Teacher PUT error:", error);
-    return NextResponse.json(
-      { error: "Failed to update teacher" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 /* ===================== DELETE ===================== */
 export async function DELETE(req: NextRequest) {
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!MANAGERIAL_ROLES.includes(requesterRole)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -213,15 +235,21 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    logAudit({
+      action: "delete",
+      collection: "users",
+      documentId: id,
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: requesterRole,
+      summary: `Deleted Teacher ${id}`,
+    });
+
     return NextResponse.json(
       { message: "Deleted successfully" },
       { status: 200 },
     );
-  } catch (error) {
-    console.error("Teacher DELETE error:", error);
-    return NextResponse.json(
-      { error: "Failed to delete teacher" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
