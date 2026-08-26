@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   const { error } = await requireAuth(req);
   if (error) return error;
 
-  const rl = await enforceRateLimit(req, { maxRequests: 10, windowMs: 60_000 });
+  const rl = await enforceRateLimit(req, { maxRequests: 30, windowMs: 60_000 });
   if (rl) return rl;
 
   try {

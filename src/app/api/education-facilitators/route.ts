@@ -3,13 +3,16 @@ import { getDb } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { ObjectId } from 'mongodb';
-import { getToken } from 'next-auth/jwt';
+import { requireAuth, sanitizeError } from '@/lib/apiAuth';
+import { enforceRateLimit } from '@/lib/rateLimit';
+import { logAudit } from '@/lib/auditLog';
 
 const EDUCATION_FACILITATOR_ROLE = 'Education Facilitator';
 
-async function getRequesterRole(req: NextRequest): Promise<string> {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  return String(token?.role || '');
+async function getRequesterInfo(req: NextRequest): Promise<{ role: string; token: Record<string, unknown> } | NextResponse> {
+  const { token, error } = await requireAuth(req);
+  if (error) return error;
+  return { role: String(token.role || ''), token };
 }
 
 function canManageEducationFacilitators(role: string): boolean {
@@ -18,7 +21,9 @@ function canManageEducationFacilitators(role: string): boolean {
 
 export async function GET(req: NextRequest) {
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!canManageEducationFacilitators(requesterRole)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -59,15 +64,19 @@ export async function GET(req: NextRequest) {
       facilitators.map((f) => ({ ...f, _id: f._id.toString() })),
       { status: 200 }
     );
-  } catch (error) {
-    console.error("Education Facilitator GET error:", error);
-    return NextResponse.json({ error: 'Failed to fetch facilitators' }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
+  const rl = await enforceRateLimit(req, { maxRequests: 20, windowMs: 60_000 });
+  if (rl) return rl;
+
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!canManageEducationFacilitators(requesterRole)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -99,6 +108,16 @@ export async function POST(req: NextRequest) {
 
     const result = await db.collection('users').insertOne(newUser);
 
+    logAudit({
+      action: 'create',
+      collection: 'users',
+      documentId: result.insertedId.toString(),
+      userId: String(token.id || ''),
+      userEmail: String(token.email || ''),
+      userRole: requesterRole,
+      summary: `Created Education Facilitator account for ${email}`,
+    });
+
     return NextResponse.json(
       {
         _id: result.insertedId.toString(),
@@ -108,15 +127,16 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("Education Facilitator POST error:", error);
-    return NextResponse.json({ error: 'Failed to create facilitator' }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!canManageEducationFacilitators(requesterRole)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -149,16 +169,27 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Facilitator not found' }, { status: 404 });
     }
 
+    logAudit({
+      action: 'update',
+      collection: 'users',
+      documentId: id,
+      userId: String(token.id || ''),
+      userEmail: String(token.email || ''),
+      userRole: requesterRole,
+      summary: `Updated Education Facilitator ${id}`,
+    });
+
     return NextResponse.json({ message: 'Facilitator updated' }, { status: 200 });
-  } catch (error) {
-    console.error("Education Facilitator PUT error:", error);
-    return NextResponse.json({ error: 'Failed to update facilitator' }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!canManageEducationFacilitators(requesterRole)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -182,9 +213,18 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Facilitator not found' }, { status: 404 });
     }
 
+    logAudit({
+      action: 'delete',
+      collection: 'users',
+      documentId: id,
+      userId: String(token.id || ''),
+      userEmail: String(token.email || ''),
+      userRole: requesterRole,
+      summary: `Deleted Education Facilitator ${id}`,
+    });
+
     return NextResponse.json({ message: 'Facilitator deleted' }, { status: 200 });
-  } catch (error) {
-    console.error("Education Facilitator DELETE error:", error);
-    return NextResponse.json({ error: 'Failed to delete facilitator' }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }

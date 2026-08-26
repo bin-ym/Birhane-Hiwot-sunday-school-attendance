@@ -6,6 +6,7 @@ import { withLock } from "@/lib/distributedLock";
 import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
+import { createNotification } from "@/lib/notifications";
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAuth(req);
@@ -121,6 +122,18 @@ export async function POST(req: NextRequest) {
       userRole: String(token.role || ""),
       summary: `Attendance submitted for ${date}: ${result.upsertedCount} new, ${result.modifiedCount} updated`,
     });
+
+    // Notify admins about attendance submission
+    const total = result.upsertedCount + result.modifiedCount;
+    if (total > 0) {
+      createNotification({
+        type: "attendance_submitted",
+        title: "Attendance Submitted",
+        message: `${String(token.name || token.email || "Facilitator")} submitted attendance for ${date} (${total} records).`,
+        targetRoles: ["Super Admin", "HR Admin"],
+        href: "/super-admin/reports",
+      });
+    }
 
     return NextResponse.json(
       {

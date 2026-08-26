@@ -5,7 +5,9 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { ObjectId } from "mongodb";
 import { UserRole } from "@/lib/models";
-import { getToken } from "next-auth/jwt";
+import { requireAuth, sanitizeError } from "@/lib/apiAuth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logAudit } from "@/lib/auditLog";
 
 const ROLE_VALUES: { value: UserRole; label: string }[] = [
   { value: "Attendance Facilitator", label: "Attendance Facilitator" },
@@ -18,9 +20,10 @@ const EDUCATION_ADMIN_ROLE = "Education Admin";
 const ATTENDANCE_FACILITATOR_ROLE = "Attendance Facilitator";
 const EDUCATION_FACILITATOR_ROLE = "Education Facilitator";
 
-async function getRequesterRole(req: NextRequest): Promise<string> {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  return String(token?.role || "");
+async function getRequesterInfo(req: NextRequest): Promise<{ role: string; token: Record<string, unknown> } | NextResponse> {
+  const { token, error } = await requireAuth(req);
+  if (error) return error;
+  return { role: String(token.role || ""), token };
 }
 
 function canManageFacilitators(role: string): boolean {
@@ -53,7 +56,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!canManageFacilitators(requesterRole)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -117,19 +122,20 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(transformed, { status: 200 });
-  } catch (error) {
-    console.error("Facilitator GET error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch facilitators" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 /* ===================== POST ===================== */
 export async function POST(req: NextRequest) {
+  const rl = await enforceRateLimit(req, { maxRequests: 20, windowMs: 60_000 });
+  if (rl) return rl;
+
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!canManageFacilitators(requesterRole)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -189,6 +195,16 @@ export async function POST(req: NextRequest) {
 
     const result = await db.collection("users").insertOne(newUser);
 
+    logAudit({
+      action: "create",
+      collection: "users",
+      documentId: result.insertedId.toString(),
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: requesterRole,
+      summary: `Created ${role} account for ${email}`,
+    });
+
     return NextResponse.json(
       {
         _id: result.insertedId.toString(),
@@ -199,19 +215,17 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 },
     );
-  } catch (error) {
-    console.error("Facilitator POST error:", error);
-    return NextResponse.json(
-      { error: "Failed to create facilitator" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 /* ===================== PUT ===================== */
 export async function PUT(req: NextRequest) {
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!canManageFacilitators(requesterRole)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -285,22 +299,32 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    logAudit({
+      action: "update",
+      collection: "users",
+      documentId: id,
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: requesterRole,
+      summary: `Updated facilitator ${id}: ${Object.keys(update).join(", ")}`,
+      changedFields: Object.keys(update),
+    });
+
     return NextResponse.json(
       { message: "Updated successfully" },
       { status: 200 },
     );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to update facilitator" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 /* ===================== DELETE ===================== */
 export async function DELETE(req: NextRequest) {
   try {
-    const requesterRole = await getRequesterRole(req);
+    const requesterInfo = await getRequesterInfo(req);
+    if (requesterInfo instanceof NextResponse) return requesterInfo;
+    const { role: requesterRole, token } = requesterInfo;
     if (!canManageFacilitators(requesterRole)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -328,14 +352,21 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    logAudit({
+      action: "delete",
+      collection: "users",
+      documentId: id,
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: requesterRole,
+      summary: `Deleted facilitator ${id}`,
+    });
+
     return NextResponse.json(
       { message: "Deleted successfully" },
       { status: 200 },
     );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to delete facilitator" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
