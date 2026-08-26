@@ -16,9 +16,11 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   });
 }
 
+export const DEFAULT_SERVER_URL = "https://birhane-hiwot-sunday-school-attenda.vercel.app";
+
 export async function getServerUrl(): Promise<string> {
   const settings = await getSettings();
-  return settings?.serverUrl?.replace(/\/$/, "") || "";
+  return settings?.serverUrl?.replace(/\/$/, "") || DEFAULT_SERVER_URL;
 }
 
 export async function getToken(): Promise<string | null> {

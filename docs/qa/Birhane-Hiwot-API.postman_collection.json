@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "bh-ss-api-collection",
     "name": "Birhane Hiwot Sunday School - QA API",
-    "description": "QA Postman collection for the Birhane Hiwot Sunday School Attendance Management System.\n\n## Setup\n1. Import this collection and `Birhane-Hiwot.postman_environment.json`.\n2. Update environment variables with valid credentials and `baseUrl`.\n3. Run **Auth → Get CSRF Token**, then **Auth → Login (Credentials)** before protected endpoints.\n4. Postman stores session cookies automatically after login.\n\n## Roles\n- Super Admin\n- HR Admin\n- Education Admin\n- Attendance Facilitator\n- Education Facilitator\n- Teacher\n\n## Notes\n- Most API routes do not enforce auth at the route level; the UI uses NextAuth middleware for pages.\n- Facilitators, teachers, admin-users, and education-facilitators routes check JWT role.\n- Student creation enforces role rules via `userRole` and `userEmail` in the request body.",
+    "description": "QA Postman collection for the Birhane Hiwot Sunday School Attendance Management System (ብርሃነ ሕይወት ሰንበት ትምህርት ቤት የአቴንዳንስ እና የትምህርት ክፍል አስተዳደር ሲስተም).\n\n## Setup\n1. Import this collection and `Birhane-Hiwot.postman_environment.json`.\n2. Verify environment variables (`baseUrl`, test account emails & passwords).\n3. Run **Setup → Create Super Admin (one-time)** if initializing a fresh database.\n4. Run **Auth → Get CSRF Token**, then **Auth → Login (Credentials)** before running role-protected web endpoints.\n5. Alternatively, run **Auth → Mobile Login (JWT)** to test the mobile token workflow.\n\n## Managed Roles\n- Super Admin (ሊቀ ትጉሃን ገብረመስቀል)\n- HR Admin (ቀሲስ ዳዊት በቀለ)\n- Education Admin (ሊቀ ዲያቆናት ሰለሞን)\n- Attendance Facilitator (ዲ/ን ቴዎድሮስ ካሳሁን)\n- Education Facilitator (መርጌታ ዘርዓይ በርሄ)\n- Teacher (መምህር አስፋው ወልደሥላሴ)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [{ "key": "baseUrl", "value": "http://localhost:3000" }],
@@ -19,6 +19,7 @@
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "const json = pm.response.json();",
+                  "pm.test('CSRF token present', () => pm.expect(json).to.have.property('csrfToken'));",
                   "pm.environment.set('csrfToken', json.csrfToken);"
                 ],
                 "type": "text/javascript"
@@ -85,10 +86,54 @@
         },
         {
           "name": "Get Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.user && json.user.id) {",
+                  "  pm.test('Authenticated session active', () => pm.expect(json.user).to.have.property('email'));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/auth/session"
+          }
+        },
+        {
+          "name": "Mobile Login (JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Mobile login successful', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Returns JWT token and user profile', () => {",
+                  "  pm.expect(json).to.have.property('token');",
+                  "  pm.expect(json).to.have.property('user');",
+                  "});",
+                  "if (json.token) pm.environment.set('mobileToken', json.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{attendanceFacilitatorEmail}}\",\n  \"password\": \"{{attendanceFacilitatorPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/mobile/auth"
           }
         },
         {
@@ -126,12 +171,25 @@
       "item": [
         {
           "name": "Create Super Admin (one-time)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Created or already exists', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Super Admin\",\n  \"email\": \"{{superAdminEmail}}\",\n  \"password\": \"{{superAdminPassword}}\",\n  \"confirm\": \"CREATE_SUPER_ADMIN\"\n}"
+              "raw": "{\n  \"name\": \"ሊቀ ትጉሃን ገብረመስቀል\",\n  \"email\": \"{{superAdminEmail}}\",\n  \"password\": \"{{superAdminPassword}}\",\n  \"confirm\": \"CREATE_SUPER_ADMIN\"\n}"
             },
             "url": "{{baseUrl}}/api/setup/super-admin"
           }
@@ -143,6 +201,19 @@
       "item": [
         {
           "name": "List Students",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Returns students array', () => pm.expect(Array.isArray(json)).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -160,7 +231,7 @@
           }
         },
         {
-          "name": "Get Student by Unique ID",
+          "name": "Get Student by Unique ID (query)",
           "request": {
             "method": "GET",
             "header": [],
@@ -173,11 +244,25 @@
           }
         },
         {
-          "name": "Get Student by Mongo ID",
+          "name": "Get Student by ID or Unique ID (path)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json._id) pm.environment.set('studentId', json._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/api/students/{{studentId}}"
+            "url": "{{baseUrl}}/api/students/{{studentUniqueId}}"
           }
         },
         {
@@ -201,7 +286,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"Unique_ID\": \"{{studentUniqueId}}\",\n  \"First_Name\": \"Test\",\n  \"Father_Name\": \"Student\",\n  \"Grandfather_Name\": \"QA\",\n  \"Mothers_Name\": \"Mother\",\n  \"Christian_Name\": \"Gabriel\",\n  \"DOB_Date\": \"15\",\n  \"DOB_Month\": \"05\",\n  \"DOB_Year\": \"2010\",\n  \"Age\": 15,\n  \"Sex\": \"Male\",\n  \"Phone_Number\": \"0911000000\",\n  \"Class\": \"Regular\",\n  \"Occupation\": \"Student\",\n  \"School\": \"ሀና\",\n  \"Address\": \"ሲቪል ሰርቪስ አካባቢ\",\n  \"Academic_Year\": \"{{academicYear}}\",\n  \"Grade\": \"{{grade}}\",\n  \"Classification\": \"Regular\",\n  \"userRole\": \"Super Admin\"\n}"
+              "raw": "{\n  \"Unique_ID\": \"{{studentUniqueId}}\",\n  \"First_Name\": \"አማኑኤል\",\n  \"Father_Name\": \"ተክሌ\",\n  \"Grandfather_Name\": \"ገብረማርያም\",\n  \"Mothers_Name\": \"ወለተ ዮሐንስ\",\n  \"Christian_Name\": \"ኃይለ ሚካኤል\",\n  \"DOB_Date\": \"15\",\n  \"DOB_Month\": \"05\",\n  \"DOB_Year\": \"2010\",\n  \"Age\": 8,\n  \"Sex\": \"Male\",\n  \"Phone_Number\": \"0911234567\",\n  \"Class\": \"Regular\",\n  \"Occupation\": \"Student\",\n  \"School\": \"አቡነ ጎርጎርዮስ\",\n  \"Address\": \"ሲቪል ሰርቪስ አካባቢ\",\n  \"Academic_Year\": \"{{academicYear}}\",\n  \"Grade\": \"{{grade}}\",\n  \"Classification\": \"Regular\",\n  \"userRole\": \"Super Admin\"\n}"
             },
             "url": "{{baseUrl}}/api/students"
           }
@@ -213,7 +298,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"Unique_ID\": \"BH-FAC-001\",\n  \"First_Name\": \"Facilitator\",\n  \"Father_Name\": \"Created\",\n  \"Grandfather_Name\": \"Student\",\n  \"Mothers_Name\": \"Mother\",\n  \"Christian_Name\": \"Michael\",\n  \"DOB_Date\": \"01\",\n  \"DOB_Month\": \"01\",\n  \"DOB_Year\": \"2011\",\n  \"Age\": 14,\n  \"Sex\": \"Female\",\n  \"Phone_Number\": \"0911000001\",\n  \"Class\": \"Regular\",\n  \"Occupation\": \"Student\",\n  \"Address\": \"ሲቪል ሰርቪስ አካባቢ\",\n  \"Academic_Year\": \"{{academicYear}}\",\n  \"Grade\": \"{{grade}}\",\n  \"Classification\": \"Regular\",\n  \"userRole\": \"Attendance Facilitator\",\n  \"userEmail\": \"{{attendanceFacilitatorEmail}}\"\n}"
+              "raw": "{\n  \"Unique_ID\": \"BH-2018-FAC-01\",\n  \"First_Name\": \"ዮናስ\",\n  \"Father_Name\": \"ተስፋዬ\",\n  \"Grandfather_Name\": \"ኃይሉ\",\n  \"Mothers_Name\": \"አልማዝ በቀለ\",\n  \"Christian_Name\": \"ወልደ ማርያም\",\n  \"DOB_Date\": \"01\",\n  \"DOB_Month\": \"04\",\n  \"DOB_Year\": \"2011\",\n  \"Age\": 7,\n  \"Sex\": \"Male\",\n  \"Phone_Number\": \"0911334455\",\n  \"Class\": \"Regular\",\n  \"Occupation\": \"Student\",\n  \"School\": \"ዳይመንድ\",\n  \"Address\": \"መሪ\",\n  \"Academic_Year\": \"{{academicYear}}\",\n  \"Grade\": \"{{grade}}\",\n  \"Classification\": \"Regular\",\n  \"userRole\": \"Attendance Facilitator\",\n  \"userEmail\": \"{{attendanceFacilitatorEmail}}\"\n}"
             },
             "url": "{{baseUrl}}/api/students"
           }
@@ -225,7 +310,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"Phone_Number\": \"0911223344\",\n  \"Occupation\": \"Student\"\n}"
+              "raw": "{\n  \"First_Name\": \"አማኑኤል\",\n  \"Father_Name\": \"ተክሌ\",\n  \"Grandfather_Name\": \"ገብረማርያም\",\n  \"Mothers_Name\": \"ወለተ ዮሐንስ\",\n  \"Christian_Name\": \"ኃይለ ሚካኤል\",\n  \"Phone_Number\": \"0911998877\",\n  \"Occupation\": \"Student\",\n  \"School\": \"አቡነ ጎርጎርዮስ\",\n  \"Address\": \"ሲቪል ሰርቪስ አካባቢ\",\n  \"Academic_Year\": \"{{academicYear}}\",\n  \"Grade\": \"{{grade}}\",\n  \"Classification\": \"Regular\"\n}"
             },
             "url": "{{baseUrl}}/api/students/{{studentId}}"
           }
@@ -237,7 +322,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"photo_data_url\": \"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=\"\n}"
+              "raw": "{\n  \"photo_data_url\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"\n}"
             },
             "url": "{{baseUrl}}/api/students/{{studentId}}"
           }
@@ -256,24 +341,50 @@
         },
         {
           "name": "Check Duplicate Student",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Returns exists boolean', () => pm.expect(json).to.have.property('exists'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"First_Name\": \"Test\",\n  \"Father_Name\": \"Student\",\n  \"Grandfather_Name\": \"QA\",\n  \"Mothers_Name\": \"Mother\",\n  \"Sex\": \"Male\"\n}"
+              "raw": "{\n  \"First_Name\": \"አማኑኤል\",\n  \"Father_Name\": \"ተክሌ\",\n  \"Grandfather_Name\": \"ገብረማርያም\",\n  \"Mothers_Name\": \"ወለተ ዮሐንስ\",\n  \"Sex\": \"Male\"\n}"
             },
             "url": "{{baseUrl}}/api/students/check-duplicate"
           }
         },
         {
-          "name": "Get Student Count by Grades",
+          "name": "Get Student Count by Grade",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Count returned', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Has count property', () => pm.expect(json).to.have.property('count'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"grades\": [\"{{grade}}\"],\n  \"academicYear\": \"{{academicYear}}\"\n}"
+              "raw": "{\n  \"academicYear\": \"{{academicYear}}\",\n  \"grade\": \"{{grade}}\",\n  \"classification\": \"Regular\"\n}"
             },
             "url": "{{baseUrl}}/api/students/count"
           }
@@ -344,6 +455,22 @@
         },
         {
           "name": "Attendance Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Summary returned', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Has total & present counts', () => {",
+                  "  pm.expect(json).to.have.property('total');",
+                  "  pm.expect(json).to.have.property('present');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -362,12 +489,28 @@
         },
         {
           "name": "Mark Attendance (Bulk Upsert)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Upsert succeeded', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Reports inserted & updated counts', () => {",
+                  "  pm.expect(json).to.have.property('insertedCount');",
+                  "  pm.expect(json).to.have.property('updatedCount');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"date\": \"{{attendanceDate}}\",\n  \"attendance\": [\n    {\n      \"studentId\": \"{{studentId}}\",\n      \"date\": \"{{attendanceDate}}\",\n      \"present\": true,\n      \"hasPermission\": false,\n      \"reason\": \"\",\n      \"markedBy\": \"Attendance Facilitator\"\n    }\n  ]\n}"
+              "raw": "{\n  \"date\": \"{{attendanceDate}}\",\n  \"attendance\": [\n    {\n      \"studentId\": \"{{studentId}}\",\n      \"date\": \"{{attendanceDate}}\",\n      \"present\": true,\n      \"hasPermission\": false,\n      \"reason\": \"\",\n      \"markedBy\": \"Attendance Facilitator\",\n      \"timestamp\": \"15 Tir 2018\"\n    }\n  ]\n}"
             },
             "url": "{{baseUrl}}/api/attendance"
           }
@@ -386,12 +529,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/attendance/temp?date={{attendanceDate}}&grade={{grade}}",
+              "raw": "{{baseUrl}}/api/attendance/temp?date={{attendanceDate}}&markedBy=Attendance%20Facilitator",
               "host": ["{{baseUrl}}"],
               "path": ["api", "attendance", "temp"],
               "query": [
                 { "key": "date", "value": "{{attendanceDate}}" },
-                { "key": "grade", "value": "{{grade}}" }
+                { "key": "markedBy", "value": "Attendance Facilitator" }
               ]
             }
           }
@@ -407,6 +550,14 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/facilitators"
+          }
+        },
+        {
+          "name": "Get Facilitator Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/facilitators/roles"
           }
         },
         {
@@ -442,7 +593,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"QA Attendance Facilitator\",\n  \"email\": \"qa.facilitator@example.com\",\n  \"password\": \"Facilitator123!\",\n  \"role\": \"Attendance Facilitator\",\n  \"grade\": [\"{{grade}}\"]\n}"
+              "raw": "{\n  \"name\": \"ዲ/ን ቴዎድሮስ ካሳሁን\",\n  \"email\": \"{{attendanceFacilitatorEmail}}\",\n  \"password\": \"{{attendanceFacilitatorPassword}}\",\n  \"role\": \"Attendance Facilitator\",\n  \"grade\": [\"{{grade}}\"]\n}"
             },
             "url": "{{baseUrl}}/api/facilitators"
           }
@@ -454,7 +605,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"{{facilitatorId}}\",\n  \"name\": \"Updated Facilitator\",\n  \"email\": \"qa.facilitator@example.com\",\n  \"role\": \"Attendance Facilitator\",\n  \"grade\": [\"{{grade}}\"]\n}"
+              "raw": "{\n  \"id\": \"{{facilitatorId}}\",\n  \"name\": \"ዲ/ን ቴዎድሮስ ካሳሁን\",\n  \"email\": \"{{attendanceFacilitatorEmail}}\",\n  \"role\": \"Attendance Facilitator\",\n  \"grade\": [\"{{grade}}\"]\n}"
             },
             "url": "{{baseUrl}}/api/facilitators"
           }
@@ -506,12 +657,25 @@
         },
         {
           "name": "Create Education Facilitator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('educationFacilitatorId', pm.response.json()._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"QA Education Facilitator\",\n  \"email\": \"qa.education.fac@example.com\",\n  \"password\": \"Facilitator123!\"\n}"
+              "raw": "{\n  \"name\": \"መርጌታ ዘርዓይ በርሄ\",\n  \"email\": \"{{educationFacilitatorEmail}}\",\n  \"password\": \"{{educationFacilitatorPassword}}\"\n}"
             },
             "url": "{{baseUrl}}/api/education-facilitators"
           }
@@ -523,7 +687,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"{{facilitatorId}}\",\n  \"name\": \"Updated Education Facilitator\",\n  \"email\": \"qa.education.fac@example.com\"\n}"
+              "raw": "{\n  \"id\": \"{{educationFacilitatorId}}\",\n  \"name\": \"መርጌታ ዘርዓይ በርሄ\",\n  \"email\": \"{{educationFacilitatorEmail}}\"\n}"
             },
             "url": "{{baseUrl}}/api/education-facilitators"
           }
@@ -535,7 +699,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"{{facilitatorId}}\"\n}"
+              "raw": "{\n  \"id\": \"{{educationFacilitatorId}}\"\n}"
             },
             "url": "{{baseUrl}}/api/education-facilitators"
           }
@@ -586,7 +750,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"QA Teacher\",\n  \"email\": \"qa.teacher@example.com\",\n  \"password\": \"Teacher123!\",\n  \"grade\": \"{{grade}}\",\n  \"assignedSubjects\": []\n}"
+              "raw": "{\n  \"name\": \"መምህር አስፋው ወልደሥላሴ\",\n  \"email\": \"{{teacherEmail}}\",\n  \"password\": \"{{teacherPassword}}\",\n  \"grade\": \"{{grade}}\",\n  \"assignedSubjects\": [\"ስርዓተ ቤተክርስቲያን\", \"ነገረ ሃይማኖት\"]\n}"
             },
             "url": "{{baseUrl}}/api/teachers"
           }
@@ -598,7 +762,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"{{teacherId}}\",\n  \"name\": \"Updated Teacher\",\n  \"email\": \"qa.teacher@example.com\",\n  \"grade\": \"{{grade}}\",\n  \"assignedSubjects\": []\n}"
+              "raw": "{\n  \"id\": \"{{teacherId}}\",\n  \"name\": \"መምህር አስፋው ወልደሥላሴ\",\n  \"email\": \"{{teacherEmail}}\",\n  \"grade\": \"{{grade}}\",\n  \"assignedSubjects\": [\"ስርዓተ ቤተክርስቲያን\", \"ነገረ ሃይማኖት\", \"የመጽሐፍ ቅዱስ ጥናት\"]\n}"
             },
             "url": "{{baseUrl}}/api/teachers"
           }
@@ -657,7 +821,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Amharic\",\n  \"grade\": \"{{grade}}\",\n  \"gradeNumber\": 1,\n  \"academicYear\": \"{{academicYear}}\"\n}"
+              "raw": "{\n  \"name\": \"ስርዓተ ቤተክርስቲያን\",\n  \"grade\": \"{{grade}}\",\n  \"gradeNumber\": 1,\n  \"academicYear\": \"{{academicYear}}\"\n}"
             },
             "url": "{{baseUrl}}/api/subjects"
           }
@@ -669,16 +833,20 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"academicYear\": \"{{academicYear}}\",\n  \"grade\": \"{{grade}}\",\n  \"gradeNumber\": 1,\n  \"subjects\": [\"English\", \"Math\", \"Bible Study\"]\n}"
+              "raw": "{\n  \"subjects\": [\n    { \"name\": \"ነገረ ሃይማኖት\", \"grade\": \"{{grade}}\", \"gradeNumber\": 1, \"academicYear\": \"{{academicYear}}\" },\n    { \"name\": \"የመጽሐፍ ቅዱስ ጥናት\", \"grade\": \"{{grade}}\", \"gradeNumber\": 1, \"academicYear\": \"{{academicYear}}\" },\n    { \"name\": \"ክርስቲያናዊ ስነ ምግባር\", \"grade\": \"{{grade}}\", \"gradeNumber\": 1, \"academicYear\": \"{{academicYear}}\" },\n    { \"name\": \"የቤተክርስቲያን ታሪክ\", \"grade\": \"{{grade}}\", \"gradeNumber\": 1, \"academicYear\": \"{{academicYear}}\" },\n    { \"name\": \"ግዕዝ ቋንቋ\", \"grade\": \"{{grade}}\", \"gradeNumber\": 1, \"academicYear\": \"{{academicYear}}\" },\n    { \"name\": \"መዝሙር\", \"grade\": \"{{grade}}\", \"gradeNumber\": 1, \"academicYear\": \"{{academicYear}}\" }\n  ]\n}"
             },
             "url": "{{baseUrl}}/api/subjects/batch"
           }
         },
         {
-          "name": "Delete Subject Group",
+          "name": "Remove Subject from Group",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ስርዓተ ቤተክርስቲያን\"\n}"
+            },
             "url": "{{baseUrl}}/api/subjects/{{subjectGroupId}}"
           }
         }
@@ -697,6 +865,19 @@
         },
         {
           "name": "Create Assignment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('assignmentId', pm.response.json()._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -713,6 +894,61 @@
             "method": "DELETE",
             "header": [],
             "url": "{{baseUrl}}/api/teacher-assignments/{{assignmentId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Category Periods",
+      "item": [
+        {
+          "name": "List Category Periods",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/category-periods?academicYear={{academicYear}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "category-periods"],
+              "query": [
+                { "key": "academicYear", "value": "{{academicYear}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Save Category Period (upsert)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Saved', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classification\": \"Regular\",\n  \"academicYear\": \"{{academicYear}}\",\n  \"startDate\": \"2018-01-01\",\n  \"endDate\": \"2018-12-30\",\n  \"registrationClosedDate\": \"\",\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/category-periods"
+          }
+        },
+        {
+          "name": "Close Registration (blocks student create)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classification\": \"Regular\",\n  \"academicYear\": \"{{academicYear}}\",\n  \"registrationClosedDate\": \"2018-01-01\",\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/category-periods"
           }
         }
       ]
@@ -761,7 +997,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"studentName\": \"Test Student\",\n  \"subjectId\": \"{{subjectGroupId}}\",\n  \"subjectName\": \"Amharic\",\n  \"academicYear\": \"{{academicYear}}\",\n  \"assignment1\": 8,\n  \"assignment2\": 9,\n  \"midTest\": 25,\n  \"finalExam\": 42,\n  \"remarks\": \"Good progress\"\n}"
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"studentName\": \"አማኑኤል ተክሌ ገብረማርያም\",\n  \"subjectId\": \"{{subjectGroupId}}\",\n  \"subjectName\": \"ስርዓተ ቤተክርስቲያን\",\n  \"academicYear\": \"{{academicYear}}\",\n  \"assignment1\": 9,\n  \"assignment2\": 10,\n  \"midTest\": 28,\n  \"finalExam\": 48,\n  \"remarks\": \"እጅግ በጣም ጥሩ ውጤት\"\n}"
             },
             "url": "{{baseUrl}}/api/student-results"
           }
@@ -781,7 +1017,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"studentName\": \"Test Student\",\n  \"subjectName\": \"Amharic\",\n  \"assignment1\": 9,\n  \"assignment2\": 9,\n  \"midTest\": 28,\n  \"finalExam\": 45,\n  \"remarks\": \"Updated score\"\n}"
+              "raw": "{\n  \"studentName\": \"አማኑኤል ተክሌ ገብረማርያም\",\n  \"subjectName\": \"ስርዓተ ቤተክርስቲያን\",\n  \"assignment1\": 10,\n  \"assignment2\": 10,\n  \"midTest\": 29,\n  \"finalExam\": 49,\n  \"remarks\": \"የተሻሻለ ውጤት\"\n}"
             },
             "url": "{{baseUrl}}/api/student-results/{{resultId}}"
           }
@@ -813,7 +1049,7 @@
           }
         },
         {
-          "name": "Get Request by ID",
+          "name": "Get Student Request by ID",
           "request": {
             "method": "GET",
             "header": [],
@@ -840,7 +1076,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"studentData\": {\n    \"Unique_ID\": \"BH-REQ-001\",\n    \"First_Name\": \"Request\",\n    \"Father_Name\": \"Student\",\n    \"Grandfather_Name\": \"Test\",\n    \"Mothers_Name\": \"Mother\",\n    \"Christian_Name\": \"Raphael\",\n    \"DOB_Date\": \"10\",\n    \"DOB_Month\": \"03\",\n    \"DOB_Year\": \"2012\",\n    \"Age\": 13,\n    \"Sex\": \"Male\",\n    \"Phone_Number\": \"0911000099\",\n    \"Class\": \"Regular\",\n    \"Occupation\": \"Student\",\n    \"Address\": \"ሲቪል ሰርቪስ አካባቢ\",\n    \"Academic_Year\": \"{{academicYear}}\",\n    \"Grade\": \"{{grade}}\",\n    \"Classification\": \"Regular\"\n  },\n  \"requestedBy\": \"Attendance Facilitator\",\n  \"requestedByName\": \"QA Facilitator\"\n}"
+              "raw": "{\n  \"studentData\": {\n    \"Unique_ID\": \"BH-REQ-2018-01\",\n    \"First_Name\": \"ሳሙኤል\",\n    \"Father_Name\": \"ኃይሉ\",\n    \"Grandfather_Name\": \"ደስታ\",\n    \"Mothers_Name\": \"እቴነሽ ወርቁ\",\n    \"Christian_Name\": \"ገብረ መስቀል\",\n    \"DOB_Date\": \"10\",\n    \"DOB_Month\": \"03\",\n    \"DOB_Year\": \"2012\",\n    \"Age\": 6,\n    \"Sex\": \"Male\",\n    \"Phone_Number\": \"0911556677\",\n    \"Class\": \"Regular\",\n    \"Occupation\": \"Student\",\n    \"School\": \"ቅዱስ ሚካኤል\",\n    \"Address\": \"ጥቁር አባይ/ሚካኤል ጀርባ አካባቢ\",\n    \"Academic_Year\": \"{{academicYear}}\",\n    \"Grade\": \"{{grade}}\",\n    \"Classification\": \"Regular\"\n  },\n  \"requestedBy\": \"Attendance Facilitator\",\n  \"requestedByName\": \"ዲ/ን ቴዎድሮስ ካሳሁን\"\n}"
             },
             "url": "{{baseUrl}}/api/student-requests"
           }
@@ -864,7 +1100,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"{{studentRequestId}}\",\n  \"status\": \"rejected\",\n  \"approvedBy\": \"Super Admin\",\n  \"rejectionReason\": \"Incomplete information\"\n}"
+              "raw": "{\n  \"id\": \"{{studentRequestId}}\",\n  \"status\": \"rejected\",\n  \"approvedBy\": \"Super Admin\",\n  \"rejectionReason\": \"መረጃው ያልተሟላ ነው\"\n}"
             },
             "url": "{{baseUrl}}/api/student-requests"
           }
@@ -876,6 +1112,22 @@
       "item": [
         {
           "name": "Get Payment Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Payment status returned', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('All Ethiopian months present in data', () => {",
+                  "  pm.expect(Object.keys(json.data)).to.include('Meskerem');",
+                  "  pm.expect(Object.keys(json.data)).to.include('Pagumē');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -897,7 +1149,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"year\": \"{{academicYear}}\",\n  \"studentId\": \"{{studentId}}\",\n  \"data\": {\n    \"Meskerem\": { \"status\": \"Paid\", \"amount\": \"500\" },\n    \"Tikimt\": { \"status\": \"Not Paid\", \"amount\": \"\" },\n    \"Hidar\": { \"status\": \"Paid\", \"amount\": \"500\" }\n  }\n}"
+              "raw": "{\n  \"year\": \"{{academicYear}}\",\n  \"studentId\": \"{{studentId}}\",\n  \"data\": {\n    \"Meskerem\": { \"status\": \"Paid\", \"amount\": \"500\" },\n    \"Tikimt\": { \"status\": \"Paid\", \"amount\": \"500\" },\n    \"Hidar\": { \"status\": \"Paid\", \"amount\": \"500\" },\n    \"Tahsas\": { \"status\": \"Paid\", \"amount\": \"500\" },\n    \"Tir\": { \"status\": \"Paid\", \"amount\": \"500\" },\n    \"Yekatit\": { \"status\": \"Not Paid\", \"amount\": \"\" },\n    \"Megabit\": { \"status\": \"Not Paid\", \"amount\": \"\" },\n    \"Miyazia\": { \"status\": \"Not Paid\", \"amount\": \"\" },\n    \"Ginbot\": { \"status\": \"Not Paid\", \"amount\": \"\" },\n    \"Sene\": { \"status\": \"Not Paid\", \"amount\": \"\" },\n    \"Hamle\": { \"status\": \"Not Paid\", \"amount\": \"\" },\n    \"Nehase\": { \"status\": \"Not Paid\", \"amount\": \"\" },\n    \"Pagumē\": { \"status\": \"Not Paid\", \"amount\": \"\" }\n  }\n}"
             },
             "url": "{{baseUrl}}/api/payment"
           }
@@ -909,6 +1161,21 @@
       "item": [
         {
           "name": "List Department Admins",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const users = pm.response.json();",
+                  "  const hr = users.find(u => u.role === 'HR Admin');",
+                  "  if (hr && hr._id) pm.environment.set('adminUserId', hr._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -922,7 +1189,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"QA HR Admin\",\n  \"email\": \"{{hrAdminEmail}}\",\n  \"password\": \"{{hrAdminPassword}}\",\n  \"role\": \"HR Admin\"\n}"
+              "raw": "{\n  \"name\": \"ቀሲስ ዳዊት በቀለ\",\n  \"email\": \"{{hrAdminEmail}}\",\n  \"password\": \"{{hrAdminPassword}}\",\n  \"role\": \"HR Admin\"\n}"
             },
             "url": "{{baseUrl}}/api/admin-users"
           }
@@ -934,7 +1201,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"QA Education Admin\",\n  \"email\": \"{{educationAdminEmail}}\",\n  \"password\": \"{{educationAdminPassword}}\",\n  \"role\": \"Education Admin\"\n}"
+              "raw": "{\n  \"name\": \"ሊቀ ዲያቆናት ሰለሞን\",\n  \"email\": \"{{educationAdminEmail}}\",\n  \"password\": \"{{educationAdminPassword}}\",\n  \"role\": \"Education Admin\"\n}"
             },
             "url": "{{baseUrl}}/api/admin-users"
           }
@@ -946,7 +1213,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"{{adminUserId}}\",\n  \"name\": \"Updated Admin\",\n  \"email\": \"{{hrAdminEmail}}\"\n}"
+              "raw": "{\n  \"id\": \"{{adminUserId}}\",\n  \"name\": \"ቀሲስ ዳዊት በቀለ\",\n  \"email\": \"{{hrAdminEmail}}\"\n}"
             },
             "url": "{{baseUrl}}/api/admin-users"
           }
@@ -975,7 +1242,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"text\": \"PASTE_SIGNED_QR_TEXT_HERE\"\n}"
+              "raw": "{\n  \"text\": \"BH-2018-001.sample-hmac-signature-placeholder\"\n}"
             },
             "url": "{{baseUrl}}/api/qr/verify"
           }
@@ -1011,7 +1278,12 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/api/cron/aggregate-attendance"
+            "url": {
+              "raw": "{{baseUrl}}/api/cron/aggregate-attendance?date={{attendanceDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cron", "aggregate-attendance"],
+              "query": [{ "key": "date", "value": "{{attendanceDate}}" }]
+            }
           }
         }
       ]

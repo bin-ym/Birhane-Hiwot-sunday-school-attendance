@@ -6,7 +6,11 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed:excel": "node scripts/seed-from-excel.mjs",
+    "seed:excel:dry": "node scripts/seed-from-excel.mjs --dry-run",
+    "test:api": "node scripts/run-automation-tests.mjs",
+    "test": "npm run test:api"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

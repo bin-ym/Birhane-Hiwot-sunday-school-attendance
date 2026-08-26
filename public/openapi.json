@@ -1,0 +1,1919 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Birhane Hiwot Sunday School — Attendance & Education Management API",
+    "description": "REST API for the Birhane Hiwot Sunday School Attendance Management System (ብርሃነ ሕይወት ሰንበት ትምህርት ቤት የአቴንዳንስ እና የትምህርት ክፍል አስተዳደር ሲስተም).\n\n## Authentication Flow\n1. **Web (NextAuth Credentials)**:\n   - `GET /api/auth/csrf` → `{ csrfToken }`\n   - `POST /api/auth/callback/credentials` with form-urlencoded fields: `csrfToken`, `email`, `password`, `json=true`.\n   - Cookie `next-auth.session-token` is issued and validated by Next.js session handlers.\n2. **Mobile (Direct JWT)**:\n   - `POST /api/mobile/auth` with JSON `{ email, password }` → returns `{ token, user }` (7-day signed JWT).\n\n## Role-Based Access Control (RBAC)\n- **Super Admin**: Complete administrative access across all modules, settings, and department accounts.\n- **HR Admin**: Manages attendance facilitators, student records, and attendance oversight.\n- **Education Admin**: Manages teachers, subjects, grade curricula, education facilitators, and student academic results.\n- **Attendance Facilitator**: Marks attendance for assigned grades; creates new students when granted `canAddStudent`.\n- **Education Facilitator**: Manages student result recordings and educational reports.\n- **Teacher**: Accesses assigned classes, subjects, and student rosters.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Development Server"
+    },
+    {
+      "url": "https://birhane-hiwot-sunday-school-attenda.vercel.app",
+      "description": "Production / Staging Server"
+    }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "NextAuth session management and Mobile JWT authentication" },
+    { "name": "Setup", "description": "Initial one-time Super Admin bootstrap" },
+    { "name": "Students", "description": "Student registration, CRUD, duplicate check, grade counts, QR codes, and profile lookups" },
+    { "name": "Attendance", "description": "Attendance marking (bulk upsert with locking), queries, summaries, student history, and temp drafts" },
+    { "name": "Facilitators", "description": "Attendance & Education Facilitator user management, grade assignment, and student-creation toggle" },
+    { "name": "Education Facilitators", "description": "Dedicated education facilitator user management (Super Admin & Education Admin)" },
+    { "name": "Teachers", "description": "Teacher profile management, assigned grades, and subject links" },
+    { "name": "Subjects", "description": "Curriculum subjects grouped per academic year and grade level, batch creation, and deletion" },
+    { "name": "Teacher Assignments", "description": "Teacher-to-subject and grade mapping" },
+    { "name": "Category Periods", "description": "Registration calendar windows per student classification and academic year" },
+    { "name": "Student Results", "description": "Academic scores (assignments, mid-test, final exam), total score calculation, and university letter grades" },
+    { "name": "Student Requests", "description": "Facilitator new-student registration approval workflow" },
+    { "name": "Payments", "description": "Monthly fee payment tracking for all 13 Ethiopian months" },
+    { "name": "Admin Users", "description": "Department administrator accounts (HR Admin & Education Admin)" },
+    { "name": "QR", "description": "HMAC-SHA256 signed student QR code verification" },
+    { "name": "Utilities", "description": "Google Sheets integration health/data and attendance aggregation cron tasks" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "next-auth.session-token",
+        "description": "NextAuth JWT session cookie generated after successful credential login."
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Mobile app authorization token returned by /api/mobile/auth."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string", "example": "Invalid request data" },
+          "code": { "type": "string", "example": "ADD_STUDENT_DENIED" }
+        }
+      },
+      "IdResponse": {
+        "type": "object",
+        "required": ["_id"],
+        "properties": {
+          "_id": { "type": "string", "description": "Inserted MongoDB ObjectId string", "example": "65d89f1234567890abcdef01" }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": { "type": "string", "example": "Operation completed successfully" }
+        }
+      },
+      "StudentClassification": {
+        "type": "string",
+        "enum": ["Regular", "Extension", "SignLanguage", "Summer", "begena"],
+        "description": "Classification category of the Sunday School student",
+        "example": "Regular"
+      },
+      "Grade": {
+        "type": "string",
+        "enum": [
+          "ቅድመ መደበኛ",
+          "አንደኛ ክፍል",
+          "ሁለተኛ ክፍል",
+          "ሦስተኛ ክፍል",
+          "አራተኛ ክፍል",
+          "አምስተኛ ክፍል",
+          "ስድስተኛ ክፍል",
+          "ሰባተኛ ክፍል ጥዋት",
+          "ሰባተኛ ክፍል ከሰዓት",
+          "ስምንተኛ ክፍል",
+          "ዘጠነኛ ክፍል",
+          "አስረኛ ክፍል",
+          "አስራ አንደኛ ክፍል",
+          "አስራ ሁለተኛ ክፍል",
+          "1ኛ ዓመት",
+          "2ኛ ዓመት",
+          "ምልክት ቋንቋ",
+          "በገና"
+        ],
+        "description": "Canonical Amharic grade name stored in database",
+        "example": "አንደኛ ክፍል"
+      },
+      "StudentCreate": {
+        "type": "object",
+        "required": ["Unique_ID", "First_Name", "Father_Name", "Academic_Year", "Grade"],
+        "properties": {
+          "Unique_ID": { "type": "string", "example": "BH-2018-001" },
+          "First_Name": { "type": "string", "example": "አማኑኤል" },
+          "Father_Name": { "type": "string", "example": "ተክሌ" },
+          "Grandfather_Name": { "type": "string", "example": "ገብረማርያም" },
+          "Mothers_Name": { "type": "string", "example": "ወለተ ዮሐንስ" },
+          "Christian_Name": { "type": "string", "example": "ኃይለ ሚካኤል" },
+          "DOB_Date": { "type": "string", "example": "15" },
+          "DOB_Month": { "type": "string", "example": "05" },
+          "DOB_Year": { "type": "string", "example": "2010" },
+          "Age": { "type": "integer", "example": 8 },
+          "Sex": { "type": "string", "enum": ["Male", "Female"], "example": "Male" },
+          "Phone_Number": { "type": "string", "example": "0911234567" },
+          "Class": { "type": "string", "example": "Regular" },
+          "Occupation": { "type": "string", "example": "Student" },
+          "School": { "type": "string", "example": "አቡነ ጎርጎርዮስ" },
+          "School_Other": { "type": "string", "example": "" },
+          "Educational_Background": { "type": "string", "example": "" },
+          "Place_of_Work": { "type": "string", "example": "" },
+          "Address": { "type": "string", "example": "ሲቪል ሰርቪስ አካባቢ" },
+          "Address_Other": { "type": "string", "example": "" },
+          "Academic_Year": { "type": "string", "example": "2018" },
+          "Grade": { "$ref": "#/components/schemas/Grade" },
+          "Classification": { "$ref": "#/components/schemas/StudentClassification", "default": "Regular" },
+          "photo_data_url": {
+            "type": "string",
+            "description": "Base64 JPG or PNG image data URL",
+            "example": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          },
+          "userRole": {
+            "type": "string",
+            "enum": ["Super Admin", "HR Admin", "Education Admin", "Attendance Facilitator", "Education Facilitator", "Teacher"],
+            "description": "Role of the user submitting the creation request (validated server-side)"
+          },
+          "userEmail": {
+            "type": "string",
+            "description": "Email of Attendance Facilitator when userRole is Attendance Facilitator",
+            "example": "facilitator.tewodros@birhanehiwot.org"
+          }
+        }
+      },
+      "Student": {
+        "allOf": [{ "$ref": "#/components/schemas/StudentCreate" }],
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string", "example": "65d89f1234567890abcdef01" },
+          "qr_code": {
+            "type": "string",
+            "description": "Base64 PNG data URL of signed HMAC QR code (omitted from listing endpoints)",
+            "example": "data:image/png;base64,iVBORw0KGgoAAA..."
+          }
+        }
+      },
+      "AttendanceRecord": {
+        "type": "object",
+        "required": ["studentId", "date", "present", "hasPermission"],
+        "properties": {
+          "_id": { "type": "string", "example": "65d89f1234567890abcdef02" },
+          "studentId": { "type": "string", "example": "65d89f1234567890abcdef01" },
+          "date": { "type": "string", "example": "2018-05-15" },
+          "present": { "type": "boolean", "example": true },
+          "hasPermission": { "type": "boolean", "example": false },
+          "reason": { "type": "string", "example": "" },
+          "markedBy": { "type": "string", "example": "Attendance Facilitator" },
+          "timestamp": { "type": "string", "example": "15 Tir 2018" }
+        }
+      },
+      "AttendanceBulkRequest": {
+        "type": "object",
+        "required": ["date", "attendance"],
+        "properties": {
+          "date": { "type": "string", "example": "2018-05-15" },
+          "attendance": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["studentId", "present"],
+              "properties": {
+                "studentId": { "type": "string", "example": "65d89f1234567890abcdef01" },
+                "date": { "type": "string", "example": "2018-05-15" },
+                "present": { "type": "boolean", "example": true },
+                "hasPermission": { "type": "boolean", "example": false },
+                "reason": { "type": "string", "example": "" },
+                "markedBy": { "type": "string", "example": "Attendance Facilitator" },
+                "timestamp": { "type": "string", "example": "15 Tir 2018" }
+              }
+            }
+          }
+        }
+      },
+      "FacilitatorCreate": {
+        "type": "object",
+        "required": ["email", "password", "role"],
+        "properties": {
+          "name": { "type": "string", "example": "ዲ/ን ቴዎድሮስ ካሳሁን" },
+          "email": { "type": "string", "format": "email", "example": "facilitator.tewodros@birhanehiwot.org" },
+          "password": { "type": "string", "minLength": 6, "example": "Facilitator123!" },
+          "role": {
+            "type": "string",
+            "enum": ["Attendance Facilitator", "Education Facilitator"],
+            "example": "Attendance Facilitator"
+          },
+          "grade": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Grade" },
+            "description": "Required for Attendance Facilitator",
+            "example": ["አንደኛ ክፍል", "ሁለተኛ ክፍል"]
+          }
+        }
+      },
+      "TeacherCreate": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "name": { "type": "string", "example": "መምህር አስፋው ወልደሥላሴ" },
+          "email": { "type": "string", "format": "email", "example": "teacher.asfaw@birhanehiwot.org" },
+          "password": { "type": "string", "description": "Defaults to Teacher123! when omitted", "example": "Teacher123!" },
+          "grade": { "$ref": "#/components/schemas/Grade" },
+          "assignedSubjects": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["ስርዓተ ቤተክርስቲያን", "ነገረ ሃይማኖት"]
+          }
+        }
+      },
+      "SubjectGroup": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string", "example": "65d89f1234567890abcdef03" },
+          "academicYear": { "type": "string", "example": "2018" },
+          "grade": { "$ref": "#/components/schemas/Grade" },
+          "gradeNumber": { "type": "integer", "nullable": true, "example": 1 },
+          "subjects": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["ስርዓተ ቤተክርስቲያን", "ነገረ ሃይማኖት", "የመጽሐፍ ቅዱስ ጥናት", "ክርስቲያናዊ ስነ ምግባር", "የቤተክርስቲያን ታሪክ", "ግዕዝ ቋንቋ", "መዝሙር"]
+          }
+        }
+      },
+      "SubjectCreate": {
+        "type": "object",
+        "required": ["name", "grade", "academicYear"],
+        "properties": {
+          "name": { "type": "string", "example": "ስርዓተ ቤተክርስቲያን" },
+          "grade": { "$ref": "#/components/schemas/Grade" },
+          "gradeNumber": { "type": "integer", "example": 1 },
+          "academicYear": { "type": "string", "example": "2018" }
+        }
+      },
+      "TeacherAssignment": {
+        "type": "object",
+        "required": ["teacherId", "subjectId", "grade", "academicYear"],
+        "properties": {
+          "_id": { "type": "string", "example": "65d89f1234567890abcdef04" },
+          "teacherId": { "type": "string", "example": "65d89f1234567890abcdef05" },
+          "teacherName": { "type": "string", "example": "መምህር አስፋው ወልደሥላሴ" },
+          "subjectId": { "type": "string", "example": "65d89f1234567890abcdef03" },
+          "subjectName": { "type": "string", "example": "ስርዓተ ቤተክርስቲያን" },
+          "grade": { "$ref": "#/components/schemas/Grade" },
+          "academicYear": { "type": "string", "example": "2018" },
+          "assignedDate": { "type": "string", "example": "2026-08-26" },
+          "status": { "type": "string", "enum": ["active", "inactive"], "example": "active" }
+        }
+      },
+      "CategoryPeriod": {
+        "type": "object",
+        "required": ["classification", "academicYear"],
+        "properties": {
+          "_id": { "type": "string", "example": "65d89f1234567890abcdef06" },
+          "classification": { "$ref": "#/components/schemas/StudentClassification" },
+          "academicYear": { "type": "string", "example": "2018" },
+          "startDate": { "type": "string", "example": "2018-01-01" },
+          "endDate": { "type": "string", "example": "2018-12-30" },
+          "registrationClosedDate": { "type": "string", "description": "ISO date after which registration is blocked", "example": "2018-02-30" },
+          "isActive": { "type": "boolean", "default": true, "example": true }
+        }
+      },
+      "StudentResultCreate": {
+        "type": "object",
+        "required": ["studentId", "subjectId", "academicYear"],
+        "properties": {
+          "studentId": { "type": "string", "example": "65d89f1234567890abcdef01" },
+          "studentName": { "type": "string", "example": "አማኑኤል ተክሌ ገብረማርያም" },
+          "subjectId": { "type": "string", "example": "65d89f1234567890abcdef03" },
+          "subjectName": { "type": "string", "example": "ስርዓተ ቤተክርስቲያን" },
+          "academicYear": { "type": "string", "example": "2018" },
+          "assignment1": { "type": "number", "minimum": 0, "maximum": 10, "default": 0, "example": 9 },
+          "assignment2": { "type": "number", "minimum": 0, "maximum": 10, "default": 0, "example": 10 },
+          "midTest": { "type": "number", "minimum": 0, "maximum": 30, "default": 0, "example": 28 },
+          "finalExam": { "type": "number", "minimum": 0, "maximum": 50, "default": 0, "example": 48 },
+          "remarks": { "type": "string", "example": "እጅግ በጣም ጥሩ ውጤት" }
+        }
+      },
+      "StudentResult": {
+        "allOf": [{ "$ref": "#/components/schemas/StudentResultCreate" }],
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string", "example": "65d89f1234567890abcdef07" },
+          "totalScore": { "type": "number", "example": 95 },
+          "average": { "type": "number", "example": 95 },
+          "grade": {
+            "type": "string",
+            "enum": ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"],
+            "example": "A+"
+          },
+          "recordedDate": { "type": "string", "example": "2018-05-20" }
+        }
+      },
+      "StudentRequest": {
+        "type": "object",
+        "required": ["studentData", "requestedBy"],
+        "properties": {
+          "_id": { "type": "string", "example": "65d89f1234567890abcdef08" },
+          "studentData": { "$ref": "#/components/schemas/StudentCreate" },
+          "requestedBy": { "type": "string", "example": "Attendance Facilitator" },
+          "requestedByName": { "type": "string", "example": "ዲ/ን ቴዎድሮስ ካሳሁን" },
+          "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "example": "pending" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "approvedBy": { "type": "string", "example": "Super Admin" },
+          "rejectionReason": { "type": "string", "example": "" },
+          "processedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PaymentStatus": {
+        "type": "object",
+        "required": ["academicYear", "studentId", "data"],
+        "properties": {
+          "academicYear": { "type": "string", "example": "2018" },
+          "studentId": { "type": "string", "example": "65d89f1234567890abcdef01" },
+          "data": {
+            "type": "object",
+            "description": "Map of all 13 Ethiopian months to payment status and paid amount",
+            "properties": {
+              "Meskerem": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Paid" }, "amount": { "type": "string", "example": "500" } } },
+              "Tikimt": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Paid" }, "amount": { "type": "string", "example": "500" } } },
+              "Hidar": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Paid" }, "amount": { "type": "string", "example": "500" } } },
+              "Tahsas": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Paid" }, "amount": { "type": "string", "example": "500" } } },
+              "Tir": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Paid" }, "amount": { "type": "string", "example": "500" } } },
+              "Yekatit": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Not Paid" }, "amount": { "type": "string", "example": "" } } },
+              "Megabit": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Not Paid" }, "amount": { "type": "string", "example": "" } } },
+              "Miyazia": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Not Paid" }, "amount": { "type": "string", "example": "" } } },
+              "Ginbot": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Not Paid" }, "amount": { "type": "string", "example": "" } } },
+              "Sene": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Not Paid" }, "amount": { "type": "string", "example": "" } } },
+              "Hamle": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Not Paid" }, "amount": { "type": "string", "example": "" } } },
+              "Nehase": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Not Paid" }, "amount": { "type": "string", "example": "" } } },
+              "Pagumē": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Paid", "Not Paid"], "example": "Not Paid" }, "amount": { "type": "string", "example": "" } } }
+            }
+          }
+        }
+      },
+      "AdminUserCreate": {
+        "type": "object",
+        "required": ["email", "password", "role"],
+        "properties": {
+          "name": { "type": "string", "example": "ቀሲስ ዳዊት በቀለ" },
+          "email": { "type": "string", "format": "email", "example": "hr.admin@birhanehiwot.org" },
+          "password": { "type": "string", "minLength": 6, "example": "AdminSecure123!" },
+          "role": { "type": "string", "enum": ["HR Admin", "Education Admin"], "example": "HR Admin" }
+        }
+      },
+      "MobileAuthRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "facilitator.tewodros@birhanehiwot.org" },
+          "password": { "type": "string", "example": "Facilitator123!" }
+        }
+      },
+      "MobileAuthResponse": {
+        "type": "object",
+        "required": ["token", "user"],
+        "properties": {
+          "token": { "type": "string", "description": "HS256 signed JWT (7 day duration)", "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." },
+          "user": {
+            "type": "object",
+            "required": ["id", "email", "name", "role"],
+            "properties": {
+              "id": { "type": "string", "example": "65d89f1234567890abcdef05" },
+              "email": { "type": "string", "example": "facilitator.tewodros@birhanehiwot.org" },
+              "name": { "type": "string", "example": "ዲ/ን ቴዎድሮስ ካሳሁን" },
+              "role": { "type": "string", "example": "Attendance Facilitator" },
+              "grade": {
+                "type": "array",
+                "items": { "type": "string" },
+                "example": ["አንደኛ ክፍል"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": { "description": "Validation error or invalid parameters", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unauthorized": { "description": "Not authenticated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Forbidden": { "description": "Role forbidden or insufficient permissions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "NotFound": { "description": "Resource not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "MessageOk": { "description": "Operation successful", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } } } },
+      "CreatedId": { "description": "Resource created with MongoDB ID", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IdResponse" } } } }
+    }
+  },
+  "security": [{ "sessionCookie": [] }],
+  "paths": {
+    "/api/auth/csrf": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get CSRF token",
+        "description": "Returns CSRF token required for the NextAuth credentials login callback.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "CSRF token response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["csrfToken"],
+                  "properties": { "csrfToken": { "type": "string", "example": "f6b3e7a02c894d..." } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get current web session",
+        "description": "Returns current logged in user session information from JWT session cookie.",
+        "responses": {
+          "200": {
+            "description": "Session payload (empty object when unauthenticated)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "example": "65d89f1234567890abcdef01" },
+                        "name": { "type": "string", "example": "ዲ/ን ቴዎድሮስ ካሳሁን" },
+                        "email": { "type": "string", "example": "facilitator.tewodros@birhanehiwot.org" },
+                        "role": { "type": "string", "example": "Attendance Facilitator" },
+                        "grade": { "type": "array", "items": { "type": "string" }, "example": ["አንደኛ ክፍል"] },
+                        "canAddStudent": { "type": "boolean", "example": true }
+                      }
+                    },
+                    "expires": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/callback/credentials": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Web login (credentials callback)",
+        "description": "Standard form-urlencoded NextAuth credentials login flow.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["csrfToken", "email", "password"],
+                "properties": {
+                  "csrfToken": { "type": "string", "example": "f6b3e7a02c894d..." },
+                  "email": { "type": "string", "example": "superadmin@birhanehiwot.org" },
+                  "password": { "type": "string", "example": "SuperAdminPass123!" },
+                  "json": { "type": "string", "example": "true" },
+                  "callbackUrl": { "type": "string", "example": "http://localhost:3000/login" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful (sets session cookie)" },
+          "302": { "description": "Redirect on success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/auth/signout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Web logout",
+        "description": "Clears NextAuth session cookie and redirects.",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "csrfToken": { "type": "string" },
+                  "callbackUrl": { "type": "string", "example": "http://localhost:3000/login" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Session cleared" },
+          "302": { "description": "Redirected after logout" }
+        }
+      }
+    },
+    "/api/mobile/auth": {
+      "options": {
+        "tags": ["Auth"],
+        "summary": "Mobile CORS preflight",
+        "security": [],
+        "responses": {
+          "204": { "description": "CORS preflight successful" }
+        }
+      },
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Mobile app login",
+        "description": "Authenticates mobile client using email and password, returning a 7-day signed HS256 JWT and user payload.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MobileAuthRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MobileAuthResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "description": "Internal login error" }
+        }
+      }
+    },
+    "/api/setup/super-admin": {
+      "post": {
+        "tags": ["Setup"],
+        "summary": "Create Super Admin (one-time bootstrap)",
+        "description": "Idempotent initialization endpoint. Creates initial Super Admin account when none exists. Requires confirmation phrase CREATE_SUPER_ADMIN.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "confirm"],
+                "properties": {
+                  "name": { "type": "string", "default": "Super Admin", "example": "ሊቀ ትጉሃን ገብረመስቀል" },
+                  "email": { "type": "string", "format": "email", "example": "superadmin@birhanehiwot.org" },
+                  "password": { "type": "string", "minLength": 6, "example": "SuperAdminPass123!" },
+                  "confirm": { "type": "string", "enum": ["CREATE_SUPER_ADMIN"], "example": "CREATE_SUPER_ADMIN" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Super Admin created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Super Admin created successfully" },
+                    "created": { "type": "boolean", "example": true },
+                    "userId": { "type": "string", "example": "65d89f1234567890abcdef00" }
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Super Admin already exists (no creation performed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Super Admin already exists" },
+                    "created": { "type": "boolean", "example": false }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "description": "Email already exists with another role" }
+        }
+      }
+    },
+    "/api/students": {
+      "get": {
+        "tags": ["Students"],
+        "summary": "List students with filters",
+        "description": "Returns array of students excluding photo_data_url and qr_code fields for high performance. When uniqueId is provided, returns single matching student or 404.",
+        "parameters": [
+          { "name": "grade", "in": "query", "schema": { "type": "array", "items": { "type": "string" } }, "style": "form", "explode": true, "description": "Filter by one or more grades" },
+          { "name": "academicYear", "in": "query", "schema": { "type": "string" }, "example": "2018" },
+          { "name": "sex", "in": "query", "schema": { "type": "string", "enum": ["Male", "Female"] }, "example": "Male" },
+          { "name": "uniqueId", "in": "query", "schema": { "type": "string" }, "description": "Exact Unique_ID lookup", "example": "BH-2018-001" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" }, "example": 50 }
+        ],
+        "responses": {
+          "200": {
+            "description": "Student list or single student record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "type": "array", "items": { "$ref": "#/components/schemas/Student" } },
+                    { "$ref": "#/components/schemas/Student" }
+                  ]
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Students"],
+        "summary": "Create student",
+        "description": "Creates a new student record. Protected by distributed lock on Unique_ID. Validates category registration period window. Attendance Facilitators must have canAddStudent permission and match assigned grades.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StudentCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedId" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": {
+            "description": "Permission denied (ADD_STUDENT_DENIED, RESTRICTED_GRADE, registration window closed)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Students"],
+        "summary": "Delete student by MongoDB ID",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id"],
+                "properties": { "id": { "type": "string", "example": "65d89f1234567890abcdef01" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/students/{studentId}": {
+      "parameters": [
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" },
+          "description": "MongoDB ObjectId or school Unique_ID"
+        }
+      ],
+      "get": {
+        "tags": ["Students"],
+        "summary": "Get student by MongoDB ID or Unique_ID",
+        "responses": {
+          "200": {
+            "description": "Full student record",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Student" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Students"],
+        "summary": "Update student (full merge)",
+        "description": "Updates student profile. If Unique_ID changes, the signed QR code is regenerated automatically.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StudentCreate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated student document",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Student" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["Students"],
+        "summary": "Update student photo or regenerate QR",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photo_data_url": { "type": "string", "example": "data:image/png;base64,iVBORw0KGgoAAA..." },
+                  "generateQR": { "type": "boolean", "example": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated student document",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Student" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/students/check-duplicate": {
+      "post": {
+        "tags": ["Students"],
+        "summary": "Check duplicate student identity",
+        "description": "Validates whether a student with the same First, Father, Grandfather, Mothers name and Sex already exists.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["First_Name", "Father_Name", "Grandfather_Name", "Mothers_Name", "Sex"],
+                "properties": {
+                  "First_Name": { "type": "string", "example": "አማኑኤል" },
+                  "Father_Name": { "type": "string", "example": "ተክሌ" },
+                  "Grandfather_Name": { "type": "string", "example": "ገብረማርያም" },
+                  "Mothers_Name": { "type": "string", "example": "ወለተ ዮሐንስ" },
+                  "Sex": { "type": "string", "enum": ["Male", "Female"], "example": "Male" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Duplicate check result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["exists"],
+                  "properties": { "exists": { "type": "boolean", "example": true } }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/students/count": {
+      "post": {
+        "tags": ["Students"],
+        "summary": "Count students by academic year and grade",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["academicYear", "grade"],
+                "properties": {
+                  "academicYear": { "type": "string", "example": "2018" },
+                  "grade": { "$ref": "#/components/schemas/Grade" },
+                  "classification": { "$ref": "#/components/schemas/StudentClassification" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Student count matching filters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["count", "academicYear", "grade"],
+                  "properties": {
+                    "count": { "type": "integer", "example": 42 },
+                    "academicYear": { "type": "string", "example": "2018" },
+                    "grade": { "type": "string", "example": "አንደኛ ክፍል" },
+                    "classification": { "type": "string", "nullable": true, "example": "Regular" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/students/total": {
+      "get": {
+        "tags": ["Students"],
+        "summary": "Get total registered students count",
+        "responses": {
+          "200": {
+            "description": "Total count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["total"],
+                  "properties": { "total": { "type": "integer", "example": 1250 } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/students/{studentId}/qr": {
+      "parameters": [
+        { "name": "studentId", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Student MongoDB ID" }
+      ],
+      "get": {
+        "tags": ["Students"],
+        "summary": "Get student QR code image (PNG)",
+        "responses": {
+          "200": {
+            "description": "PNG image binary stream",
+            "content": { "image/png": { "schema": { "type": "string", "format": "binary" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/students/{studentId}/payments": {
+      "parameters": [
+        { "name": "studentId", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Student ID" }
+      ],
+      "get": {
+        "tags": ["Students"],
+        "summary": "Get student legacy payment records",
+        "responses": {
+          "200": { "description": "Array of payment documents" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/attendance": {
+      "get": {
+        "tags": ["Attendance"],
+        "summary": "List attendance records or summary statistics",
+        "parameters": [
+          { "name": "date", "in": "query", "schema": { "type": "string" }, "example": "2018-05-15" },
+          { "name": "studentId", "in": "query", "schema": { "type": "string" }, "example": "65d89f1234567890abcdef01" },
+          { "name": "grade", "in": "query", "schema": { "type": "array", "items": { "type": "string" } }, "style": "form", "explode": true, "description": "Filter by one or more grades" },
+          { "name": "academicYear", "in": "query", "schema": { "type": "string" }, "example": "2018" },
+          { "name": "summary", "in": "query", "schema": { "type": "boolean" }, "description": "When true, returns { total, present } object" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" }, "example": 100 }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attendance list or summary object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "type": "array", "items": { "$ref": "#/components/schemas/AttendanceRecord" } },
+                    {
+                      "type": "object",
+                      "required": ["total", "present"],
+                      "properties": {
+                        "total": { "type": "integer", "example": 45 },
+                        "present": { "type": "integer", "example": 42 }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Attendance"],
+        "summary": "Bulk mark attendance (idempotent upsert)",
+        "description": "Upserts attendance records keyed on (studentId, date). Submissions are serialized per date via distributed lock to prevent duplicates.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AttendanceBulkRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bulk upsert results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "insertedCount", "updatedCount"],
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "insertedCount": { "type": "integer", "example": 40 },
+                    "updatedCount": { "type": "integer", "example": 5 }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/attendance/{studentId}": {
+      "parameters": [
+        { "name": "studentId", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Valid student ObjectId" }
+      ],
+      "get": {
+        "tags": ["Attendance"],
+        "summary": "Get full attendance history for a student",
+        "responses": {
+          "200": {
+            "description": "Array of student attendance history",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AttendanceRecord" } }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/attendance/temp": {
+      "get": {
+        "tags": ["Attendance"],
+        "summary": "Get temporary / draft attendance records",
+        "parameters": [
+          { "name": "date", "in": "query", "schema": { "type": "string" }, "example": "2018-05-15" },
+          { "name": "markedBy", "in": "query", "schema": { "type": "string" }, "example": "Attendance Facilitator" }
+        ],
+        "responses": {
+          "200": { "description": "Array of draft attendance rows" }
+        }
+      }
+    },
+    "/api/facilitators/roles": {
+      "get": {
+        "tags": ["Facilitators"],
+        "summary": "List available facilitator roles",
+        "responses": {
+          "200": {
+            "description": "Available facilitator roles list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "value": { "type": "string", "example": "Attendance Facilitator" },
+                      "label": { "type": "string", "example": "Attendance Facilitator" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/facilitators": {
+      "get": {
+        "tags": ["Facilitators"],
+        "summary": "List facilitators (scoped by requester role)",
+        "parameters": [
+          { "name": "id", "in": "query", "schema": { "type": "string" }, "description": "Optional single facilitator ID lookup" }
+        ],
+        "responses": {
+          "200": { "description": "Facilitator list or single document (passwords excluded)" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Facilitators"],
+        "summary": "Create facilitator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FacilitatorCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedId" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "description": "Email already exists" }
+        }
+      },
+      "put": {
+        "tags": ["Facilitators"],
+        "summary": "Update facilitator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [{ "$ref": "#/components/schemas/FacilitatorCreate" }],
+                "type": "object",
+                "required": ["id"],
+                "properties": { "id": { "type": "string", "example": "65d89f1234567890abcdef05" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Facilitators"],
+        "summary": "Delete facilitator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id"],
+                "properties": { "id": { "type": "string", "example": "65d89f1234567890abcdef05" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/facilitators/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Facilitator MongoDB ID" }
+      ],
+      "patch": {
+        "tags": ["Facilitators"],
+        "summary": "Toggle canAddStudent permission for an Attendance Facilitator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["canAddStudent"],
+                "properties": { "canAddStudent": { "type": "boolean", "example": true } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated facilitator document" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/facilitators/total": {
+      "get": {
+        "tags": ["Facilitators"],
+        "summary": "Get total count of all facilitators",
+        "responses": {
+          "200": {
+            "description": "Total facilitators count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["total"],
+                  "properties": { "total": { "type": "integer", "example": 24 } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/education-facilitators": {
+      "get": {
+        "tags": ["Education Facilitators"],
+        "summary": "List education facilitators",
+        "description": "Accessible by Super Admin and Education Admin only.",
+        "parameters": [
+          { "name": "id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "List or single facilitator record (passwords excluded)" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Education Facilitators"],
+        "summary": "Create education facilitator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "name": { "type": "string", "example": "መርጌታ ዘርዓይ በርሄ" },
+                  "email": { "type": "string", "format": "email", "example": "education.zeray@birhanehiwot.org" },
+                  "password": { "type": "string", "minLength": 6, "example": "Facilitator123!" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedId" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "description": "Email already exists" }
+        }
+      },
+      "put": {
+        "tags": ["Education Facilitators"],
+        "summary": "Update education facilitator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id", "email"],
+                "properties": {
+                  "id": { "type": "string", "example": "65d89f1234567890abcdef05" },
+                  "name": { "type": "string", "example": "መርጌታ ዘርዓይ በርሄ" },
+                  "email": { "type": "string", "format": "email", "example": "education.zeray@birhanehiwot.org" },
+                  "password": { "type": "string", "example": "NewPass123!" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Education Facilitators"],
+        "summary": "Delete education facilitator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id"],
+                "properties": { "id": { "type": "string", "example": "65d89f1234567890abcdef05" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/teachers": {
+      "get": {
+        "tags": ["Teachers"],
+        "summary": "List teachers",
+        "description": "Super Admin and Education Admin only.",
+        "parameters": [
+          { "name": "id", "in": "query", "schema": { "type": "string" }, "description": "Teacher ID" }
+        ],
+        "responses": {
+          "200": { "description": "Array of teachers (passwords excluded)" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Teachers"],
+        "summary": "Create teacher",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TeacherCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedId" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "description": "Email already exists" }
+        }
+      },
+      "put": {
+        "tags": ["Teachers"],
+        "summary": "Update teacher",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [{ "$ref": "#/components/schemas/TeacherCreate" }],
+                "type": "object",
+                "required": ["id", "email"],
+                "properties": { "id": { "type": "string", "example": "65d89f1234567890abcdef05" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "description": "Teacher not found (or id is not a Teacher)" }
+        }
+      },
+      "delete": {
+        "tags": ["Teachers"],
+        "summary": "Delete teacher",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id"],
+                "properties": { "id": { "type": "string", "example": "65d89f1234567890abcdef05" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/subjects": {
+      "get": {
+        "tags": ["Subjects"],
+        "summary": "List grouped subjects",
+        "parameters": [
+          { "name": "grade", "in": "query", "schema": { "type": "string" }, "example": "አንደኛ ክፍል" },
+          { "name": "gradeNumber", "in": "query", "schema": { "type": "integer" }, "example": 1 },
+          { "name": "academicYear", "in": "query", "schema": { "type": "string" }, "example": "2018" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of subject groups",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/SubjectGroup" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Subjects"],
+        "summary": "Add subject to grade group (creates or updates group)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubjectCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Subject added to group",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubjectGroup" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "description": "Subject already exists for this grade and academic year" }
+        }
+      }
+    },
+    "/api/subjects/batch": {
+      "post": {
+        "tags": ["Subjects"],
+        "summary": "Batch create subjects",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["subjects"],
+                "properties": {
+                  "subjects": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/SubjectCreate" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "All subjects processed successfully" },
+          "207": { "description": "Multi-Status: partial batch success with individual error items" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/subjects/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Subject group MongoDB ID" }
+      ],
+      "delete": {
+        "tags": ["Subjects"],
+        "summary": "Remove subject from group by name",
+        "description": "Pulls named subject from group. If the group has no remaining subjects, the entire group document is deleted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": { "name": { "type": "string", "example": "ስርዓተ ቤተክርስቲያን" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Subject removed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Subject removed successfully" },
+                    "remaining": { "type": "integer", "example": 6 },
+                    "deleted": { "type": "boolean", "example": false }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/teacher-assignments": {
+      "get": {
+        "tags": ["Teacher Assignments"],
+        "summary": "List all teacher-to-subject assignments",
+        "responses": {
+          "200": {
+            "description": "Teacher assignments list",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/TeacherAssignment" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Teacher Assignments"],
+        "summary": "Create teacher assignment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["teacherId", "subjectId", "grade", "academicYear"],
+                "properties": {
+                  "teacherId": { "type": "string", "example": "65d89f1234567890abcdef05" },
+                  "subjectId": { "type": "string", "example": "65d89f1234567890abcdef03" },
+                  "grade": { "$ref": "#/components/schemas/Grade" },
+                  "academicYear": { "type": "string", "example": "2018" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Assignment created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TeacherAssignment" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "description": "Teacher or subject not found" },
+          "409": { "description": "Assignment already exists" }
+        }
+      }
+    },
+    "/api/teacher-assignments/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Assignment MongoDB ID" }
+      ],
+      "delete": {
+        "tags": ["Teacher Assignments"],
+        "summary": "Delete teacher assignment",
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/category-periods": {
+      "get": {
+        "tags": ["Category Periods"],
+        "summary": "List registration periods",
+        "parameters": [
+          { "name": "academicYear", "in": "query", "schema": { "type": "string" }, "example": "2018" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Category periods list",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CategoryPeriod" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Category Periods"],
+        "summary": "Create or update registration period (upsert)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CategoryPeriod" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upserted period document",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CategoryPeriod" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/student-results": {
+      "get": {
+        "tags": ["Student Results"],
+        "summary": "List student exam results",
+        "parameters": [
+          { "name": "studentId", "in": "query", "schema": { "type": "string" }, "example": "65d89f1234567890abcdef01" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of student result records",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/StudentResult" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Student Results"],
+        "summary": "Create student result",
+        "description": "Computes total score and university letter grade (A+ to F). Automatically stores Ethiopian ISO recorded date.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StudentResultCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created student result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StudentResult" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "description": "Result already exists for this student, subject, and academic year" }
+        }
+      }
+    },
+    "/api/student-results/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Student result MongoDB ID" }
+      ],
+      "get": {
+        "tags": ["Student Results"],
+        "summary": "Get student result by ID",
+        "responses": {
+          "200": {
+            "description": "Student result document",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StudentResult" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Student Results"],
+        "summary": "Update student result (recalculates total & letter grade)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StudentResultCreate" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Student Results"],
+        "summary": "Delete student result",
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/student-requests": {
+      "get": {
+        "tags": ["Student Requests"],
+        "summary": "List new student registration requests",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "approved", "rejected"] }, "example": "pending" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Student requests array",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/StudentRequest" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Student Requests"],
+        "summary": "Submit student registration request (by Facilitator)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["studentData"],
+                "properties": {
+                  "studentData": { "$ref": "#/components/schemas/StudentCreate" },
+                  "requestedBy": { "type": "string", "example": "Attendance Facilitator" },
+                  "requestedByName": { "type": "string", "example": "ዲ/ን ቴዎድሮስ ካሳሁን" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedId" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      },
+      "patch": {
+        "tags": ["Student Requests"],
+        "summary": "Approve or reject student request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id", "status"],
+                "properties": {
+                  "id": { "type": "string", "example": "65d89f1234567890abcdef08" },
+                  "status": { "type": "string", "enum": ["approved", "rejected"], "example": "approved" },
+                  "approvedBy": { "type": "string", "example": "Super Admin" },
+                  "rejectionReason": { "type": "string", "example": "" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/student-requests/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Student request MongoDB ID" }
+      ],
+      "get": {
+        "tags": ["Student Requests"],
+        "summary": "Get student request by ID",
+        "responses": {
+          "200": {
+            "description": "Student request document",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StudentRequest" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/payment": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Get monthly payment status for student",
+        "description": "Fetches Ethiopian payment records for student. If record doesn't exist, initializes all 13 Ethiopian months to Not Paid.",
+        "parameters": [
+          { "name": "year", "in": "query", "required": true, "schema": { "type": "string" }, "example": "2018" },
+          { "name": "studentId", "in": "query", "required": true, "schema": { "type": "string" }, "example": "65d89f1234567890abcdef01" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment status document",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaymentStatus" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      },
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Save or update monthly payment status",
+        "description": "Payload is normalized against all Ethiopian months to guarantee existing months are preserved.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PaymentStatus" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/admin-users": {
+      "get": {
+        "tags": ["Admin Users"],
+        "summary": "List department admin accounts",
+        "description": "Super Admin only. Returns accounts for HR Admin and Education Admin.",
+        "responses": {
+          "200": { "description": "Department admins array (passwords excluded)" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "tags": ["Admin Users"],
+        "summary": "Create department admin",
+        "description": "Super Admin only. Only one account per managed role is allowed.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AdminUserCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedId" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "description": "Email already exists, or role account already exists" }
+        }
+      },
+      "put": {
+        "tags": ["Admin Users"],
+        "summary": "Update department admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                  "id": { "type": "string", "example": "65d89f1234567890abcdef09" },
+                  "name": { "type": "string", "example": "ቀሲስ ዳዊት በቀለ" },
+                  "email": { "type": "string", "format": "email", "example": "hr.admin@birhanehiwot.org" },
+                  "password": { "type": "string", "example": "NewAdminPass123!" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Admin Users"],
+        "summary": "Delete department admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id"],
+                "properties": { "id": { "type": "string", "example": "65d89f1234567890abcdef09" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/MessageOk" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/qr/verify": {
+      "post": {
+        "tags": ["QR"],
+        "summary": "Verify HMAC signed QR payload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["text"],
+                "properties": {
+                  "text": { "type": "string", "description": "HMAC signed QR text payload", "example": "BH-2018-001.a8f9c7..." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "QR code verified successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["uniqueId"],
+                  "properties": { "uniqueId": { "type": "string", "example": "BH-2018-001" } }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid signature or missing text payload" }
+        }
+      }
+    },
+    "/api/sheet/health": {
+      "get": {
+        "tags": ["Utilities"],
+        "summary": "Google Sheets integration health check",
+        "responses": {
+          "200": {
+            "description": "Healthy status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "healthy" },
+                    "message": { "type": "string", "example": "Google Sheets connection successful" },
+                    "spreadsheetId": { "type": "string" },
+                    "sheetCount": { "type": "integer", "example": 5 },
+                    "timestamp": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "500": { "description": "GOOGLE_SHEET_ID not configured" },
+          "503": { "description": "Google Sheets API unavailable or bad credentials" }
+        }
+      }
+    },
+    "/api/sheet": {
+      "get": {
+        "tags": ["Utilities"],
+        "summary": "Fetch and normalize Google Sheets data",
+        "parameters": [
+          { "name": "sheet", "in": "query", "schema": { "type": "string" }, "example": "Sheet1" },
+          { "name": "sheets", "in": "query", "schema": { "type": "string" }, "example": "Sheet1,Sheet2" },
+          { "name": "all", "in": "query", "schema": { "type": "boolean" }, "example": false }
+        ],
+        "responses": {
+          "200": { "description": "Normalized Google Sheets records" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "500": { "description": "Sheet sync failure" }
+        }
+      }
+    },
+    "/api/cron/aggregate-attendance": {
+      "get": {
+        "tags": ["Utilities"],
+        "summary": "Trigger attendance aggregation cron job",
+        "parameters": [
+          { "name": "date", "in": "query", "schema": { "type": "string" }, "example": "2018-05-15" }
+        ],
+        "responses": {
+          "200": { "description": "Aggregation executed successfully" }
+        }
+      }
+    }
+  }
+}
