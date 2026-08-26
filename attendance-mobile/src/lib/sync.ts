@@ -22,13 +22,13 @@ async function findAttendance(studentId: string, date: string) {
 
 function mapStudent(raw: Record<string, unknown>): CachedStudent {
   return {
-    id: String(raw._id),
-    uniqueId: String(raw.Unique_ID || ""),
-    firstName: String(raw.First_Name || ""),
-    fatherName: String(raw.Father_Name || ""),
-    grade: String(raw.Grade || ""),
-    academicYear: String(raw.Academic_Year || ""),
-    sex: String(raw.Sex || ""),
+    id: String(raw._id || raw.id || ""),
+    uniqueId: String(raw.Unique_ID || raw.uniqueId || raw.unique_id || raw._id || ""),
+    firstName: String(raw.First_Name || raw.firstName || raw.name || ""),
+    fatherName: String(raw.Father_Name || raw.fatherName || ""),
+    grade: String(raw.Grade || raw.grade || ""),
+    academicYear: String(raw.Academic_Year || raw.academicYear || ""),
+    sex: String(raw.Sex || raw.sex || ""),
   };
 }
 
