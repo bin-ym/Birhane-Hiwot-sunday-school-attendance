@@ -3,8 +3,17 @@ import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { formatEthiopianDate } from "@/lib/utils";
 import { withLock } from "@/lib/distributedLock";
+import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logAudit } from "@/lib/auditLog";
 
 export async function GET(req: NextRequest) {
+  const { error } = await requireAuth(req);
+  if (error) return error;
+
+  const rl = await enforceRateLimit(req, { maxRequests: 60, windowMs: 60_000 });
+  if (rl) return rl;
+
   try {
     const db = await getDb();
     const url = new URL(req.url);
@@ -55,12 +64,18 @@ export async function GET(req: NextRequest) {
 
     const attendance = await find.toArray();
     return NextResponse.json(attendance, { status: 200 });
-  } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
+  const { token, error } = await requireWriteAccess(req);
+  if (error) return error;
+
+  const rl = await enforceRateLimit(req, { maxRequests: 10, windowMs: 60_000 });
+  if (rl) return rl;
+
   try {
     const { date, attendance } = await req.json();
     if (!date || !Array.isArray(attendance)) {
@@ -97,6 +112,16 @@ export async function POST(req: NextRequest) {
       },
       { ttlMs: 15_000, waitMs: 10_000 },
     );
+    // Audit log
+    logAudit({
+      action: "update",
+      collection: "attendance",
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: String(token.role || ""),
+      summary: `Attendance submitted for ${date}: ${result.upsertedCount} new, ${result.modifiedCount} updated`,
+    });
+
     return NextResponse.json(
       {
         success: true,
@@ -105,7 +130,7 @@ export async function POST(req: NextRequest) {
       },
       { status: 200 },
     );
-  } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }
 }

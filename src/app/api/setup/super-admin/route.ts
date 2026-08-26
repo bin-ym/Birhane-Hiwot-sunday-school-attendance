@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getDb } from "@/lib/mongodb";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { sanitizeError } from "@/lib/apiAuth";
 
 const SETUP_CONFIRM_TEXT = "CREATE_SUPER_ADMIN";
 
 export async function POST(req: NextRequest) {
+  // Strict rate limit: 3 attempts per 15 minutes
+  const rl = await enforceRateLimit(req, { maxRequests: 3, windowMs: 15 * 60_000, keyPrefix: "setup" });
+  if (rl) return rl;
+
   try {
     const body = await req.json();
     const name = String(body?.name || "Super Admin");
@@ -26,9 +32,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (password.length < 6) {
+    // Stronger password policy: min 8 chars, uppercase, lowercase, number
+    if (password.length < 8) {
       return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
+        { error: "Password must be at least 8 characters" },
+        { status: 400 }
+      );
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      return NextResponse.json(
+        { error: "Password must include uppercase, lowercase, and a number" },
         { status: 400 }
       );
     }
@@ -72,9 +85,9 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (err) {
     return NextResponse.json(
-      { error: "Failed to run super admin setup" },
+      { error: sanitizeError(err) },
       { status: 500 }
     );
   }

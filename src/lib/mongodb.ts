@@ -44,9 +44,9 @@ export async function getDb(): Promise<Db> {
     }
 
     const connectedClient = await clientPromise;
-    const db = connectedClient.db('sunday_school');
+    const db = connectedClient.db('test');
     cachedDb = db;
-    console.log('MongoDB connected successfully to sunday_school database');
+    console.log('MongoDB connected successfully to test');
     return db;
   } catch (error) {
     console.error('MongoDB connection error:', error);

@@ -1,9 +1,12 @@
 "use client";
 import { useSidebar } from "./SidebarProvider";
 import Image from "next/image";
+import { NotificationBell } from "./NotificationBell";
+import { useSession } from "next-auth/react";
 
 export default function NavBar({ showSidebarButton = true }) {
   const { toggleSidebar } = useSidebar();
+  const { data: session } = useSession();
 
   return (
     <nav className="sticky top-0 z-40 flex h-[var(--app-navbar-height)] items-center justify-between bg-gradient-to-r from-blue-800 to-green-700 px-4 text-white shadow-md sm:px-6">
@@ -20,15 +23,18 @@ export default function NavBar({ showSidebarButton = true }) {
           Birhane Hiwot Sunday School
         </h1>
       </div>
-      {showSidebarButton && (
-        <button
-          onClick={toggleSidebar}
-          className="md:hidden text-xl sm:text-2xl p-1 hover:bg-white/20 rounded transition-colors"
-          aria-label="Toggle sidebar"
-        >
-          ☰
-        </button>
-      )}
+      <div className="flex items-center gap-2">
+        {session && <NotificationBell />}
+        {showSidebarButton && (
+          <button
+            onClick={toggleSidebar}
+            className="md:hidden text-xl sm:text-2xl p-1 hover:bg-white/20 rounded transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            ☰
+          </button>
+        )}
+      </div>
     </nav>
   );
 }

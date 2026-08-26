@@ -5,8 +5,14 @@ import { ObjectId } from "mongodb";
 import { Student, UserRole } from "@/lib/models";
 import { createSignedQrText } from "@/lib/qr";
 import { withLock } from "@/lib/distributedLock";
+import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { logAudit } from "@/lib/auditLog";
 
 export async function GET(req: NextRequest) {
+  const { error } = await requireAuth(req);
+  if (error) return error;
+
   try {
     const db = await getDb();
     const { searchParams } = new URL(req.url);
@@ -65,15 +71,21 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json(serializedStudents, { status: 200 });
-  } catch (error) {
+  } catch (err) {
     return NextResponse.json(
-      { error: (error as Error).message },
+      { error: sanitizeError(err) },
       { status: 500 },
     );
   }
 }
 
 export async function POST(req: NextRequest) {
+  const { error } = await requireWriteAccess(req);
+  if (error) return error;
+
+  const rl = await enforceRateLimit(req, { maxRequests: 10, windowMs: 60_000 });
+  if (rl) return rl;
+
   try {
     const db = await getDb();
     const body: Omit<Student, "_id"> & {
@@ -210,6 +222,18 @@ export async function POST(req: NextRequest) {
         }
 
         const result = await db.collection("students").insertOne(body as Student);
+
+        // Audit log
+        logAudit({
+          action: "create",
+          collection: "students",
+          documentId: result.insertedId.toString(),
+          userId: userEmail || "unknown",
+          userEmail: userEmail || "unknown",
+          userRole,
+          summary: `Created student ${body.Unique_ID} (${body.First_Name} ${body.Father_Name})`,
+        });
+
         return NextResponse.json(
           { _id: result.insertedId.toString() },
           { status: 201 },
@@ -217,15 +241,18 @@ export async function POST(req: NextRequest) {
       },
       { ttlMs: 15_000, waitMs: 10_000 },
     );
-  } catch (error) {
+  } catch (err) {
     return NextResponse.json(
-      { error: (error as Error).message },
+      { error: sanitizeError(err) },
       { status: 500 },
     );
   }
 }
 
 export async function DELETE(req: NextRequest) {
+  const { token, error } = await requireWriteAccess(req);
+  if (error) return error;
+
   try {
     const db = await getDb();
     const { id } = await req.json();
@@ -237,16 +264,31 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    // Fetch student before delete for audit
+    const student = await db.collection<Student>("students").findOne({ _id: new ObjectId(id) });
+
     const result = await db
       .collection<Student>("students")
       .deleteOne({ _id: new ObjectId(id) });
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
+
+    // Audit log
+    logAudit({
+      action: "delete",
+      collection: "students",
+      documentId: id,
+      userId: String(token.id || ""),
+      userEmail: String(token.email || ""),
+      userRole: String(token.role || ""),
+      summary: `Deleted student ${student?.Unique_ID || id} (${student?.First_Name || "?"} ${student?.Father_Name || "?"})`,
+    });
+
     return NextResponse.json({ message: "Student deleted" }, { status: 200 });
-  } catch (error) {
+  } catch (err) {
     return NextResponse.json(
-      { error: (error as Error).message },
+      { error: sanitizeError(err) },
       { status: 500 },
     );
   }

@@ -8,6 +8,8 @@ const superAdminLinks = [
   { label: "Department Admins", href: "/super-admin/department-admins" },
   { label: "Global Facilitators", href: "/super-admin/facilitators" },
   { label: "Reports", href: "/super-admin/reports" },
+  { label: "Audit Logs", href: "/super-admin/audit-logs" },
+  { label: "System Health", href: "/super-admin/system-health" },
   { label: "Settings", href: "/super-admin/settings" },
 ];
 

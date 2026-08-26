@@ -2,8 +2,13 @@ import { getDb } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { StudentRequest } from '@/lib/models';
+import { requireAuth, sanitizeError } from '@/lib/apiAuth';
+import { enforceRateLimit } from '@/lib/rateLimit';
 
 export async function GET(req: NextRequest) {
+  const { error } = await requireAuth(req);
+  if (error) return error;
+
   try {
     const db = await getDb();
     const { searchParams } = new URL(req.url);
@@ -34,6 +39,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { error } = await requireAuth(req);
+  if (error) return error;
+
+  const rl = await enforceRateLimit(req, { maxRequests: 10, windowMs: 60_000 });
+  if (rl) return rl;
+
   try {
     const db = await getDb();
     const body: {
