@@ -11,7 +11,7 @@
       "description": "Local Development Server"
     },
     {
-      "url": "https://birhane-hiwot-sunday-school-attenda.vercel.app",
+      "url": "https://birhane-hiwot-sunday-school-attendance.vercel.app",
       "description": "Production / Staging Server"
     }
   ],

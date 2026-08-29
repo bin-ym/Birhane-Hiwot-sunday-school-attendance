@@ -16,7 +16,7 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   });
 }
 
-export const DEFAULT_SERVER_URL = "https://birhane-hiwot-sunday-school-attenda.vercel.app";
+export const DEFAULT_SERVER_URL = "https://birhane-hiwot-sunday-school-attendance.vercel.app";
 
 export async function getServerUrl(): Promise<string> {
   const settings = await getSettings();
