@@ -29,26 +29,42 @@ export async function loginMobile(
   email: string,
   password: string,
 ): Promise<{ token: string; user: MobileUser }> {
-  const base = serverUrl.replace(/\/$/, "");
+  const base = (serverUrl || "").trim().replace(/\/$/, "");
+  if (!base) {
+    throw new Error("Server URL is required. Please check your Server settings.");
+  }
+
+  let res: Response;
   try {
-    const res = await fetch(`${base}/api/mobile/auth`, {
+    res = await fetch(`${base}/api/mobile/auth`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: email.trim(), password }),
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || "Login failed");
-    }
-    return data;
   } catch (err) {
-    if (err instanceof Error && err.message !== "Login failed") {
-      throw new Error(
-        `Cannot reach server at ${base}. Check the URL and try again.`,
-      );
-    }
-    throw err;
+    throw new Error(
+      `Cannot connect to server at ${base}. Please check the Server URL and your network connection (${(err as Error).message || "Network Error"}).`,
+    );
   }
+
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch {
+    // If not JSON
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      data?.error || data?.message || `Login failed (HTTP ${res.status})`,
+    );
+  }
+
+  if (!data?.token || !data?.user) {
+    throw new Error("Server returned an invalid login response. Please check server logs.");
+  }
+
+  return data;
 }
 
 export async function fetchStudents(grades: string[]) {
