@@ -1,7 +1,6 @@
-// src/lib/apiAuth.ts
-// Centralized auth helpers for API route handlers.
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { jwtVerify } from "jose";
 
 const SECRET = process.env.NEXTAUTH_SECRET;
 
@@ -19,14 +18,47 @@ export type UserRole =
 export async function requireAuth(
   req: NextRequest,
 ): Promise<{ token: Record<string, unknown>; error?: NextResponse }> {
-  const token = await getToken({ req, secret: SECRET });
-  if (!token) {
-    return {
-      token: {},
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
+  // 1. Try NextAuth session cookie / token
+  try {
+    const token = await getToken({ req, secret: SECRET });
+    if (token) {
+      return { token: token as Record<string, unknown> };
+    }
+  } catch {
+    // Continue to Bearer token check
   }
-  return { token: token as Record<string, unknown> };
+
+  // 2. Try Mobile Bearer JWT
+  const authHeader = req.headers.get("authorization");
+  if (authHeader && authHeader.startsWith("Bearer ") && SECRET) {
+    const rawToken = authHeader.slice(7).trim();
+    try {
+      const secretBytes = new TextEncoder().encode(SECRET);
+      const { payload } = await jwtVerify(rawToken, secretBytes);
+      if (payload) {
+        return {
+          token: {
+            ...payload,
+            id: payload.sub || payload.id,
+            email: payload.email,
+            role: payload.role,
+            name: payload.name,
+            grade: payload.grade,
+          },
+        };
+      }
+    } catch {
+      return {
+        token: {},
+        error: NextResponse.json({ error: "Invalid or expired token" }, { status: 401 }),
+      };
+    }
+  }
+
+  return {
+    token: {},
+    error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+  };
 }
 
 /**
