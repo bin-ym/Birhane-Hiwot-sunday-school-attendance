@@ -9,6 +9,7 @@ import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
 import { getCorsHeaders, handleCorsPreflight } from "@/lib/cors";
+import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
 
 export async function OPTIONS(req: NextRequest) {
   return handleCorsPreflight(req);
