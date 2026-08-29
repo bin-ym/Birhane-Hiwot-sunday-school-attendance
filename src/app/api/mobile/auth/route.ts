@@ -5,40 +5,27 @@ import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { getDb } from "@/lib/mongodb";
 import { User } from "@/lib/models";
+import { getCorsHeaders, handleCorsPreflight } from "@/lib/cors";
 
 function escapeRegex(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-const ALLOWED_ORIGINS = [
-  process.env.APP_URL,
-  process.env.MOBILE_APP_ORIGIN,
-  "http://localhost:3000",
-  "http://localhost:8081",
-].filter(Boolean);
-
-function corsHeaders(origin: string | null) {
-  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0] || "*";
-  return {
-    "Access-Control-Allow-Origin": allowed,
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Credentials": "true",
-  };
-}
-
 export async function OPTIONS(req: NextRequest) {
-  return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
+  return handleCorsPreflight(req);
 }
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
+  const cors = getCorsHeaders(origin);
+
   try {
     const { email, password } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
-        { status: 400 },
+        { status: 400, headers: cors },
       );
     }
 
@@ -50,7 +37,7 @@ export async function POST(req: NextRequest) {
     if (!userFromDb) {
       return NextResponse.json(
         { error: "Invalid email or password" },
-        { status: 401 },
+        { status: 401, headers: cors },
       );
     }
 
@@ -59,12 +46,15 @@ export async function POST(req: NextRequest) {
     if (!passwordsMatch) {
       return NextResponse.json(
         { error: "Invalid email or password" },
-        { status: 401 },
+        { status: 401, headers: cors },
       );
     }
 
     if (!process.env.NEXTAUTH_SECRET) {
-      return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Server misconfigured" },
+        { status: 500, headers: cors },
+      );
     }
     const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 
@@ -73,26 +63,32 @@ export async function POST(req: NextRequest) {
       sub: userFromDb._id!.toString(),
       email: userFromDb.email,
       role: userFromDb.role,
+      name: userFromDb.name || "",
+      grade: userFromDb.grade,
     })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
       .setExpirationTime("7d")
       .sign(secret);
 
-    return NextResponse.json({
-      token,
-      user: {
-        id: userFromDb._id!.toString(),
-        email: userFromDb.email,
-        name: userFromDb.name || "",
-        role: userFromDb.role,
-        grade: userFromDb.grade,
+    return NextResponse.json(
+      {
+        token,
+        user: {
+          id: userFromDb._id!.toString(),
+          email: userFromDb.email,
+          name: userFromDb.name || "",
+          role: userFromDb.role,
+          grade: userFromDb.grade,
+        },
       },
-    }, { headers: corsHeaders(req.headers.get("origin")) });
+      { headers: cors },
+    );
   } catch {
     return NextResponse.json(
       { error: "Login failed" },
-      { status: 500 },
+      { status: 500, headers: cors },
     );
   }
 }
+

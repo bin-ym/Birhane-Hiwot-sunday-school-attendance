@@ -5,14 +5,22 @@ import { ObjectId } from "mongodb";
 import { Student, UserRole } from "@/lib/models";
 import { createSignedQrText } from "@/lib/qr";
 import { withLock } from "@/lib/distributedLock";
-import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
+import { getCorsHeaders, handleCorsPreflight } from "@/lib/cors";
+
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPreflight(req);
+}
 
 export async function GET(req: NextRequest) {
+  const cors = getCorsHeaders(req.headers.get("origin"));
   const { error } = await requireAuth(req);
-  if (error) return error;
+  if (error) {
+    Object.entries(cors).forEach(([k, v]) => error.headers.set(k, v));
+    return error;
+  }
 
   try {
     const db = await getDb();
@@ -36,7 +44,7 @@ export async function GET(req: NextRequest) {
       if (!student) {
         return NextResponse.json(
           { error: "Student not found" },
-          { status: 404 },
+          { status: 404, headers: cors },
         );
       }
       return NextResponse.json(
@@ -44,7 +52,7 @@ export async function GET(req: NextRequest) {
           ...student,
           _id: student._id.toString(),
         },
-        { status: 200 },
+        { status: 200, headers: cors },
       );
     }
 
@@ -71,11 +79,11 @@ export async function GET(req: NextRequest) {
       _id: student._id.toString(),
     }));
 
-    return NextResponse.json(serializedStudents, { status: 200 });
+    return NextResponse.json(serializedStudents, { status: 200, headers: cors });
   } catch (err) {
     return NextResponse.json(
       { error: sanitizeError(err) },
-      { status: 500 },
+      { status: 500, headers: cors },
     );
   }
 }
