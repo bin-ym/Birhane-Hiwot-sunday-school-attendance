@@ -7,13 +7,25 @@ import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
+import { getCorsHeaders, handleCorsPreflight } from "@/lib/cors";
+
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPreflight(req);
+}
 
 export async function GET(req: NextRequest) {
+  const cors = getCorsHeaders(req.headers.get("origin"));
   const { error } = await requireAuth(req);
-  if (error) return error;
+  if (error) {
+    Object.entries(cors).forEach(([k, v]) => error.headers.set(k, v));
+    return error;
+  }
 
   const rl = await enforceRateLimit(req, { maxRequests: 60, windowMs: 60_000 });
-  if (rl) return rl;
+  if (rl) {
+    Object.entries(cors).forEach(([k, v]) => rl.headers.set(k, v));
+    return rl;
+  }
 
   try {
     const db = await getDb();
@@ -41,8 +53,8 @@ export async function GET(req: NextRequest) {
         .toArray();
       const studentIds = studentDocs.map((s) => s._id.toString());
       if (studentIds.length === 0) {
-        if (summary) return NextResponse.json({ total: 0, present: 0 }, { status: 200 });
-        return NextResponse.json([], { status: 200 });
+        if (summary) return NextResponse.json({ total: 0, present: 0 }, { status: 200, headers: cors });
+        return NextResponse.json([], { status: 200, headers: cors });
       }
       query.studentId = { $in: studentIds };
     }
@@ -56,7 +68,7 @@ export async function GET(req: NextRequest) {
         collection.countDocuments(query),
         collection.countDocuments({ ...query, present: true }),
       ]);
-      return NextResponse.json({ total, present }, { status: 200 });
+      return NextResponse.json({ total, present }, { status: 200, headers: cors });
     }
 
     let find = collection.find(query).sort({ _id: -1 });
@@ -64,23 +76,30 @@ export async function GET(req: NextRequest) {
     if (limit > 0) find = find.limit(limit);
 
     const attendance = await find.toArray();
-    return NextResponse.json(attendance, { status: 200 });
+    return NextResponse.json(attendance, { status: 200, headers: cors });
   } catch (err) {
-    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500, headers: cors });
   }
 }
 
 export async function POST(req: NextRequest) {
+  const cors = getCorsHeaders(req.headers.get("origin"));
   const { token, error } = await requireWriteAccess(req);
-  if (error) return error;
+  if (error) {
+    Object.entries(cors).forEach(([k, v]) => error.headers.set(k, v));
+    return error;
+  }
 
   const rl = await enforceRateLimit(req, { maxRequests: 10, windowMs: 60_000 });
-  if (rl) return rl;
+  if (rl) {
+    Object.entries(cors).forEach(([k, v]) => rl.headers.set(k, v));
+    return rl;
+  }
 
   try {
     const { date, attendance } = await req.json();
     if (!date || !Array.isArray(attendance)) {
-      return NextResponse.json({ error: "Invalid request data" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid request data" }, { status: 400, headers: cors });
     }
     const db = await getDb();
     const timestamp = formatEthiopianDate(new Date()); // Use Ethiopian date for timestamp
@@ -141,9 +160,9 @@ export async function POST(req: NextRequest) {
         insertedCount: result.upsertedCount,
         updatedCount: result.modifiedCount,
       },
-      { status: 200 },
+      { status: 200, headers: cors },
     );
   } catch (err) {
-    return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
+    return NextResponse.json({ error: sanitizeError(err) }, { status: 500, headers: cors });
   }
 }
