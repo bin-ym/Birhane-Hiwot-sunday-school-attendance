@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { AttendanceRecord, CachedStudent } from "../types";
 
 interface StudentCardProps {
@@ -6,6 +7,7 @@ interface StudentCardProps {
   disabled?: boolean;
   onTogglePresent: () => void;
   onTogglePermission: () => void;
+  onReasonChange?: (reason: string) => void;
 }
 
 export default function StudentCard({
@@ -14,9 +16,12 @@ export default function StudentCard({
   disabled,
   onTogglePresent,
   onTogglePermission,
+  onReasonChange,
 }: StudentCardProps) {
   const isPresent = !!record?.present;
   const hasPermission = !!record?.hasPermission;
+  const reason = record?.reason || "";
+  const [localReason, setLocalReason] = useState(reason);
 
   return (
     <div
@@ -75,6 +80,24 @@ export default function StudentCard({
           </span>
         </label>
       </div>
+      {hasPermission && (
+        <div className="mt-3 animate-fadeIn">
+          <label className="mb-1.5 block text-xs font-semibold text-amber-700 uppercase tracking-wider">
+            Permission Reason
+          </label>
+          <input
+            type="text"
+            value={localReason}
+            onChange={(e) => {
+              setLocalReason(e.target.value);
+              onReasonChange?.(e.target.value);
+            }}
+            disabled={disabled}
+            placeholder="e.g. Medical appointment, family event..."
+            className="w-full rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-slate-800 placeholder-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all outline-none"
+          />
+        </div>
+      )}
     </div>
   );
 }
