@@ -354,6 +354,9 @@ export default function AttendancePage({ user, onLogout }: AttendancePageProps) 
                 disabled={submitting}
                 onTogglePresent={() => togglePresent(student.id)}
                 onTogglePermission={() => togglePermission(student.id)}
+                onReasonChange={(reason) =>
+                  upsertDraft(student.id, { reason })
+                }
               />
             ))}
           </div>

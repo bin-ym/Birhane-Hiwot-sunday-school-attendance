@@ -31,7 +31,7 @@
 | Item | Value |
 |------|-------|
 | Base URL (Local) | `http://localhost:3000` |
-| Base URL (Production / Staging) | `https://birhane-hiwot-sunday-school-attenda.vercel.app` |
+| Base URL (Production / Staging) | `https://birhane-hiwot-sunday-school-attendance.vercel.app` |
 | Database | MongoDB Atlas (`MONGODB_URI`) |
 | Web Auth | NextAuth Credentials provider, JWT session (`NEXTAUTH_SECRET`), 24h expiration |
 | Mobile Auth | Direct signed HS256 JWT (`/api/mobile/auth`), 7-day expiration |
