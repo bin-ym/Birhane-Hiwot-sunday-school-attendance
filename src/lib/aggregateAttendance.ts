@@ -68,46 +68,38 @@ export async function aggregateAttendance(date: string) {
       aggregatedRecords.push(resolvedRecord);
     }
 
-    // Insert or update in permanent attendance collection
-    const insertedRecords: AttendanceRecord[] = [];
-    const updatedRecords: AttendanceRecord[] = [];
-
-    for (const record of aggregatedRecords) {
-      // Use any for the driver result since the generic type can vary by driver version
-      const result: any = await db.collection<AttendanceRecord>("attendance").findOneAndUpdate(
-        { studentId: record.studentId, date: record.date },
-        {
-          $set: {
-            present: record.present,
-            hasPermission: record.hasPermission,
-            reason: record.reason,
-            markedBy: record.markedBy,
-            timestamp: record.timestamp,
+    // Insert or update all records in ONE bulk round-trip (scales to any
+    // student count; the previous loop did one findOneAndUpdate per student).
+    const bulkResult = await db
+      .collection<AttendanceRecord>("attendance")
+      .bulkWrite(
+        aggregatedRecords.map((record) => ({
+          updateOne: {
+            filter: { studentId: record.studentId, date: record.date },
+            update: {
+              $set: {
+                present: record.present,
+                hasPermission: record.hasPermission,
+                reason: record.reason,
+                markedBy: record.markedBy,
+                timestamp: record.timestamp,
+              },
+            },
+            upsert: true,
           },
-        },
-        {
-          upsert: true,
-          returnDocument: "after",
-        }
+        })),
+        { ordered: false }
       );
 
-      // Safely check if it was an insert or update
-      const updatedExisting = result?.lastErrorObject?.updatedExisting;
-      if (result?.value) {
-        if (updatedExisting) {
-          updatedRecords.push(result.value);
-        } else {
-          insertedRecords.push(result.value);
-        }
-      }
-    }
+    const insertedCount = bulkResult.upsertedCount;
+    const updatedCount = bulkResult.modifiedCount;
 
     // Clean up temporary records
     await db.collection("temp_attendance").deleteMany({ date });
 
     return {
-      insertedCount: insertedRecords.length,
-      updatedCount: updatedRecords.length,
+      insertedCount,
+      updatedCount,
     };
   } catch (error) {
     console.error("Attendance aggregation error:", error);

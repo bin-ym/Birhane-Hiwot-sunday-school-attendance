@@ -27,23 +27,28 @@ npm run dev          # browser dev at http://localhost:5173
 
 ### Configure server URL
 
-On first login, enter your server URL, e.g.:
+On first login, you can tap **"⚙️ Server URL Settings"** right on the Login screen:
 
-- Local: `http://10.0.2.2:3000` (Android emulator → host machine)
-- Production: `https://your-domain.com`
+- **Local Development / Physical Phone on Wi-Fi**: `http://192.168.x.x:3000` (Your computer's LAN IP)
+- **Android Emulator**: `http://10.0.2.2:3000`
+- **Production Server**: `https://your-custom-domain.com`
+
+You can tap the **"⚡ Test Server Connection"** button to verify connectivity before signing in.
 
 Allowed roles: **Super Admin**, **HR Admin**, **Attendance Facilitator**
 
-## Build for mobile
+## Build APK for Android
 
 ```bash
-npm run build
-npx cap add android    # first time only
-npx cap add ios        # first time only (macOS)
-npm run cap:sync
-npm run cap:android    # opens Android Studio
-npm run cap:ios        # opens Xcode
+# Build the APK directly via Gradle
+npm run apk:debug
+
+# Or open in Android Studio:
+npm run cap:android
 ```
+
+The compiled APK will be located at:
+`attendance-mobile/android/app/build/outputs/apk/debug/app-debug.apk`
 
 ## Offline behavior
 

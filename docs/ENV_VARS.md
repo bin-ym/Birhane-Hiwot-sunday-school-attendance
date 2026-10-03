@@ -26,8 +26,9 @@
 
 | Variable | Description |
 |----------|-------------|
-| `UPSTASH_REDIS_REST_URL` | Upstash Redis URL for distributed locking |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis URL for distributed locking **and global rate limiting** (required in production) |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis auth token |
+| `TEST_USER_EMAIL` / `TEST_USER_PASSWORD` | Admin credentials for `npm run test:scale` (defaults `super@admin.com` / `admin123`) |
 | `GOOGLE_SHEET_ID` | Google Sheets integration |
 | `GOOGLE_CLIENT_EMAIL` | Google service account email |
 | `GOOGLE_PRIVATE_KEY` | Google service account private key |
@@ -36,7 +37,7 @@
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MONGODB_DB` | Override the default database name | `test` |
+| `MONGODB_DB` | Override the default database name | `sunday_school` |
 
 ## Notes
 

@@ -3,8 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 const ALLOWED_ORIGIN_PATTERNS = [
   /^https?:\/\/localhost(:\d+)?$/,
   /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-  /^https?:\/\/10\.0\.2\.2(:\d+)?$/,
+  /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
+  /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
+  /^https?:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+(:\d+)?$/,
   /^capacitor:\/\/localhost$/,
+  /^https:\/\/localhost$/,
+  /^http:\/\/localhost$/,
   /^ionic:\/\/localhost$/,
 ];
 

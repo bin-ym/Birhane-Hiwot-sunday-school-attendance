@@ -10,6 +10,9 @@
     "seed:excel": "node scripts/seed-from-excel.mjs",
     "seed:excel:dry": "node scripts/seed-from-excel.mjs --dry-run",
     "test:api": "node scripts/run-automation-tests.mjs",
+    "test:scale": "node scripts/test-scale.mjs",
+    "test:scale:quick": "node scripts/test-scale.mjs --quick",
+    "test:scale:load": "node scripts/test-scale.mjs --scale",
     "test": "npm run test:api"
   },
   "dependencies": {

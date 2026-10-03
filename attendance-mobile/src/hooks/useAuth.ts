@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { MobileUser } from "../types";
 import {
   clearSession,
-  getSettings,
+  getServerUrl,
   getUser,
   saveSettings,
 } from "../lib/settings";
@@ -16,8 +16,8 @@ export function useAuth() {
 
   useEffect(() => {
     (async () => {
-      const settings = await getSettings();
-      setServerUrl(settings?.serverUrl || "");
+      const url = await getServerUrl();
+      setServerUrl(url);
       setUser(await getUser());
       setLoading(false);
     })();
@@ -25,17 +25,18 @@ export function useAuth() {
 
   const login = useCallback(
     async (url: string, email: string, password: string) => {
+      const cleanUrl = url.trim().replace(/\/$/, "");
       const { token, user: loggedInUser } = await loginMobile(
-        url,
+        cleanUrl,
         email,
         password,
       );
       await saveSettings({
-        serverUrl: url.replace(/\/$/, ""),
+        serverUrl: cleanUrl,
         token,
         userJson: JSON.stringify(loggedInUser),
       });
-      setServerUrl(url.replace(/\/$/, ""));
+      setServerUrl(cleanUrl);
       setUser(loggedInUser);
       try {
         await pullStudents();
@@ -51,7 +52,6 @@ export function useAuth() {
   const logout = useCallback(async () => {
     await clearSession();
     setUser(null);
-    setServerUrl("");
   }, []);
 
   return { user, serverUrl, loading, login, logout };

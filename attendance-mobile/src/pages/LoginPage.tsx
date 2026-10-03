@@ -1,6 +1,6 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { DEFAULT_SERVER_URL } from "../lib/settings";
+import { DEFAULT_SERVER_URL, saveServerUrl } from "../lib/settings";
 
 interface LoginPageProps {
   defaultServerUrl?: string;
@@ -8,18 +8,84 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ defaultServerUrl, onLogin }: LoginPageProps) {
-  const serverUrl = defaultServerUrl || DEFAULT_SERVER_URL;
+  const [serverUrl, setServerUrl] = useState(defaultServerUrl || DEFAULT_SERVER_URL);
+  const [showServerConfig, setShowServerConfig] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [testingServer, setTestingServer] = useState(false);
+  const [serverStatus, setServerStatus] = useState<"idle" | "success" | "error">("idle");
+  const [serverStatusMsg, setServerStatusMsg] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultServerUrl) {
+      setServerUrl(defaultServerUrl);
+    }
+  }, [defaultServerUrl]);
+
+  const handleTestConnection = async () => {
+    const target = (serverUrl || "").trim().replace(/\/$/, "");
+    if (!target) {
+      toast.error("Please enter a valid Server URL");
+      return;
+    }
+    setTestingServer(true);
+    setServerStatus("idle");
+    setServerStatusMsg("");
+
+    try {
+      // Test using OPTIONS preflight or POST empty body
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const res = await fetch(`${target}/api/mobile/auth`, {
+        method: "OPTIONS",
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok || res.status === 204 || res.status === 400 || res.status === 405) {
+        setServerStatus("success");
+        setServerStatusMsg("Server reached successfully! Ready to connect.");
+        await saveServerUrl(target);
+        toast.success("Server is online and reachable!");
+      } else {
+        setServerStatus("error");
+        setServerStatusMsg(`Server responded with status HTTP ${res.status}`);
+        toast.error(`Server responded with HTTP ${res.status}`);
+      }
+    } catch (err: unknown) {
+      const errName = (err as Error)?.name;
+      const isTimeout = errName === "AbortError";
+      const detail = isTimeout
+        ? "Connection timed out (no response in 6s)"
+        : (err as Error)?.message || "Network request failed";
+
+      setServerStatus("error");
+      setServerStatusMsg(
+        `Cannot reach server at ${target}. Details: ${detail}. Please ensure your device is on the same network or check the URL.`,
+      );
+      toast.error("Cannot connect to server. Check URL and Wi-Fi.");
+    } finally {
+      setTestingServer(false);
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
     const trimmedEmail = email.trim();
+    const cleanUrl = serverUrl.trim().replace(/\/$/, "");
+
+    if (!cleanUrl) {
+      setErrorMessage("Please specify a valid Server URL.");
+      setShowServerConfig(true);
+      toast.error("Server URL is required");
+      return;
+    }
 
     if (!trimmedEmail || !password) {
       setErrorMessage("Please enter both your email address and password.");
@@ -29,12 +95,22 @@ export default function LoginPage({ defaultServerUrl, onLogin }: LoginPageProps)
 
     setLoading(true);
     try {
-      await onLogin(serverUrl.trim(), trimmedEmail, password);
+      await saveServerUrl(cleanUrl);
+      await onLogin(cleanUrl, trimmedEmail, password);
       toast.success("Logged in successfully!");
     } catch (err) {
       const msg = (err as Error)?.message || "Login failed. Please check your credentials.";
       setErrorMessage(msg);
       toast.error(msg);
+      // Auto-expand server settings if it was a connection error
+      if (
+        msg.toLowerCase().includes("connect") ||
+        msg.toLowerCase().includes("network") ||
+        msg.toLowerCase().includes("fetch") ||
+        msg.toLowerCase().includes("server")
+      ) {
+        setShowServerConfig(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -72,7 +148,7 @@ export default function LoginPage({ defaultServerUrl, onLogin }: LoginPageProps)
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-700 shadow-sm animate-fadeIn">
             <div className="flex items-start gap-2">
               <svg
-                className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5"
+                className="w-4 h-4 text-red-600 shrink-0 mt-0.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -85,7 +161,7 @@ export default function LoginPage({ defaultServerUrl, onLogin }: LoginPageProps)
                 />
               </svg>
               <div className="flex-1">
-                <p className="font-semibold text-red-800">Authentication Error</p>
+                <p className="font-semibold text-red-800">Authentication / Network Error</p>
                 <p className="mt-0.5 text-red-600 leading-relaxed break-words">{errorMessage}</p>
               </div>
             </div>
@@ -125,7 +201,7 @@ export default function LoginPage({ defaultServerUrl, onLogin }: LoginPageProps)
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1 cursor-pointer"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
@@ -140,6 +216,119 @@ export default function LoginPage({ defaultServerUrl, onLogin }: LoginPageProps)
                 )}
               </button>
             </div>
+          </div>
+
+          {/* Server Config Toggle & Section */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setShowServerConfig(!showServerConfig)}
+              className="flex items-center justify-between w-full py-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors cursor-pointer"
+            >
+              <span className="flex items-center gap-1.5">
+                <span>⚙️</span>
+                <span>Server URL Settings</span>
+              </span>
+              <span className="text-[11px] text-blue-600 underline">
+                {showServerConfig ? "Hide" : "Edit URL"}
+              </span>
+            </button>
+
+            {showServerConfig && (
+              <div className="mt-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5 animate-fadeIn">
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                    Backend Server URL
+                  </label>
+                  <input
+                    type="url"
+                    value={serverUrl}
+                    onChange={(e) => {
+                      setServerUrl(e.target.value);
+                      setServerStatus("idle");
+                    }}
+                    placeholder="e.g. http://192.168.1.100:3000"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-mono"
+                  />
+                </div>
+
+                {/* Preset suggestions */}
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 font-semibold block">Quick Presets:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setServerUrl("http://10.0.2.2:3000");
+                        setServerStatus("idle");
+                      }}
+                      className="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:border-blue-400 text-[10px] font-medium text-slate-600 transition-colors"
+                    >
+                      Android Emulator (10.0.2.2)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setServerUrl("http://192.168.1.100:3000");
+                        setServerStatus("idle");
+                      }}
+                      className="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:border-blue-400 text-[10px] font-medium text-slate-600 transition-colors"
+                    >
+                      LAN IP (192.168.x.x)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setServerUrl(DEFAULT_SERVER_URL);
+                        setServerStatus("idle");
+                      }}
+                      className="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:border-blue-400 text-[10px] font-medium text-slate-600 transition-colors"
+                    >
+                      Default Cloud
+                    </button>
+                  </div>
+                </div>
+
+                {/* Test Connection Button */}
+                <div className="pt-1 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={handleTestConnection}
+                    disabled={testingServer}
+                    className="w-full py-2 px-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 active:bg-blue-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {testingServer ? (
+                      <>
+                        <svg className="animate-spin h-3.5 w-3.5 text-blue-700" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                        <span>Testing Connection…</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>⚡</span>
+                        <span>Test Server Connection</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Status Message */}
+                {serverStatusMsg && (
+                  <div
+                    className={`p-2 rounded-xl text-[11px] font-medium ${
+                      serverStatus === "success"
+                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                        : "bg-red-50 text-red-700 border border-red-200"
+                    }`}
+                  >
+                    {serverStatus === "success" ? "✓ " : "✕ "}
+                    {serverStatusMsg}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <button

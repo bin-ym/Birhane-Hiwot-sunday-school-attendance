@@ -1,6 +1,10 @@
 // src/lib/rateLimit.ts
-// Lightweight in-memory sliding-window rate limiter.
-// For production, swap to Redis-backed (Upstash) if memory limits matter.
+// Sliding-window rate limiter.
+// - Production: Redis-backed (Upstash) so limits are enforced globally across
+//   all serverless instances.
+// - Fallback: in-memory Map (single-instance only, e.g. local dev).
+
+import { getRedis } from "./redis";
 
 interface Bucket {
   timestamps: number[];
@@ -33,15 +37,10 @@ export interface RateLimitResult {
 }
 
 /**
- * Check (and record) a request against a sliding-window rate limit.
- * Returns whether the request is allowed, remaining quota, and retry delay.
+ * In-memory sliding window (fallback when Redis is not configured).
+ * Mirrors the Redis semantics so behavior is identical in dev.
  */
-export function rateLimit(
-  identifier: string,
-  opts: RateLimitOptions,
-): RateLimitResult {
-  const { maxRequests, windowMs = 60_000, keyPrefix = "" } = opts;
-  const key = keyPrefix ? `${keyPrefix}:${identifier}` : identifier;
+function rateLimitInMemory(key: string, maxRequests: number, windowMs: number): RateLimitResult {
   const now = Date.now();
   const cutoff = now - windowMs;
 
@@ -69,6 +68,77 @@ export function rateLimit(
 }
 
 /**
+ * Redis-backed sliding window. Uses a single atomic pipeline (no Lua script
+ * needed for Upstash REST), so limits are enforced globally across instances.
+ */
+async function rateLimitRedis(
+  key: string,
+  maxRequests: number,
+  windowMs: number,
+): Promise<RateLimitResult> {
+  const redis = getRedis()!;
+  const now = Date.now();
+  const member = `${now}-${Math.random().toString(36).slice(2, 8)}`;
+  const cutoff = now - windowMs;
+
+  const results = await redis
+    .pipeline()
+    .zremrangebyscore(key, "-inf", cutoff)
+    .zadd(key, { score: now, member })
+    .zcard(key)
+    .expire(key, Math.ceil((windowMs * 2) / 1000))
+    .exec();
+
+  const count = Number(results?.[2] ?? 0);
+
+  if (count > maxRequests) {
+    // Over the limit: remove the entry we just added so denied requests do not
+    // consume quota, then find how long until the oldest entry expires.
+    await redis.zrem(key, member);
+    const oldest = await redis.zrange(key, 0, 0, { withScores: true });
+    const oldestScore = oldest.length >= 2 ? Number(oldest[1]) : now;
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfterMs: Math.max(0, oldestScore + windowMs - now),
+    };
+  }
+
+  return {
+    allowed: true,
+    remaining: Math.max(0, maxRequests - count),
+    retryAfterMs: 0,
+  };
+}
+
+/**
+ * Check (and record) a request against a sliding-window rate limit.
+ * Returns whether the request is allowed, remaining quota, and retry delay.
+ * Falls back to in-memory when Redis is unavailable.
+ */
+export async function rateLimit(
+  identifier: string,
+  opts: RateLimitOptions,
+): Promise<RateLimitResult> {
+  const { maxRequests, windowMs = 60_000, keyPrefix = "" } = opts;
+  const key = keyPrefix
+    ? `rl:${keyPrefix}:${identifier}`
+    : `rl:${identifier}`;
+
+  const redis = getRedis();
+  if (redis) {
+    try {
+      return await rateLimitRedis(key, maxRequests, windowMs);
+    } catch (err) {
+      // Redis hiccup: fail open to in-memory rather than blocking all traffic
+      console.error("Rate limit Redis error, falling back to memory:", err);
+    }
+  }
+
+  return rateLimitInMemory(key, maxRequests, windowMs);
+}
+
+/**
  * Helper: extract client IP from request headers.
  */
 export function getClientIp(req: Request): string {
@@ -88,7 +158,7 @@ export async function enforceRateLimit(
   opts: RateLimitOptions,
 ): Promise<Response | null> {
   const ip = getClientIp(req);
-  const result = rateLimit(ip, opts);
+  const result = await rateLimit(ip, opts);
 
   if (!result.allowed) {
     return new Response(

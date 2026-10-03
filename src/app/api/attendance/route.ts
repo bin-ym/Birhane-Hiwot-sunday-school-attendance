@@ -41,25 +41,35 @@ export async function GET(req: NextRequest) {
     if (date) query.date = date;
     if (studentId) query.studentId = studentId;
 
-    // Per-grade scoping: attendance rows don't store a grade, so resolve the
-    // student IDs for the requested grade(s) first, then filter by those IDs.
-    // Lets facilitators/dashboards count only their own classes.
-    if (grades.length > 0) {
-      const studentFilter: any = { Grade: { $in: grades } };
-      if (academicYear) studentFilter.Academic_Year = academicYear;
-      const studentDocs = await db
-        .collection("students")
-        .find(studentFilter, { projection: { _id: 1 } })
-        .toArray();
-      const studentIds = studentDocs.map((s) => s._id.toString());
-      if (studentIds.length === 0) {
-        if (summary) return NextResponse.json({ total: 0, present: 0 }, { status: 200, headers: cors });
-        return NextResponse.json([], { status: 200, headers: cors });
-      }
-      query.studentId = { $in: studentIds };
-    }
-
     const collection = db.collection("attendance");
+
+    // Per-grade scoping: attendance rows store a denormalized `Grade` (written
+    // by POST and backfilled by scripts/backfill-attendance-grade.mjs). Use it
+    // directly; for older rows lacking Grade, resolve student IDs — but only
+    // when the result set is bounded, so a 100k-student grade never produces a
+    // giant $in array per dashboard request.
+    if (grades.length > 0) {
+      query.Grade = { $in: grades };
+      const limit = parseInt(limitParam || "0", 10);
+      const hasOldRows =
+        (await collection.countDocuments({ Grade: { $exists: false } }, { limit: 1 })) > 0;
+      if (hasOldRows && (limit > 0 || summary)) {
+        const studentFilter: any = { Grade: { $in: grades } };
+        if (academicYear) studentFilter.Academic_Year = academicYear;
+        const studentDocs = await db
+          .collection("students")
+          .find(studentFilter, { projection: { _id: 1 } })
+          .toArray();
+        const studentIds = studentDocs.map((s) => s._id.toString());
+        if (studentIds.length === 0) {
+          if (summary) return NextResponse.json({ total: 0, present: 0 }, { status: 200, headers: cors });
+          return NextResponse.json([], { status: 200, headers: cors });
+        }
+        // Old rows have no Grade: match new rows via Grade OR old rows via studentId
+        query.$or = [{ Grade: { $in: grades } }, { studentId: { $in: studentIds } }];
+        delete query.Grade;
+      }
+    }
 
     // Summary mode: return counts only — used by dashboards instead of
     // downloading the entire attendance collection just to compute a rate.
@@ -71,11 +81,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ total, present }, { status: 200, headers: cors });
     }
 
-    let find = collection.find(query).sort({ _id: -1 });
-    const limit = parseInt(limitParam || "0", 10);
-    if (limit > 0) find = find.limit(limit);
-
-    const attendance = await find.toArray();
+    // Hard cap on unbounded list requests — prevents a single dashboard from
+    // dragging the whole collection over the wire at scale.
+    const MAX_LIST_LIMIT = 10_000;
+    let limit = parseInt(limitParam || "0", 10);
+    if (limit <= 0 || limit > MAX_LIST_LIMIT) limit = MAX_LIST_LIMIT;
+    const attendance = await collection
+      .find(query)
+      .sort({ _id: -1 })
+      .limit(limit)
+      .toArray();
     return NextResponse.json(attendance, { status: 200, headers: cors });
   } catch (err) {
     return NextResponse.json({ error: sanitizeError(err) }, { status: 500, headers: cors });
@@ -123,6 +138,9 @@ export async function POST(req: NextRequest) {
                 reason: record.reason || "",
                 markedBy: record.markedBy || "Attendance Facilitator", // Default to role; replace with actual user ID if available
                 timestamp: record.timestamp || timestamp,
+                // Denormalized for O(1) grade-scoped queries without $in on
+                // thousands of student IDs (see GET below).
+                ...(record.grade ? { Grade: record.grade } : {}),
               },
             },
             upsert: true,

@@ -11,5 +11,8 @@ const token = process.env.UPSTASH_REDIS_REST_TOKEN;
  */
 export function getRedis(): Redis | null {
   if (!url || !token) return null;
-  return new Redis({ url, token });
+  if (!getRedisClient) getRedisClient = new Redis({ url, token });
+  return getRedisClient;
 }
+
+let getRedisClient: Redis | null = null;

@@ -75,12 +75,21 @@ export async function withLock<T>(
   fn: () => Promise<T>,
   options: LockOptions = {},
 ): Promise<T> {
-  const token = await acquireLock(key, options);
+  let token: string | null = null;
+  try {
+    token = await acquireLock(key, options);
+  } catch (err) {
+    // Redis infrastructure error (network, quota, outage): fail OPEN and run
+    // without the lock rather than blocking attendance submissions entirely.
+    // Mutual exclusion degrades; availability is preserved.
+    console.error(`Distributed lock unavailable for "${key}", running unlocked:`, err);
+    return fn();
+  }
   if (token === null) {
     const redis = getRedis();
     if (!redis) return fn(); // no Redis → skip locking entirely
     throw new LockTimeoutError(
-      `Timed out waiting for lock on "${key}" (Redis unavailable or busy).`,
+      `Timed out waiting for lock on "${key}" (Redis busy).`,
     );
   }
   try {

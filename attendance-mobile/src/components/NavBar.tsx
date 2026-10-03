@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import type { MobileUser } from "../types";
+import { getServerUrl } from "../lib/settings";
 
 interface NavBarProps {
   user: MobileUser;
@@ -23,7 +24,12 @@ export default function NavBar({
   onLogout,
 }: NavBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [connectedServerUrl, setConnectedServerUrl] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    void getServerUrl().then(setConnectedServerUrl);
+  }, [menuOpen]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -193,6 +199,14 @@ export default function NavBar({
                     <span>Pending Sync</span>
                     <span className="font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
                       {pendingCount} batch(es)
+                    </span>
+                  </div>
+                )}
+                {connectedServerUrl && (
+                  <div className="flex justify-between items-center text-slate-500 pt-1">
+                    <span>Server URL</span>
+                    <span className="font-mono text-[10px] text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded max-w-[150px] truncate" title={connectedServerUrl}>
+                      {connectedServerUrl}
                     </span>
                   </div>
                 )}
