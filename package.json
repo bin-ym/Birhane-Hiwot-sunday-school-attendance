@@ -10,14 +10,13 @@
     "seed:excel": "node scripts/seed-from-excel.mjs",
     "seed:excel:dry": "node scripts/seed-from-excel.mjs --dry-run",
     "test:api": "node scripts/run-automation-tests.mjs",
-    "test:scale": "node scripts/test-scale.mjs",
-    "test:scale:quick": "node scripts/test-scale.mjs --quick",
-    "test:scale:load": "node scripts/test-scale.mjs --scale",
+
     "test": "npm run test:api"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@radix-ui/react-dialog": "^1.1.15",
+    "@sentry/nextjs": "^11.1.0",
     "@upstash/redis": "^1.38.2",
     "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
