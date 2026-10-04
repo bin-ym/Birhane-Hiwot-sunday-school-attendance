@@ -570,7 +570,7 @@ export function useStudentForm(
       newValue = value.replace(/[^\d]/g, "");
     }
     if (textFields.includes(name as keyof Omit<Student, "_id">)) {
-      newValue = value.replace(/[^a-zA-Z\s]/g, "");
+      newValue = value.replace(/[^a-zA-Z\u1200-\u137F\s]/g, "");
     }
 
     // Special handling for Grade change — only block restricted grades

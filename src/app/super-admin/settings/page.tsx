@@ -9,6 +9,7 @@ import {
   STUDENT_CLASSIFICATIONS,
   StudentClassification,
 } from "@/lib/constants";
+import { getCurrentEthiopianYear } from "@/lib/utils";
 
 interface PeriodState {
   startDate: string;
@@ -23,7 +24,7 @@ export default function SuperAdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const currentYear = new Date().getFullYear() + 57; // rough Ethiopian year
+  const currentYear = getCurrentEthiopianYear();
   const [periods, setPeriods] = useState<
     Record<string, PeriodState>
   >({});
@@ -39,7 +40,9 @@ export default function SuperAdminSettingsPage() {
   useEffect(() => {
     async function fetchPeriods() {
       try {
-        const res = await fetch("/api/category-periods");
+        const res = await fetch(
+          `/api/category-periods?academicYear=${currentYear}`,
+        );
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
 
@@ -70,7 +73,7 @@ export default function SuperAdminSettingsPage() {
       }
     }
     fetchPeriods();
-  }, []);
+  }, [currentYear]);
 
   const updateField = (
     cls: StudentClassification,

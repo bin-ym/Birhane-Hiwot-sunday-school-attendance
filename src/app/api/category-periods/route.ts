@@ -3,9 +3,13 @@ import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { CategoryPeriod } from "@/lib/models";
+import { requireAuth, requireSuperAdmin } from "@/lib/apiAuth";
 
 // GET — fetch all periods (optionally filtered by academicYear)
 export async function GET(req: NextRequest) {
+  const { error } = await requireAuth(req);
+  if (error) return error;
+
   try {
     const db = await getDb();
     const { searchParams } = new URL(req.url);
@@ -31,6 +35,9 @@ export async function GET(req: NextRequest) {
 
 // POST — create or update a period for a classification + academicYear
 export async function POST(req: NextRequest) {
+  const { error } = await requireSuperAdmin(req);
+  if (error) return error;
+
   try {
     const body: Omit<CategoryPeriod, "_id" | "createdAt" | "updatedAt"> =
       await req.json();

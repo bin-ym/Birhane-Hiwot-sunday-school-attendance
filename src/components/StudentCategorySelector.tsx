@@ -1,7 +1,9 @@
 // src/components/StudentCategorySelector.tsx
 "use client";
 
-import { StudentClassification } from "@/lib/models";
+import { useEffect, useState } from "react";
+import { CategoryPeriod, StudentClassification } from "@/lib/models";
+import { getCurrentEthiopianYear, isCategoryRegistrationOpen } from "@/lib/utils";
 import {
   BookOpen,
   Calendar,
@@ -181,6 +183,41 @@ export function StudentCategorySelector({
   cancelLabel = "ወደ ተማሪዎች መዝገብ ተመለስ",
   badge = "Student Registration",
 }: StudentCategorySelectorProps) {
+  const [periods, setPeriods] = useState<CategoryPeriod[]>([]);
+  const [loadingPeriods, setLoadingPeriods] = useState(true);
+  const [periodError, setPeriodError] = useState(false);
+  const academicYear = getCurrentEthiopianYear();
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/category-periods?academicYear=${academicYear}`)
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to load registration periods");
+        return response.json();
+      })
+      .then((data: CategoryPeriod[]) => {
+        if (active) setPeriods(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (active) setPeriodError(true);
+      })
+      .finally(() => {
+        if (active) setLoadingPeriods(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [academicYear]);
+
+  const availableCategories = CATEGORIES.filter((category) =>
+    isCategoryRegistrationOpen(
+      periods.find(
+        (period) => period.classification === category.value,
+      ),
+    ),
+  );
+
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-8 sm:py-12">
       {/* Top Bar / Back Navigation */}
@@ -216,9 +253,21 @@ export function StudentCategorySelector({
         </p>
       </div>
 
-      {/* Category Selection Cards Grid */}
+      {loadingPeriods ? (
+        <div className="py-12 text-center text-sm text-gray-600">
+          Loading registration availability...
+        </div>
+      ) : periodError ? (
+        <div role="alert" className="py-8 text-center text-sm text-red-700">
+          Registration availability could not be loaded. Please refresh and try again.
+        </div>
+      ) : availableCategories.length === 0 ? (
+        <div className="py-8 text-center text-sm text-gray-600">
+          Student registration is currently closed for all categories.
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-        {CATEGORIES.map((cat) => {
+        {availableCategories.map((cat) => {
           const Icon = cat.icon;
           const isSelected = selectedCategory === cat.value;
 
@@ -326,6 +375,7 @@ export function StudentCategorySelector({
           );
         })}
       </div>
+      )}
     </div>
   );
 }

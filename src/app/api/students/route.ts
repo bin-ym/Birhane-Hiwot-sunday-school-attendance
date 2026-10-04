@@ -2,14 +2,21 @@
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
-import { Student, UserRole } from "@/lib/models";
-import { createSignedQrText } from "@/lib/qr";
+import type { Student } from "@/lib/models";
 import { withLock } from "@/lib/distributedLock";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
 import { getCorsHeaders, handleCorsPreflight } from "@/lib/cors";
 import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
+import {
+  ensureStudentCreationAllowed,
+  getStudentListQuery,
+  prepareStudentInsertPayload,
+  serializeStudent,
+  validateStudentCreationBody,
+} from "@/lib/studentService";
+import type { StudentCreateBody } from "@/lib/studentService";
 
 export async function OPTIONS(req: NextRequest) {
   return handleCorsPreflight(req);
@@ -26,61 +33,41 @@ export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
     const { searchParams } = new URL(req.url);
-    const grades = searchParams.getAll("grade");
-    const uniqueId = searchParams.get("uniqueId");
-    const limitParam = searchParams.get("limit");
-    const academicYear = searchParams.get("academicYear");
-    const sex = searchParams.get("sex");
-
-    const query: any = {};
-
-    if (academicYear) query.Academic_Year = academicYear;
-    if (sex) query.Sex = sex;
+    const { query, uniqueId, limit } = getStudentListQuery(searchParams);
 
     if (uniqueId) {
       const student = await db.collection<Student>("students").findOne(
         { Unique_ID: uniqueId },
         { projection: { qr_code: 0 } },
       );
+
       if (!student) {
         return NextResponse.json(
           { error: "Student not found" },
           { status: 404, headers: cors },
         );
       }
+
       return NextResponse.json(
-        {
-          ...student,
-          _id: student._id.toString(),
-        },
+        serializeStudent(student),
         { status: 200, headers: cors },
       );
     }
 
-    if (grades && grades.length > 0) {
-      query.Grade = { $in: grades };
-    }
-
-    // Build find with projection to exclude large fields not needed for listings
     let find = db
       .collection<Student>("students")
       .find(query, { projection: { photo_data_url: 0, qr_code: 0 } })
       .sort({ _id: -1 });
 
-    // Optional limit parameter for pagination
-    const limit = parseInt(limitParam || "0", 10);
     if (limit > 0) {
       find = find.limit(limit);
     }
 
     const students = await find.toArray();
-
-    const serializedStudents = students.map((student) => ({
-      ...student,
-      _id: student._id.toString(),
-    }));
-
-    return NextResponse.json(serializedStudents, { status: 200, headers: cors });
+    return NextResponse.json(
+      students.map((student) => serializeStudent(student)),
+      { status: 200, headers: cors },
+    );
   } catch (err) {
     return NextResponse.json(
       { error: sanitizeError(err) },
@@ -98,142 +85,42 @@ export async function POST(req: NextRequest) {
 
   try {
     const db = await getDb();
-    const body: Omit<Student, "_id"> & {
-      userRole?: UserRole;
-      userEmail?: string;
-    } = await req.json();
+    const body: StudentCreateBody = await req.json();
+    const validationError = validateStudentCreationBody(body);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
     const userRole = body.userRole || "Super Admin";
     const userEmail = body.userEmail?.trim();
-
-    const requiredFields = [
-      "Unique_ID",
-      "First_Name",
-      "Father_Name",
-      "Academic_Year",
-      "Grade",
-    ];
-    for (const field of requiredFields) {
-      if (!(field in body)) {
-        return NextResponse.json(
-          { error: `${field} is required` },
-          { status: 400 },
-        );
-      }
-    }
-
-    // Photo validation (required for new students on the UI, enforced here too)
-    if (body.photo_data_url) {
-      const p = body.photo_data_url;
-      const ok =
-        typeof p === "string" &&
-        (p.startsWith("data:image/jpeg;base64,") ||
-          p.startsWith("data:image/png;base64,"));
-      if (!ok) {
-        return NextResponse.json(
-          { error: "photo_data_url must be a JPG or PNG data URL" },
-          { status: 400 },
-        );
-      }
-    }
-
-        // Check if registration is closed for this classification
-    const classification = (body as any).Classification || "Regular";
-    const academicYear = body.Academic_Year;
-    if (academicYear) {
-      const period = await db.collection("category_periods").findOne({
-        classification,
-        academicYear: String(academicYear),
-      });
-      if (period && period.registrationClosedDate) {
-        const closedDate = new Date(period.registrationClosedDate);
-        if (new Date() > closedDate) {
-          return NextResponse.json(
-            { error: "Registration is closed for this category. The registration period has ended." },
-            { status: 403 },
-          );
-        }
-      }
-    }
-
-    // Distributed lock on the Unique_ID so concurrent creates can't both pass
-    // the existence check and insert duplicates. Gracefully no-ops without Redis.
     const lockKey = `lock:student:${body.Unique_ID}`;
+
     return withLock(
       lockKey,
       async () => {
-        // Check if this is a new student by seeing if Unique_ID already exists
         const existingStudent = await db.collection("students").findOne({
           Unique_ID: body.Unique_ID,
         });
-
         const isNewStudent = !existingStudent;
 
-        const adminRoles: UserRole[] = ["Super Admin", "HR Admin"];
+        const authorization = await ensureStudentCreationAllowed({
+          db,
+          body,
+          userRole,
+          userEmail,
+          isNewStudent,
+        });
 
-        if (userRole === "Attendance Facilitator" && isNewStudent) {
-          if (!userEmail) {
-            return NextResponse.json(
-              { error: "User email is required for facilitator student creation." },
-              { status: 403 },
-            );
-          }
-
-          const facilitator = await db.collection("users").findOne({
-            email: { $regex: new RegExp(`^${userEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
-          });
-
-          if (!facilitator?.canAddStudent) {
-            return NextResponse.json(
-              {
-                error:
-                  "You do not have permission to add students. Contact HR to enable this.",
-                code: "ADD_STUDENT_DENIED",
-              },
-              { status: 403 },
-            );
-          }
-
-          const assignedGrades = Array.isArray(facilitator.grade)
-            ? facilitator.grade
-            : facilitator.grade
-              ? [facilitator.grade]
-              : [];
-
-          if (assignedGrades.length > 0 && !assignedGrades.includes(body.Grade)) {
-            return NextResponse.json(
-              {
-                error: `You can only add students to your assigned grade(s): ${assignedGrades.join(", ")}`,
-                code: "RESTRICTED_GRADE",
-              },
-              { status: 403 },
-            );
-          }
-        } else if (isNewStudent && !adminRoles.includes(userRole)) {
+        if (!authorization.ok) {
           return NextResponse.json(
-            { error: "You do not have permission to add students." },
-            { status: 403 },
+            { error: authorization.error, ...(authorization.code ? { code: authorization.code } : {}) },
+            { status: authorization.status },
           );
         }
 
-        // Remove client-only fields before insert
-        delete (body as { userRole?: UserRole }).userRole;
-        delete (body as { userEmail?: string }).userEmail;
+        const payload = await prepareStudentInsertPayload(body);
+        const result = await db.collection("students").insertOne(payload as Student);
 
-        // ✅ Generate QR Code for the student
-        try {
-          const qrText = createSignedQrText(body.Unique_ID);
-          const QRCode = await import("qrcode");
-          body.qr_code = await QRCode.toDataURL(qrText);
-        } catch (qrError) {
-          console.error("Failed to generate QR code:", qrError);
-          // ✅ Do NOT block student creation if QR_SECRET is missing or QR fails.
-          // Student will be created, but QR scanning will not work until QR_SECRET is set.
-          delete (body as any).qr_code;
-        }
-
-        const result = await db.collection("students").insertOne(body as Student);
-
-        // Audit log
         logAudit({
           action: "create",
           collection: "students",
@@ -244,7 +131,6 @@ export async function POST(req: NextRequest) {
           summary: `Created student ${body.Unique_ID} (${body.First_Name} ${body.Father_Name})`,
         });
 
-        // Notify admins of new student
         createNotification({
           type: "student_created",
           title: "New Student Enrolled",
@@ -283,17 +169,18 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Fetch student before delete for audit
-    const student = await db.collection<Student>("students").findOne({ _id: new ObjectId(id) });
+    const student = await db.collection<Student>("students").findOne({
+      _id: new ObjectId(id),
+    });
 
     const result = await db
       .collection<Student>("students")
       .deleteOne({ _id: new ObjectId(id) });
+
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    // Audit log
     logAudit({
       action: "delete",
       collection: "students",

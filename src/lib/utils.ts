@@ -7,10 +7,36 @@ import {
   GRADE_OPTIONS,
   getGradeNumberByName,
 } from "./constants";
-import { Student } from "./models"; // ensure this resolves correctly
+import { CategoryPeriod, Student } from "./models"; // ensure this resolves correctly
 
 export function cn(...classes: (string | undefined | null | false)[]) {
   return classes.filter(Boolean).join(" ");
+}
+
+export function isCategoryRegistrationOpen(
+  period: Pick<
+    CategoryPeriod,
+    "startDate" | "endDate" | "registrationClosedDate" | "isActive"
+  > | null | undefined,
+  date = new Date(),
+): boolean {
+  if (!period) return true;
+  if (period.isActive === false) return false;
+
+  const dateParts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Addis_Ababa",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const datePart = (type: string) =>
+    dateParts.find((part) => part.type === type)?.value || "";
+  const today = `${datePart("year")}-${datePart("month")}-${datePart("day")}`;
+  return (
+    (!period.startDate || today >= period.startDate) &&
+    (!period.endDate || today <= period.endDate) &&
+    (!period.registrationClosedDate || today <= period.registrationClosedDate)
+  );
 }
 
 // Ethiopian Calendar months

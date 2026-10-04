@@ -70,12 +70,17 @@ export default function AddFacilitatorPage() {
   };
 
   return (
-    <div className="min-h-screen p-6 sm:p-12 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
-      <div className="w-full max-w-xl bg-white/90 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-2xl border border-white">
-        <h2 className="text-3xl font-extrabold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+    <div className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-2xl rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="mb-7 border-b border-gray-100 pb-5">
+          <h2 className="text-2xl font-bold text-gray-900">
           Add New Facilitator
-        </h2>
-        <form onSubmit={handleFormSubmit} className="space-y-6">
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Create a facilitator account and assign the role-specific access it needs.
+          </p>
+        </div>
+        <form onSubmit={handleFormSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">
               Name
@@ -83,7 +88,7 @@ export default function AddFacilitatorPage() {
             <input
               type="text"
               name="name"
-              className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              className="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
               value={facForm.name}
               onChange={handleFormChange}
               required
@@ -96,7 +101,7 @@ export default function AddFacilitatorPage() {
             <input
               type="email"
               name="email"
-              className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              className="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
               value={facForm.email}
               onChange={handleFormChange}
               required
@@ -109,7 +114,7 @@ export default function AddFacilitatorPage() {
             <input
               type="password"
               name="password"
-              className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              className="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
               value={facForm.password}
               onChange={handleFormChange}
               minLength={6}
@@ -120,13 +125,12 @@ export default function AddFacilitatorPage() {
             <label className="block text-sm font-bold text-gray-700 mb-2">
               Role
               <span className="block text-xs font-normal text-gray-500 mt-0.5">
-                (Department Assignments Must Be Added Natively In Their Own
-                Tabs)
+                Attendance Facilitators require one or more grades.
               </span>
             </label>
             <select
               name="role"
-              className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-gray-800"
+              className="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
               value={facForm.role}
               onChange={handleFormChange}
               required
@@ -134,11 +138,7 @@ export default function AddFacilitatorPage() {
               <option value="" disabled>
                 Select Role...
               </option>
-              {ROLE_VALUES.filter(
-                (r) =>
-                  r.value !== "Attendance Facilitator" &&
-                  r.value !== "Education Facilitator",
-              ).map((r) => (
+              {ROLE_VALUES.map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}
                 </option>
@@ -146,19 +146,19 @@ export default function AddFacilitatorPage() {
             </select>
           </div>
           {facForm.role === "Attendance Facilitator" && (
-            <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
-              <label className="block text-sm font-bold text-indigo-900 mb-3">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <label className="mb-3 block text-sm font-bold text-blue-900">
                 Assign Grades *
               </label>
               <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                 {GRADE_OPTIONS.map((grade) => (
                   <label
                     key={grade.value}
-                    className="flex items-center gap-3 p-2 hover:bg-white rounded-lg transition-colors cursor-pointer border border-transparent hover:border-indigo-100"
+                      className="flex cursor-pointer items-center gap-3 rounded-md border border-transparent p-2 transition-colors hover:border-blue-100 hover:bg-white"
                   >
                     <input
                       type="checkbox"
-                      className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                      className="h-4 w-4 rounded border-gray-300 text-blue-700 focus:ring-blue-600"
                       checked={
                         Array.isArray(facForm.grade)
                           ? facForm.grade.includes(grade.value)
@@ -213,18 +213,18 @@ export default function AddFacilitatorPage() {
               {error}
             </div>
           )}
-          <div className="flex gap-4 pt-6 border-t border-gray-100">
+          <div className="flex gap-3 border-t border-gray-100 pt-5">
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:transform-none"
+              className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? "Adding..." : "Add Facilitator"}
             </button>
             <button
               type="button"
               onClick={() => router.back()}
-              className="flex-1 bg-white text-gray-700 font-bold py-3 px-4 rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 transition-all text-center hover:-translate-y-0.5"
+              className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-center font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               Cancel
             </button>

@@ -39,8 +39,8 @@ export default function StudentList() {
   }, [facilitatorGrade]);
 
   const { data, error, isLoading } = useSWR<Student[]>(url, fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 600000,
+    revalidateOnFocus: true,
+    dedupingInterval: 2000,
   });
 
   const students = useMemo(() => {
