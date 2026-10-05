@@ -38,6 +38,102 @@ export interface Student {
   qr_code?: string;
 }
 
+export type EnrollmentStatus =
+  | "active"
+  | "completed"
+  | "withdrawn"
+  | "historical"
+  | "repeated";
+
+export type InsufficientDataPolicy =
+  | "block"
+  | "manual_review"
+  | "auto_approve";
+
+export type PromotionDecisionType =
+  | "promote"
+  | "repeat"
+  | "complete"
+  | "withdraw"
+  | "exception"
+  | "review_required";
+
+export type PromotionDecisionStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "auto_approved";
+
+export interface Enrollment {
+  _id?: ObjectId;
+  studentId: ObjectId;
+  academicYear: string;
+  classification: StudentClassification;
+  programCode?: string;
+  grade: string;
+  gradeNumber?: number;
+  section?: string | null;
+  uniqueId: string;
+  status: EnrollmentStatus;
+  isCurrent: boolean;
+  previousEnrollmentId?: ObjectId;
+  nextEnrollmentId?: ObjectId;
+  promotionDecisionId?: ObjectId;
+  qrCode?: string;
+  startDate?: Date;
+  endDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PromotionPolicy {
+  _id?: ObjectId;
+  classification: StudentClassification;
+  active: boolean;
+  effectiveFrom: Date;
+  effectiveTo?: Date;
+  academicWeight: number;
+  attendanceWeight: number;
+  minimumPromotionScore: number;
+  minimumAcademicScore: number;
+  minimumAttendanceScore: number;
+  insufficientDataPolicy: InsufficientDataPolicy;
+  allowRepeat: boolean;
+  allowException: boolean;
+  terminalLevels?: Array<string | number>;
+  gradeProgression?: Array<{
+    from: string;
+    to: string | null;
+    isTerminal?: boolean;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PromotionDecision {
+  _id?: ObjectId;
+  studentId: ObjectId;
+  fromEnrollmentId: ObjectId;
+  toEnrollmentId?: ObjectId;
+  academicYear: string;
+  classification: StudentClassification;
+  decisionType: PromotionDecisionType;
+  status: PromotionDecisionStatus;
+  academicScore?: number;
+  attendanceScore?: number;
+  weightedScore?: number;
+  policyId?: ObjectId;
+  minimumPromotionScore?: number;
+  minimumAcademicScore?: number;
+  minimumAttendanceScore?: number;
+  isEligible: boolean;
+  reason?: string;
+  reviewerUserId?: string;
+  reviewDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface StudentRequest {
   _id?: ObjectId;
   studentData: Omit<Student, "_id">;

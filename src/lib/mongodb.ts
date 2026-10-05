@@ -1,5 +1,6 @@
 // src/lib/mongodb.ts
 import { MongoClient, Db } from 'mongodb';
+import { ensureCoreMongoIndexes } from './mongoIndexes';
 
 // Use a global variable to cache the client promise in development
 declare global {
@@ -55,6 +56,8 @@ export async function getDb(): Promise<Db> {
     const dbName = process.env.MONGODB_DB || 'sunday_school';
     const db = connectedClient.db(dbName);
     cachedDb = db;
+    await ensureCoreMongoIndexes(db);
+    console.log('MongoDB connected successfully to sunday_school');
     return db;
   } catch (error) {
     console.error('MongoDB connection error:', error);
