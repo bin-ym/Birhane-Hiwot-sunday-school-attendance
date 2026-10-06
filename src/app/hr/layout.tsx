@@ -26,9 +26,24 @@ export default function FacilitatorLayout({
   const { data: session } = useSession();
   const role = String(session?.user?.role || "Attendance Facilitator");
 
-  const isHr = role === "HR Admin" || role === "Attendance Facilitator";
-  const links = isHr ? hrAdminLinks : facilitatorLinks;
-  const roleTitle = isHr ? "HR Admin" : "Attendance Facilitator";
+  const isHrAdmin = role === "HR Admin";
+  const isAttendanceFacilitator = role === "Attendance Facilitator";
+  const links = isHrAdmin ? hrAdminLinks : facilitatorLinks;
+  const roleTitle = isHrAdmin ? "HR Admin" : "Attendance Facilitator";
+
+  if (isAttendanceFacilitator) {
+    return (
+      <>
+        <Head>
+          <link rel="manifest" href="/manifest-attendance.webmanifest" />
+          <meta name="theme-color" content="#2563eb" />
+        </Head>
+        <RoleLayoutShell roleTitle={roleTitle} links={links}>
+          {children}
+        </RoleLayoutShell>
+      </>
+    );
+  }
 
   return (
     <>

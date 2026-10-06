@@ -103,3 +103,67 @@ export const ROLE_PERMISSIONS: Record<Permission, readonly UserRole[]> = {
 export function canAccess(role: unknown, permission: Permission): boolean {
   return hasAnyRole(role, ROLE_PERMISSIONS[permission]);
 }
+
+export function isPathAuthorizedForRole(path: string, role: unknown): boolean {
+  const normalizedRole = normalizeRole(role);
+  if (!normalizedRole || !path) {
+    return false;
+  }
+
+  const adminPrefixes = [
+    "/admin/facilitators",
+    "/admin/reports",
+    "/admin/students",
+  ];
+  const educationPrefixes = [
+    "/admin/facilitators",
+    "/admin/reports",
+  ];
+
+  if (path.startsWith("/super-admin")) {
+    return normalizedRole === "Super Admin";
+  }
+
+  if (path.startsWith("/admin")) {
+    if (!["Super Admin", "HR Admin", "Education Admin", "Attendance Facilitator", "Education Facilitator"].includes(normalizedRole)) {
+      return false;
+    }
+
+    if (normalizedRole === "HR Admin" || normalizedRole === "Attendance Facilitator") {
+      return adminPrefixes.some((prefix) => path.startsWith(prefix));
+    }
+
+    if (normalizedRole === "Education Admin" || normalizedRole === "Education Facilitator") {
+      return educationPrefixes.some((prefix) => path.startsWith(prefix));
+    }
+
+    return true;
+  }
+
+  if (path.startsWith("/hr")) {
+    return normalizedRole === "HR Admin" || normalizedRole === "Attendance Facilitator";
+  }
+
+  if (path.startsWith("/education")) {
+    return normalizedRole === "Education Admin";
+  }
+
+  if (path.startsWith("/facilitator/attendance")) {
+    return normalizedRole === "Attendance Facilitator" || normalizedRole === "HR Admin";
+  }
+
+  if (path.startsWith("/facilitator/results") || path.startsWith("/facilitator/dashboard")) {
+    return normalizedRole === "Education Facilitator" || normalizedRole === "Education Admin";
+  }
+
+  if (path.startsWith("/facilitator")) {
+    return [
+      "Attendance Facilitator",
+      "Education Facilitator",
+      "HR Admin",
+      "Education Admin",
+    ].includes(normalizedRole);
+  }
+
+  return true;
+}

@@ -6,6 +6,7 @@ import {
   EnrollmentServiceError,
 } from "@/lib/enrollmentService";
 import { requireAuth, requireRole, sanitizeError } from "@/lib/apiAuth";
+import { validateEnrollmentPayload } from "@/lib/validation";
 import { isValidClassification, serializeEnrollment, validateSectionInput } from "./lib";
 
 export async function GET(req: NextRequest) {
@@ -52,6 +53,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Request body is required" }, { status: 400 });
     }
 
+    const validation = validateEnrollmentPayload(body);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error || "Invalid enrollment payload" }, { status: 400 });
+    }
+
     const data = body as Record<string, unknown>;
     const allowedFields = new Set([
       "studentId",
@@ -68,24 +74,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const requiredFields = ["studentId", "academicYear", "classification", "grade"];
-    for (const field of requiredFields) {
-      const value = data[field];
-      if (typeof value !== "string" || value.trim() === "") {
-        return NextResponse.json({ error: `${field} is required` }, { status: 400 });
-      }
-    }
-
     if (!ObjectId.isValid(data.studentId as string)) {
       return NextResponse.json({ error: "Valid studentId is required" }, { status: 400 });
     }
 
     if (!isValidClassification(data.classification)) {
       return NextResponse.json({ error: "classification must be one of: Regular, Extension, SignLanguage, Summer, begena" }, { status: 400 });
-    }
-
-    if (data.gradeNumber !== undefined && (typeof data.gradeNumber !== "number" || !Number.isFinite(data.gradeNumber))) {
-      return NextResponse.json({ error: "gradeNumber must be a finite number" }, { status: 400 });
     }
 
     const section = validateSectionInput(data.section);

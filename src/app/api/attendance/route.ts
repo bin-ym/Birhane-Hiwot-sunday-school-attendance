@@ -8,6 +8,7 @@ import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
 import { getCorsHeaders, handleCorsPreflight } from "@/lib/cors";
+import { validateAttendanceSubmission } from "@/lib/validation";
 
 export async function OPTIONS(req: NextRequest) {
   return handleCorsPreflight(req);
@@ -112,10 +113,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { date, attendance } = await req.json();
-    if (!date || !Array.isArray(attendance)) {
-      return NextResponse.json({ error: "Invalid request data" }, { status: 400, headers: cors });
+    const payload = await req.json();
+    const validation = validateAttendanceSubmission(payload);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error || "Invalid request data" }, { status: 400, headers: cors });
     }
+
+    const { date, attendance } = payload;
     const db = await getDb();
     const timestamp = formatEthiopianDate(new Date()); // Use Ethiopian date for timestamp
 
