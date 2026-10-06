@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { ObjectId } from "mongodb";
 import { UserRole } from "@/lib/models";
 import { requireAuth, sanitizeError } from "@/lib/apiAuth";
+import { canAccess } from "@/lib/rbac";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 
@@ -27,13 +28,7 @@ async function getRequesterInfo(req: NextRequest): Promise<{ role: string; token
 }
 
 function canManageFacilitators(role: string): boolean {
-  return (
-    FULL_ACCESS_ADMIN_ROLES.includes(role) ||
-    role === HR_ADMIN_ROLE ||
-    role === EDUCATION_ADMIN_ROLE ||
-    role === ATTENDANCE_FACILITATOR_ROLE ||
-    role === EDUCATION_FACILITATOR_ROLE
-  );
+  return canAccess(role, "facilitator:manage");
 }
 
 function getManageableFacilitatorRoles(role: string): string[] {

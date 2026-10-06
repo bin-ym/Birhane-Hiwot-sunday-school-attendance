@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { requireSuperAdmin, sanitizeError } from "@/lib/apiAuth";
+import { canAccess } from "@/lib/rbac";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 
@@ -14,8 +15,11 @@ function isManagedRole(role: string): role is ManagedRole {
 }
 
 export async function GET(req: NextRequest) {
-  const { error } = await requireSuperAdmin(req);
+  const { token, error } = await requireSuperAdmin(req);
   if (error) return error;
+  if (!canAccess(token.role, "department-admin:manage")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   try {
     const db = await getDb();

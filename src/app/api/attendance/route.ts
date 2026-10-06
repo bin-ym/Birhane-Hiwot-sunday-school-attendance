@@ -3,7 +3,7 @@ import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { formatEthiopianDate } from "@/lib/utils";
 import { withLock } from "@/lib/distributedLock";
-import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
+import { requireAuth, requireRole, sanitizeError } from "@/lib/apiAuth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const cors = getCorsHeaders(req.headers.get("origin"));
-  const { token, error } = await requireWriteAccess(req);
+  const { token, error } = await requireRole(req, "Super Admin", "HR Admin", "Attendance Facilitator");
   if (error) {
     Object.entries(cors).forEach(([k, v]) => error.headers.set(k, v));
     return error;

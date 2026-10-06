@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { jwtVerify } from "jose";
+import type { UserRole } from "@/lib/models";
+import { hasAnyRole, normalizeRole } from "@/lib/rbac";
 
 const SECRET = process.env.NEXTAUTH_SECRET;
-
-export type UserRole =
-  | "Super Admin"
-  | "HR Admin"
-  | "Education Admin"
-  | "Attendance Facilitator"
-  | "Education Facilitator"
-  | "Teacher";
 
 /**
  * Get the authenticated user's token, or return a 401 response.
@@ -71,8 +65,8 @@ export async function requireRole(
   const { token, error } = await requireAuth(req);
   if (error) return { token, error };
 
-  const role = String(token.role || "");
-  if (!allowedRoles.includes(role as UserRole)) {
+  const role = normalizeRole(token.role);
+  if (!role || !hasAnyRole(role, allowedRoles)) {
     return {
       token,
       error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),

@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { ETHIOPIAN_MONTHS } from "@/lib/utils";
-import { requireAuth, requireAdmin, sanitizeError } from "@/lib/apiAuth";
+import { requireAuth, requireRole, sanitizeError } from "@/lib/apiAuth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
 export async function GET(req: NextRequest) {
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAdmin(req);
+  const { error } = await requireRole(req, "Super Admin", "HR Admin", "Attendance Facilitator");
   if (error) return error;
 
   const rl = await enforceRateLimit(req, { maxRequests: 20, windowMs: 60_000 });

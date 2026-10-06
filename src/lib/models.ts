@@ -167,9 +167,12 @@ export interface Payment {
 export type UserRole =
   | "Super Admin"
   | "HR Admin"
+  | "HR Facilitator"
   | "Education Admin"
+  | "Educational Facilitator"
   | "Attendance Facilitator"
   | "Education Facilitator"
+  | "Schedule Manager"
   | "Teacher";
 
 /** Category registration period settings — managed by Super Admin */

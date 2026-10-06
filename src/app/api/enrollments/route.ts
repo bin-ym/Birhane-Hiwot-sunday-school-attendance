@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireRole(req, "Super Admin", "HR Admin", "Education Admin");
+  const { error } = await requireRole(req, "Super Admin", "Education Admin");
   if (error) return error;
 
   try {
