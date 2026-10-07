@@ -218,7 +218,7 @@ export default function ResultsTab({
     if (studentId) {
       fetchData();
     }
-  }, [studentId]);
+  }, [studentId, fetchData]);
 
   // Build a map of subjectId / subjectName -> Result
   const resultMap = useMemo(() => {

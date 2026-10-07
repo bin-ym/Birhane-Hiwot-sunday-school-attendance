@@ -10,6 +10,7 @@ import {
   StudentClassification,
 } from "@/lib/constants";
 import { getCurrentEthiopianYear } from "@/lib/utils";
+import { RBACInspector } from "@/components/auth/RBACInspector";
 
 interface PeriodState {
   startDate: string;
@@ -284,6 +285,9 @@ export default function SuperAdminSettingsPage() {
                 </>
               )}
             </button>
+          </div>
+          <div className="pt-8">
+            <RBACInspector />
           </div>
         </>
       )}

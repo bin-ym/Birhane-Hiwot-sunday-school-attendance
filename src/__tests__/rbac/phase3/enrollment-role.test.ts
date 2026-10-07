@@ -4,6 +4,7 @@
 import { NextRequest } from "next/server";
 import { POST } from "@/app/api/enrollments/route";
 import { getToken } from "next-auth/jwt";
+import { createEnrollment } from "@/lib/enrollmentService";
 
 jest.mock("next-auth/jwt", () => ({
   getToken: jest.fn(),
@@ -48,9 +49,7 @@ describe("Phase 3 RBAC - enrollment domain enforcement", () => {
 
   it("allows Education Admin to create enrollment records", async () => {
     (getToken as jest.Mock).mockResolvedValue({ role: "Education Admin" });
-
-    const { createEnrollment } = require("@/lib/enrollmentService");
-    createEnrollment.mockResolvedValue({
+    (createEnrollment as jest.Mock).mockResolvedValue({
       _id: "507f1f77bcf86cd799439011",
       studentId: "507f1f77bcf86cd799439011",
       academicYear: "2027",

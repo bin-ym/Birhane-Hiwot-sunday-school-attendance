@@ -47,4 +47,12 @@ next-env.d.ts
 service-account.json
 sun.json
 
-.vercel
+# documentation and sensitive docs
+docs/PROJECT_DOCUMENTATION.pdf
+docs/የ2018 ዓ.ም የከሰዓት መርሃ ግብር መጀመሪያው መንፈቅ ዓመት የአቴንዳንስ.xlsx
+docs/PROJECT_DOCUMENTATION.md
+docs/ENV_VARS.md
+
+
+# Sentry Config File
+.env.sentry-build-plugin
