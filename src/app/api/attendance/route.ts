@@ -3,11 +3,12 @@ import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { formatEthiopianDate } from "@/lib/utils";
 import { withLock } from "@/lib/distributedLock";
-import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
+import { requireAuth, requireRole, sanitizeError } from "@/lib/apiAuth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
 import { getCorsHeaders, handleCorsPreflight } from "@/lib/cors";
+import { validateAttendanceSubmission } from "@/lib/validation";
 
 export async function OPTIONS(req: NextRequest) {
   return handleCorsPreflight(req);
@@ -99,7 +100,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const cors = getCorsHeaders(req.headers.get("origin"));
-  const { token, error } = await requireWriteAccess(req);
+  const { token, error } = await requireRole(req, "Super Admin", "HR Admin", "Attendance Facilitator");
   if (error) {
     Object.entries(cors).forEach(([k, v]) => error.headers.set(k, v));
     return error;
@@ -112,10 +113,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { date, attendance } = await req.json();
-    if (!date || !Array.isArray(attendance)) {
-      return NextResponse.json({ error: "Invalid request data" }, { status: 400, headers: cors });
+    const payload = await req.json();
+    const validation = validateAttendanceSubmission(payload);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error || "Invalid request data" }, { status: 400, headers: cors });
     }
+
+    const { date, attendance } = payload;
     const db = await getDb();
     const timestamp = formatEthiopianDate(new Date()); // Use Ethiopian date for timestamp
 

@@ -2,13 +2,14 @@
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
-import type { Student } from "@/lib/models";
+import type { Student, UserRole } from "@/lib/models";
 import { withLock } from "@/lib/distributedLock";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
 import { getCorsHeaders, handleCorsPreflight } from "@/lib/cors";
 import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
+import { normalizeRole } from "@/lib/rbac";
 import {
   ensureStudentCreationAllowed,
   getStudentListQuery,
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireWriteAccess(req);
+  const { token, error } = await requireAuth(req);
   if (error) return error;
 
   const rl = await enforceRateLimit(req, { maxRequests: 10, windowMs: 60_000 });
@@ -91,8 +92,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const userRole = body.userRole || "Super Admin";
-    const userEmail = body.userEmail?.trim();
+    const userRole = (normalizeRole(token.role) ?? "Super Admin") as UserRole;
+    const userEmail = String(token.email || "").trim();
     const lockKey = `lock:student:${body.Unique_ID}`;
 
     return withLock(

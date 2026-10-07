@@ -8,7 +8,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { error } = await requireRole(req, "Super Admin", "HR Admin", "Education Admin");
+  const { error } = await requireRole(req, "Super Admin", "Education Admin");
   if (error) return error;
 
   try {

@@ -29,6 +29,8 @@ export default function LoginPage() {
         router.replace("/facilitator/attendance");
       } else if (session.user.role === "Education Facilitator") {
         router.replace("/facilitator/dashboard");
+      } else if (session.user.role === "Schedule Manager") {
+        router.replace("/super-admin/dashboard");
       }
     }
   }, [status, session, router]);

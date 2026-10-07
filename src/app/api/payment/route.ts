@@ -1,8 +1,9 @@
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { ETHIOPIAN_MONTHS } from "@/lib/utils";
-import { requireAuth, requireAdmin, sanitizeError } from "@/lib/apiAuth";
+import { requireAuth, requireRole, sanitizeError } from "@/lib/apiAuth";
 import { enforceRateLimit } from "@/lib/rateLimit";
+import { validatePaymentPayload } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAuth(req);
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAdmin(req);
+  const { error } = await requireRole(req, "Super Admin", "HR Admin", "Attendance Facilitator");
   if (error) return error;
 
   const rl = await enforceRateLimit(req, { maxRequests: 20, windowMs: 60_000 });
@@ -72,12 +73,13 @@ export async function POST(req: NextRequest) {
   try {
     const db = await getDb();
     const body = await req.json();
-    const { year, studentId, data } = body;
+    const validation = validatePaymentPayload(body);
 
-    if (!year || !studentId || typeof data !== "object") {
-      return NextResponse.json({ message: "Invalid request" }, { status: 400 });
+    if (!validation.valid) {
+      return NextResponse.json({ message: validation.error || "Invalid request" }, { status: 400 });
     }
 
+    const { year, studentId, data } = body;
     const collection = db.collection("payment_status");
 
     // Normalize against ETHIOPIAN_MONTHS (prevents overwriting with partial data)
