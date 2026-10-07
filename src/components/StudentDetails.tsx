@@ -9,6 +9,7 @@ import DetailsTab from "@/components/tabs/DetailsTab";
 import AttendanceTab from "@/components/tabs/AttendanceTab";
 import PaymentStatusTab from "@/components/tabs/PaymentStatusTab";
 import ResultsTab from "@/components/tabs/ResultsTab";
+import EnrollmentTab from "@/components/tabs/EnrollmentTab";
 
 interface StudentDetailsProps {
   student: Student;
@@ -24,11 +25,12 @@ interface StudentDetailsProps {
   showEditButton?: boolean;
 }
 
-type TabID = "details" | "attendance" | "payment" | "results";
+type TabID = "details" | "enrollment" | "attendance" | "payment" | "results";
 const ADMIN_ROLES: UserRole[] = ["Super Admin", "HR Admin"];
 
 const TAB_LABELS: Record<TabID, string> = {
   details: "Details",
+  enrollment: "Enrollment",
   attendance: "Attendance",
   payment: "Payment Status",
   results: "Results",
@@ -50,14 +52,15 @@ export default function StudentDetails({
   const getAllowedTabs = (role: UserRole): TabID[] => {
     switch (role) {
       case "Super Admin":
-        return ["details", "attendance", "payment", "results"];
+        return ["details", "enrollment", "attendance", "payment", "results"];
+      case "Education Admin":
+        return ["details", "enrollment", "payment", "results"];
+      case "Education Facilitator":
+        return ["details", "results"];
       case "HR Admin":
         return ["details", "attendance", "payment"];
       case "Attendance Facilitator":
-        return ["details", "attendance"];
-      case "Education Facilitator":
-      case "Education Admin":
-        return ["details", "payment", "results"];
+        return ["details", "attendance", "payment"];
       default:
         return ["details"];
     }
@@ -109,6 +112,12 @@ export default function StudentDetails({
             showEditButton || userRole === "Super Admin"
           }
           editHref={`${listBackHref}/${student._id?.toString() || student._id}/edit`}
+        />
+      )}
+      {activeTab === "enrollment" && (
+        <EnrollmentTab
+          studentId={student.Unique_ID || String(student._id)}
+          currentAcademicYear={student.Academic_Year}
         />
       )}
       {activeTab === "attendance" && (

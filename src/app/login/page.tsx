@@ -30,7 +30,7 @@ export default function LoginPage() {
       } else if (session.user.role === "Education Facilitator") {
         router.replace("/facilitator/dashboard");
       } else if (session.user.role === "Schedule Manager") {
-        router.replace("/super-admin/dashboard");
+        router.replace("/schedule");
       }
     }
   }, [status, session, router]);

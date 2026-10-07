@@ -9,6 +9,7 @@ import DetailsTab from '@/components/tabs/DetailsTab';
 import AttendanceTab from '@/components/tabs/AttendanceTab';
 import PaymentStatusTab from '@/components/tabs/PaymentStatusTab';
 import ResultsTab from '@/components/tabs/ResultsTab';
+import EnrollmentTab from '@/components/tabs/EnrollmentTab';
 import AdminLayout from '../../admin/layout';
 
 export default function StudentDetails() {
@@ -17,7 +18,7 @@ export default function StudentDetails() {
   const pathname = usePathname();
   const [student, setStudent] = useState<Student | null>(null);
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
-  const [activeTab, setActiveTab] = useState<'details' | 'attendance' | 'payment' | 'results'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'enrollment' | 'attendance' | 'payment' | 'results'>('details');
   const currentDate = new Date('2025-07-06T20:55:00+03:00'); // Current date: July 6, 2025, 8:55 PM EAT
 
   useEffect(() => {
@@ -89,6 +90,12 @@ export default function StudentDetails() {
             Details
           </button>
           <button
+            onClick={() => setActiveTab('enrollment')}
+            className={`py-2 px-4 font-medium ${activeTab === 'enrollment' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
+          >
+            Enrollment
+          </button>
+          <button
             onClick={() => setActiveTab('attendance')}
             className={`py-2 px-4 font-medium ${activeTab === 'attendance' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
           >
@@ -111,6 +118,12 @@ export default function StudentDetails() {
 
       {/* Tab Content */}
       {activeTab === 'details' && <DetailsTab student={student} />}
+      {activeTab === 'enrollment' && (
+        <EnrollmentTab
+          studentId={student.Unique_ID || id}
+          currentAcademicYear={student.Academic_Year}
+        />
+      )}
       {activeTab === 'attendance' && (
         <AttendanceTab
           student={student}
@@ -118,8 +131,8 @@ export default function StudentDetails() {
           currentDate={currentDate}
         />
       )}
-      {activeTab === 'payment' && <PaymentStatusTab studentId={id} academicYear={student.Academic_Year} />}
-      {activeTab === 'results' && <ResultsTab studentId={id} />}
+      {activeTab === 'payment' && <PaymentStatusTab studentId={student.Unique_ID || id} academicYear={student.Academic_Year} />}
+      {activeTab === 'results' && <ResultsTab studentId={student.Unique_ID || id} />}
 
       <Link
         href={isAdmin ? "/admin/students" : "/register/old"}

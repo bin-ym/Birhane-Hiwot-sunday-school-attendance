@@ -18,6 +18,8 @@ export const config = {
     "/super-admin/:path*",
     "/hr/:path*",
     "/education/:path*",
+    "/education-admin/:path*",
     "/facilitator/:path*",
+    "/schedule/:path*",
   ],
 };

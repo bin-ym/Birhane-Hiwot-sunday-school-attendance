@@ -156,6 +156,10 @@ export function isPathAuthorizedForRole(path: string, role: unknown): boolean {
     return normalizedRole === "Education Facilitator" || normalizedRole === "Education Admin";
   }
 
+  if (path.startsWith("/schedule")) {
+    return normalizedRole === "Schedule Manager" || normalizedRole === "Super Admin";
+  }
+
   if (path.startsWith("/facilitator")) {
     return [
       "Attendance Facilitator",

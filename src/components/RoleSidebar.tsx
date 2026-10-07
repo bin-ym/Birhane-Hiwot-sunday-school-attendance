@@ -55,6 +55,13 @@ function useRoleSidebarTheme(roleTitle: string): Theme {
         "bg-gradient-to-r from-violet-600 to-purple-500 shadow-lg border border-violet-500/50";
       logoGradient = "from-violet-300 to-fuchsia-200";
       break;
+    case roleTitle.includes("Schedule"):
+      bgColor = "bg-[#451a03]";
+      hoverColor = "hover:bg-amber-950/70";
+      activeColor =
+        "bg-gradient-to-r from-amber-600 to-orange-500 shadow-lg border border-amber-500/50";
+      logoGradient = "from-amber-300 to-orange-200";
+      break;
   }
 
   return { bgColor, hoverColor, activeColor, logoGradient };

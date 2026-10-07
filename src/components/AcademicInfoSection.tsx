@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import { FormField } from "@/components/ui/FormField";
 import { Student, UserRole } from "@/lib/models";
 import {
@@ -80,8 +80,11 @@ export function AcademicInfoSection({
     isFieldDisabled || (userRole === "Attendance Facilitator" && !student);
 
   // Helper: check if a grade name matches a restricted numeric grade
-  const isGradeRestricted = (gradeName: string) =>
-    restrictedGradesForFacilitator.includes(getGradeNumber(gradeName));
+  const isGradeRestricted = useCallback(
+    (gradeName: string) =>
+      restrictedGradesForFacilitator.includes(getGradeNumber(gradeName)),
+    [restrictedGradesForFacilitator],
+  );
 
   // Get allowed grades based on role, classification, and edit mode
   const getAllowedGrades = () => {

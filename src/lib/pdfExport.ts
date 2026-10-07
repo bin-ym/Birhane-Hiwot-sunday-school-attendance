@@ -23,7 +23,6 @@ export function exportToPDF({
   filename,
   subtitle,
 }: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any[];
   columns?: PDFColumn[];
   title: string;

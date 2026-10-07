@@ -225,6 +225,7 @@ export function useStudentForm(
     userRole,
     student,
     restrictedGradesForFacilitator,
+    isGradeRestricted,
   ]);
 
   // Classification prefix mapping
