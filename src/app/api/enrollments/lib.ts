@@ -19,6 +19,7 @@ export function serializeEnrollment(enrollment: Enrollment): Record<string, unkn
     "previousEnrollmentId",
     "nextEnrollmentId",
     "promotionDecisionId",
+    "classSessionId",
   ] as const) {
     const value = serialized[key];
     if (value instanceof ObjectId) {

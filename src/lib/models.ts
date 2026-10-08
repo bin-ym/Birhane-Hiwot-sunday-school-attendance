@@ -9,6 +9,15 @@ export type StudentClassification =
   | "Summer"
   | "begena";
 
+export type StudentLifecycleStatus =
+  | "active"
+  | "inactive"
+  | "transferred"
+  | "completed"
+  | "withdrawn"
+  | "dropped"
+  | "archived";
+
 export interface Student {
   _id: ObjectId;
   Unique_ID: string;
@@ -35,15 +44,26 @@ export interface Student {
   Academic_Year: string;
   Grade: (typeof GRADES)[number];
   Classification?: StudentClassification;
+  classSessionId?: ObjectId | string;
+  classSessionName?: string;
   qr_code?: string;
+  status?: StudentLifecycleStatus;
+  statusEffectiveDate?: string;
+  statusReason?: string;
+  statusChangedBy?: string;
+  statusChangedByRole?: string;
+  statusUpdatedAt?: Date;
+  completionDate?: string;
 }
 
 export type EnrollmentStatus =
   | "active"
   | "completed"
   | "withdrawn"
+  | "dropped"
   | "historical"
-  | "repeated";
+  | "repeated"
+  | "transferred";
 
 export type InsufficientDataPolicy =
   | "block"
@@ -73,6 +93,8 @@ export interface Enrollment {
   grade: string;
   gradeNumber?: number;
   section?: string | null;
+  classSessionId?: ObjectId | string;
+  classSessionName?: string;
   uniqueId: string;
   status: EnrollmentStatus;
   isCurrent: boolean;
@@ -260,3 +282,33 @@ export interface StudentResult {
 }
 
 export type WithStringId<T> = Omit<T, "_id"> & { _id: string };
+
+export type ClassSessionDay =
+  | "Saturday"
+  | "Sunday"
+  | "Monday"
+  | "Tuesday"
+  | "Wednesday"
+  | "Thursday"
+  | "Friday";
+
+export type ClassSessionPeriod = "Morning" | "Afternoon" | "Evening";
+
+export interface ClassSession {
+  _id?: ObjectId;
+  academicYear: string; // e.g. "2018"
+  name: string; // e.g. "Saturday Afternoon Children"
+  nameAmharic: string; // e.g. "ከሰዓት ህጻናት"
+  dayOfWeek: ClassSessionDay;
+  session: ClassSessionPeriod;
+  startTime?: string; // e.g. "14:00"
+  endTime?: string; // e.g. "17:00"
+  grades: string[]; // List of canonical Amharic grade names assigned to this class
+  classification?: StudentClassification; // default "Regular"
+  description?: string;
+  capacity?: number;
+  enrolledCount?: number;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}

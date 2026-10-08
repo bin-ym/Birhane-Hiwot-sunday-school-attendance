@@ -1,8 +1,10 @@
+// src/lib/apiAuth.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { jwtVerify } from "jose";
 import type { UserRole } from "@/lib/models";
-import { hasAnyRole, normalizeRole } from "@/lib/rbac";
+import { hasAnyRole, normalizeRole, Permission } from "@/lib/rbac";
+import { checkPermission } from "@/lib/rbacServer";
 
 const SECRET = process.env.NEXTAUTH_SECRET;
 
@@ -70,6 +72,28 @@ export async function requireRole(
     return {
       token,
       error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+  return { token };
+}
+
+/**
+ * Require a specific permission (respects database overrides).
+ * Returns 403 Forbidden error response if not granted.
+ */
+export async function requirePermission(
+  req: NextRequest,
+  permission: Permission,
+): Promise<{ token: Record<string, unknown>; error?: NextResponse }> {
+  const { token, error } = await requireAuth(req);
+  if (error) return { token, error };
+
+  const role = normalizeRole(token.role);
+  const granted = await checkPermission(role, permission);
+  if (!granted) {
+    return {
+      token,
+      error: NextResponse.json({ error: "Forbidden: insufficient permissions" }, { status: 403 }),
     };
   }
   return { token };

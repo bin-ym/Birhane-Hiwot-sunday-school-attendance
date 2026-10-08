@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { requireAuth, sanitizeError } from "@/lib/apiAuth";
-import { getCurrentEnrollment, EnrollmentServiceError } from "@/lib/enrollmentService";
+import {
+  getCurrentEnrollment,
+  getActiveEnrollmentForCurrentYear,
+  EnrollmentServiceError,
+} from "@/lib/enrollmentService";
 import { serializeEnrollment } from "../lib";
 
 export async function GET(req: NextRequest) {
@@ -20,7 +24,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Valid studentId is required" }, { status: 400 });
     }
 
-    const enrollment = await getCurrentEnrollment(studentId);
+    const academicYear = searchParams.get("academicYear") || undefined;
+    const enrollment = await getActiveEnrollmentForCurrentYear(studentId, academicYear);
     if (!enrollment) {
       return NextResponse.json({ error: "Current enrollment not found" }, { status: 404 });
     }

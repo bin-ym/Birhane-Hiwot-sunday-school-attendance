@@ -85,6 +85,15 @@ export type StudentRegistryViewProps = {
   onDelete?: (studentId: string) => void;
 };
 
+const CHILDREN_GRADES = [
+  "ቅድመ መደበኛ", "አንደኛ ክፍል", "ሁለተኛ ክፍል", "ሦስተኛ ክፍል", 
+  "አራተኛ ክፍል", "አምስተኛ ክፍል", "ስድስተኛ ክፍል", "ሰባተኛ ክፍል ጥዋት"
+];
+const ADULT_GRADES = [
+  "ሰባተኛ ክፍል ከሰዓት", "ስምንተኛ ክፍል", "ዘጠነኛ ክፍል", 
+  "አስረኛ ክፍል", "አስራ አንደኛ ክፍል", "አስራ ሁለተኛ ክፍል"
+];
+
 export function StudentRegistryView({
   students,
   loading,
@@ -108,6 +117,7 @@ export function StudentRegistryView({
   const [sexFilter, setSexFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [classificationFilter, setClassificationFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "children" | "adults">("all");
 
   const yearOptions = useMemo(() => {
     const ys = [...new Set(students.map((s) => String(s.Academic_Year)))].sort(
@@ -140,6 +150,8 @@ export function StudentRegistryView({
         (s.Classification || "Regular") !== classificationFilter
       )
         return false;
+      if (categoryFilter === "children" && !CHILDREN_GRADES.includes(s.Grade)) return false;
+      if (categoryFilter === "adults" && !ADULT_GRADES.includes(s.Grade)) return false;
       if (!q) return true;
       return (
         (s.Unique_ID || "").toLowerCase().includes(q) ||
@@ -155,6 +167,7 @@ export function StudentRegistryView({
     sexFilter,
     yearFilter,
     classificationFilter,
+    categoryFilter,
     hideYearFilter,
   ]);
 
@@ -318,6 +331,35 @@ export function StudentRegistryView({
                       {tab.desc}
                     </span>
                   )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mb-5 border-b border-gray-100 pb-5">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
+            እድሜ / ክፍሎች (Age / Grades Category)
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: "all", label: "ሁሉም (All Students)" },
+              { value: "children", label: "ህጻናት (ከቅድመ መደበኛ - ሰባተኛ ጠዋት)" },
+              { value: "adults", label: "አዋቂ (ከ7ኛ ከሰዓት - 12ኛ)" },
+            ].map((tab) => {
+              const active = categoryFilter === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => setCategoryFilter(tab.value as any)}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-extrabold transition-all shadow-sm ${
+                    active
+                      ? "bg-blue-600 text-white ring-2 ring-blue-600 shadow-md scale-[1.02]"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900"
+                  }`}
+                >
+                  <span>{tab.label}</span>
                 </button>
               );
             })}

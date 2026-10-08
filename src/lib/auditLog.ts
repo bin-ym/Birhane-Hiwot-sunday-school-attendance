@@ -14,7 +14,11 @@ export type AuditCollection =
   | "student_requests"
   | "student_results"
   | "subjects"
-  | "facilitators";
+  | "facilitators"
+  | "rbac_permissions"
+  | "system_settings"
+  | "class_sessions"
+  | "enrollments";
 
 export interface AuditEntry {
   timestamp: Date;
@@ -35,12 +39,15 @@ export interface AuditEntry {
  * Write an audit log entry. Non-blocking — errors are caught and logged
  * to console so they never break the caller.
  */
+import type { Db } from "mongodb";
+
 export async function logAudit(
   entry: Omit<AuditEntry, "timestamp">,
+  db?: Db,
 ): Promise<void> {
   try {
-    const db = await getDb();
-    await db.collection("audit_logs").insertOne({
+    const database = db ?? (await getDb());
+    await database.collection("audit_logs").insertOne({
       ...entry,
       timestamp: new Date(),
     });

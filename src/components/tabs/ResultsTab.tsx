@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Result, Student, UserRole } from "@/lib/models";
-import { getTodayEthiopianDateISO } from "@/lib/utils";
+import { getTodayEthiopianDateISO, getCurrentEthiopianYear } from "@/lib/utils";
 
 /** Grouped subject doc from the API. */
 interface SubjectGroup {
@@ -75,6 +75,9 @@ export default function ResultsTab({
 }: ResultsTabProps) {
   const [student, setStudent] = useState<Student | null>(
     initialStudent || null,
+  );
+  const [selectedYear, setSelectedYear] = useState<string>(
+    initialStudent?.Academic_Year || String(getCurrentEthiopianYear()),
   );
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [results, setResults] = useState<Result[]>([]);
@@ -220,10 +223,27 @@ export default function ResultsTab({
     }
   }, [studentId, fetchData]);
 
-  // Build a map of subjectId / subjectName -> Result
+  // Distinct academic years available for this student
+  const availableYears = useMemo(() => {
+    const set = new Set<string>();
+    if (student?.Academic_Year) set.add(student.Academic_Year);
+    results.forEach((r) => {
+      if (r.academicYear) set.add(r.academicYear);
+    });
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [student?.Academic_Year, results]);
+
+  // Results filtered strictly for the currently viewed academic year
+  const filteredResults = useMemo(() => {
+    return results.filter(
+      (r) => normalizeYearToken(r.academicYear) === normalizeYearToken(selectedYear),
+    );
+  }, [results, selectedYear]);
+
+  // Build a map of subjectId / subjectName -> Result for the active academic year only
   const resultMap = useMemo(() => {
     const m = new Map<string, Result>();
-    results.forEach((r) => {
+    filteredResults.forEach((r) => {
       if (!r) return;
       if (r.subjectId) m.set(String(r.subjectId), r);
       if (r.subjectName && typeof r.subjectName === "string") {
@@ -233,7 +253,7 @@ export default function ResultsTab({
       }
     });
     return m;
-  }, [results]);
+  }, [filteredResults]);
 
   // Open Modal to Create or Edit
   const openModal = (
@@ -306,11 +326,10 @@ export default function ResultsTab({
     }
 
     const a1 = parseFloat(form.assignment1) || 0;
-    const a2 = parseFloat(form.assignment2) || 0;
     const mid = parseFloat(form.midTest) || 0;
     const final = parseFloat(form.finalExam) || 0;
 
-    const totalScore = a1 + a2 + mid + final;
+    const totalScore = a1 + mid + final;
     const grade = getUniversityGrade(totalScore);
 
     setSaving(true);
@@ -321,9 +340,8 @@ export default function ResultsTab({
           `${student.First_Name} ${student.Father_Name} ${student.Grandfather_Name || ""}`.trim(),
         subjectId: activeSubject?._id || targetSubjectName,
         subjectName: targetSubjectName,
-        academicYear: student.Academic_Year,
+        academicYear: selectedYear,
         assignment1: a1,
-        assignment2: a2,
         midTest: mid,
         finalExam: final,
         totalScore,
@@ -340,7 +358,6 @@ export default function ResultsTab({
             studentName: payload.studentName,
             subjectName: payload.subjectName,
             assignment1: payload.assignment1,
-            assignment2: payload.assignment2,
             midTest: payload.midTest,
             finalExam: payload.finalExam,
             remarks: payload.remarks,
@@ -386,6 +403,73 @@ export default function ResultsTab({
     }
   };
 
+  // Calculate Totals and Averages across all evaluated subjects
+  const recordedEntries = useMemo(() => {
+    const list: Array<{
+      subjectName: string;
+      assign: number;
+      mid: number;
+      final: number;
+      total: number;
+    }> = [];
+
+    if (subjects.length > 0) {
+      subjects.forEach((sub) => {
+        const subName = sub?.name && typeof sub.name === "string" ? sub.name : "";
+        const r =
+          (sub?._id ? resultMap.get(String(sub._id)) : undefined) ||
+          (subName ? resultMap.get(subName.toLowerCase()) : undefined) ||
+          (subName ? resultMap.get(normalizeSubjectName(subName)) : undefined);
+        if (
+          r &&
+          (r.assignment1 !== undefined ||
+            r.midTest !== undefined ||
+            r.finalExam !== undefined ||
+            r.totalScore !== undefined)
+        ) {
+          const a = Number(r.assignment1 ?? 0);
+          const m = Number(r.midTest ?? 0);
+          const f = Number(r.finalExam ?? 0);
+          const t = r.totalScore !== undefined ? Number(r.totalScore) : a + m + f;
+          list.push({ subjectName: sub.name, assign: a, mid: m, final: f, total: t });
+        }
+      });
+    } else {
+      filteredResults.forEach((r) => {
+        const a = Number(r.assignment1 ?? 0);
+        const m = Number(r.midTest ?? 0);
+        const f = Number(r.finalExam ?? 0);
+        const t = r.totalScore !== undefined ? Number(r.totalScore) : a + m + f;
+        list.push({ subjectName: r.subjectName, assign: a, mid: m, final: f, total: t });
+      });
+    }
+    return list;
+  }, [subjects, resultMap, filteredResults]);
+
+  const totals = useMemo(() => {
+    const count = recordedEntries.length;
+    if (count === 0) return null;
+
+    const totalAssign = recordedEntries.reduce((sum, item) => sum + item.assign, 0);
+    const totalMid = recordedEntries.reduce((sum, item) => sum + item.mid, 0);
+    const totalFinal = recordedEntries.reduce((sum, item) => sum + item.final, 0);
+    const grandTotal = recordedEntries.reduce((sum, item) => sum + item.total, 0);
+    const maxPossible = count * 100;
+    const averagePct = maxPossible > 0 ? (grandTotal / count).toFixed(1) : "0.0";
+    const averageLetter = getUniversityGrade(Number(averagePct));
+
+    return {
+      count,
+      totalAssign,
+      totalMid,
+      totalFinal,
+      grandTotal,
+      maxPossible,
+      averagePct,
+      averageLetter,
+    };
+  }, [recordedEntries]);
+
   if (loading)
     return <div className="text-gray-500 py-4">Loading results…</div>;
   if (error) return <div className="text-red-500 py-4">{error}</div>;
@@ -397,18 +481,27 @@ export default function ResultsTab({
           <h3 className="text-xl font-extrabold text-gray-800">
             Curriculum & Student Results
           </h3>
-          {student && (
-            <p className="text-xs font-semibold text-gray-500 mt-0.5">
-              Grade:{" "}
-              <span className="text-emerald-700 font-bold">
-                {student.Grade}
-              </span>{" "}
-              · Academic Year:{" "}
-              <span className="text-emerald-700 font-bold">
-                {student.Academic_Year}
+          <div className="flex flex-wrap items-center gap-3 mt-1 text-xs">
+            {student && (
+              <span className="font-semibold text-gray-600">
+                Grade: <strong className="text-emerald-700">{student.Grade}</strong>
               </span>
-            </p>
-          )}
+            )}
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-500 font-semibold">Academic Year:</span>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-bold text-indigo-700 shadow-2xs focus:border-indigo-500 focus:outline-none"
+              >
+                {availableYears.map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr} ዓ.ም.
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -417,8 +510,7 @@ export default function ResultsTab({
           <thead className="bg-gray-50 text-gray-700 border-b border-gray-200">
             <tr>
               <th className="p-3.5 text-left font-bold">Subject</th>
-              <th className="p-3.5 text-center font-bold">Assign 1 (20)</th>
-              <th className="p-3.5 text-center font-bold">Assign 2 (20)</th>
+              <th className="p-3.5 text-center font-bold">Assign (20)</th>
               <th className="p-3.5 text-center font-bold">Mid (30)</th>
               <th className="p-3.5 text-center font-bold">Final (50)</th>
               <th className="p-3.5 text-center font-bold">Total</th>
@@ -465,9 +557,6 @@ export default function ResultsTab({
                     </td>
                     <td className="p-3.5 text-center font-mono">
                       {r?.assignment1 !== undefined ? r.assignment1 : "NG"}
-                    </td>
-                    <td className="p-3.5 text-center font-mono">
-                      {r?.assignment2 !== undefined ? r.assignment2 : "NG"}
                     </td>
                     <td className="p-3.5 text-center font-mono">
                       {r?.midTest !== undefined ? r.midTest : "NG"}
@@ -530,9 +619,6 @@ export default function ResultsTab({
                     {r.assignment1 !== undefined ? r.assignment1 : "NG"}
                   </td>
                   <td className="p-3.5 text-center font-mono">
-                    {r.assignment2 !== undefined ? r.assignment2 : "NG"}
-                  </td>
-                  <td className="p-3.5 text-center font-mono">
                     {r.midTest !== undefined ? r.midTest : "NG"}
                   </td>
                   <td className="p-3.5 text-center font-mono">
@@ -578,8 +664,87 @@ export default function ResultsTab({
               ))
             )}
           </tbody>
+          {totals && (
+            <tfoot className="border-t-2 border-emerald-300">
+              {/* TOTAL ROW */}
+              <tr className="bg-emerald-50/80 font-black text-gray-900 border-b border-emerald-200">
+                <td className="p-3.5 text-left font-black uppercase tracking-wider text-emerald-950">
+                  TOTAL
+                </td>
+                <td className="p-3.5 text-center font-mono font-black text-emerald-950 text-base">
+                  {totals.totalAssign}
+                </td>
+                <td className="p-3.5 text-center font-mono font-black text-emerald-950 text-base">
+                  {totals.totalMid}
+                </td>
+                <td className="p-3.5 text-center font-mono font-black text-emerald-950 text-base">
+                  {totals.totalFinal}
+                </td>
+                <td className="p-3.5 text-center font-mono font-black text-emerald-950 text-lg">
+                  {totals.grandTotal}
+                </td>
+                <td className="p-3.5 text-center font-black">
+                  <span className="px-2.5 py-1 rounded-md text-xs font-black bg-emerald-200 text-emerald-900">
+                    {totals.averageLetter}
+                  </span>
+                </td>
+                <td colSpan={canManage ? 2 : 1} className="p-3.5 text-xs text-emerald-800 font-semibold italic">
+                  Sum of {totals.count} {totals.count === 1 ? "subject" : "subjects"} (Max: {totals.maxPossible})
+                </td>
+              </tr>
+
+              {/* AVERAGE ROW */}
+              <tr className="bg-emerald-100/70 font-black text-emerald-950">
+                <td className="p-3.5 text-left font-black uppercase tracking-wider text-emerald-900">
+                  AVERAGE
+                </td>
+                <td className="p-3.5 text-center font-mono font-bold text-emerald-800 text-xs">
+                  {(totals.totalAssign / totals.count).toFixed(1)} / 20
+                </td>
+                <td className="p-3.5 text-center font-mono font-bold text-emerald-800 text-xs">
+                  {(totals.totalMid / totals.count).toFixed(1)} / 30
+                </td>
+                <td className="p-3.5 text-center font-mono font-bold text-emerald-800 text-xs">
+                  {(totals.totalFinal / totals.count).toFixed(1)} / 50
+                </td>
+                <td className="p-3.5 text-center font-mono font-black text-emerald-950 text-lg">
+                  {totals.averagePct}%
+                </td>
+                <td className="p-3.5 text-center">
+                  <span className="px-2.5 py-1 rounded-md text-xs font-black bg-emerald-600 text-white">
+                    {totals.averageLetter}
+                  </span>
+                </td>
+                <td colSpan={canManage ? 2 : 1} className="p-3.5 text-xs text-emerald-900 font-bold">
+                  Overall Score: {totals.averagePct}%
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
+
+      {/* CUMULATIVE SUMMARY CARDS */}
+      {totals && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-white rounded-2xl border border-emerald-200 shadow-sm">
+          <div className="p-2 text-center border-r border-emerald-100 last:border-none">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Subjects Recorded</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">{totals.count} / {subjects.length || totals.count}</p>
+          </div>
+          <div className="p-2 text-center border-r border-emerald-100 last:border-none">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Cumulative Score</p>
+            <p className="text-2xl font-black text-emerald-800 mt-0.5">{totals.grandTotal} <span className="text-xs text-gray-500 font-normal">/ {totals.maxPossible}</span></p>
+          </div>
+          <div className="p-2 text-center border-r border-emerald-100 last:border-none">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Mean Average</p>
+            <p className="text-2xl font-black text-emerald-600 mt-0.5">{totals.averagePct}%</p>
+          </div>
+          <div className="p-2 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Overall Grade</p>
+            <p className="text-2xl font-black text-emerald-900 mt-0.5">{totals.averageLetter}</p>
+          </div>
+        </div>
+      )}
 
       {/* ADD / EDIT RESULT MODAL */}
       {modalOpen && (
@@ -642,7 +807,7 @@ export default function ResultsTab({
             <div className="grid grid-cols-2 gap-4">
               <label className="space-y-1">
                 <span className="text-xs font-bold text-gray-700">
-                  Assignment 1 (Max 20)
+                  Assign (Max 20)
                 </span>
                 <input
                   type="number"
@@ -655,27 +820,6 @@ export default function ResultsTab({
                     setForm((prev) => ({
                       ...prev,
                       assignment1: e.target.value,
-                    }))
-                  }
-                  placeholder="0 - 20"
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-xs font-bold text-gray-700">
-                  Assignment 2 (Max 20)
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  max={20}
-                  step={0.5}
-                  className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-mono"
-                  value={form.assignment2}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      assignment2: e.target.value,
                     }))
                   }
                   placeholder="0 - 20"
@@ -726,13 +870,11 @@ export default function ResultsTab({
               </span>
               <span className="text-sm font-black text-emerald-800 font-mono">
                 {(parseFloat(form.assignment1) || 0) +
-                  (parseFloat(form.assignment2) || 0) +
                   (parseFloat(form.midTest) || 0) +
                   (parseFloat(form.finalExam) || 0)}{" "}
                 pts · Grade:{" "}
                 {getUniversityGrade(
                   (parseFloat(form.assignment1) || 0) +
-                    (parseFloat(form.assignment2) || 0) +
                     (parseFloat(form.midTest) || 0) +
                     (parseFloat(form.finalExam) || 0),
                 )}

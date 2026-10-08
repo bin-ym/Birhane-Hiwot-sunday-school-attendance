@@ -1,7 +1,10 @@
 //src/lib/constants.ts
 
-/** Use "all_days" for testing; switch to "sundays_only" for production attendance. */
-export const ATTENDANCE_CALENDAR_MODE: "all_days" | "sundays_only" = "all_days";
+export type AttendanceCalendarMode = "sundays_only" | "all_days";
+export const DEFAULT_ATTENDANCE_CALENDAR_MODE: AttendanceCalendarMode = "sundays_only";
+
+/** Legacy/fallback mode (production default is sundays_only). */
+export const ATTENDANCE_CALENDAR_MODE: AttendanceCalendarMode = "sundays_only";
 
 /** A grade option: canonical Amharic value (what is stored in the DB), a display label, and its numeric grade. */
 export interface GradeOption {
@@ -52,6 +55,14 @@ export const CLASSIFICATION_GRADE_OPTIONS: Record<
     { value: "ሰባተኛ ክፍል ከሰዓት", label: "ሰባተኛ ክፍል ከሰዓት · 7-2", number: 7 },
   ],
   begena: [{ value: "በገና", label: "በገና · BeGena", number: 1 }],
+};
+
+export const CLASSIFICATION_PREFIXES: Record<StudentClassification, string> = {
+  Regular: "",
+  Extension: "ር/",
+  SignLanguage: "ም/",
+  Summer: "ክ/",
+  begena: "በ/",
 };
 
 /** Look up the numeric grade for an Amharic grade name across all classifications. */

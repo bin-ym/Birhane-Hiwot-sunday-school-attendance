@@ -56,3 +56,6 @@ docs/ENV_VARS.md
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+scripts/*.mjs
+test-mongo.mjs

@@ -79,8 +79,13 @@ export function canManageSchedules(role: unknown): boolean {
   return hasAnyRole(role, ["Super Admin", "Schedule Manager"]);
 }
 
+export function canWriteStudents(role: unknown): boolean {
+  return hasAnyRole(role, ["Super Admin", "HR Admin"]);
+}
+
 export type Permission =
   | "student:create"
+  | "student:write"
   | "payment:write"
   | "enrollment:write"
   | "results:write"
@@ -91,6 +96,7 @@ export type Permission =
 
 export const ROLE_PERMISSIONS: Record<Permission, readonly UserRole[]> = {
   "student:create": ["Super Admin", "HR Admin", "Attendance Facilitator"],
+  "student:write": ["Super Admin", "HR Admin"],
   "payment:write": ["Super Admin", "HR Admin", "Attendance Facilitator"],
   "enrollment:write": ["Super Admin", "Education Admin"],
   "results:write": ["Super Admin", "Education Admin", "Education Facilitator"],
@@ -100,8 +106,34 @@ export const ROLE_PERMISSIONS: Record<Permission, readonly UserRole[]> = {
   "audit:read": ["Super Admin"],
 };
 
-export function canAccess(role: unknown, permission: Permission): boolean {
-  return hasAnyRole(role, ROLE_PERMISSIONS[permission]);
+/**
+ * Synchronous client-and-server permission check.
+ * Checks optional overrides map first, then falls back to base ROLE_PERMISSIONS.
+ * Super Admin is permanently protected and cannot be denied.
+ */
+export function canAccess(
+  role: unknown,
+  permission: Permission,
+  overrides?: Record<string, boolean>,
+): boolean {
+  const normalizedRole = normalizeRole(role);
+  if (!normalizedRole) {
+    return false;
+  }
+
+  // Super Admin protection rule: Super Admin always retains all permissions
+  if (normalizedRole === "Super Admin") {
+    return true;
+  }
+
+  if (overrides) {
+    const overrideKey = `${normalizedRole}:${permission}`;
+    if (typeof overrides[overrideKey] === "boolean") {
+      return overrides[overrideKey];
+    }
+  }
+
+  return hasAnyRole(normalizedRole, ROLE_PERMISSIONS[permission]);
 }
 
 export function isPathAuthorizedForRole(path: string, role: unknown): boolean {

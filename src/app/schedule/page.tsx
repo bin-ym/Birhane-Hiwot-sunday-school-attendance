@@ -10,6 +10,7 @@ import {
   CLASSIFICATION_SCHEDULE,
 } from "@/lib/constants";
 import { getCurrentEthiopianYear } from "@/lib/utils";
+import { EthiopianDatePicker } from "@/components/calendar/EthiopianDatePicker";
 
 interface PeriodState {
   startDate: string;
@@ -193,44 +194,29 @@ export default function ScheduleManagerPage() {
                   </p>
 
                   <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Registration Open Date
-                      </label>
-                      <input
-                        type="date"
-                        value={period.startDate}
-                        onChange={(e) => handleChange(c.value, "startDate", e.target.value)}
-                        disabled={!canManageSchedules}
-                        className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500"
-                      />
-                    </div>
+                    <EthiopianDatePicker
+                      label="Registration Open Date (ምዝገባ መክፈቻ)"
+                      value={period.startDate}
+                      onChange={(val) => handleChange(c.value, "startDate", val)}
+                      disabled={!canManageSchedules}
+                      defaultEthiopianYear={currentYear}
+                    />
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Registration Close Date
-                      </label>
-                      <input
-                        type="date"
-                        value={period.registrationClosedDate}
-                        onChange={(e) => handleChange(c.value, "registrationClosedDate", e.target.value)}
-                        disabled={!canManageSchedules}
-                        className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500"
-                      />
-                    </div>
+                    <EthiopianDatePicker
+                      label="Registration Close Date (የመጨረሻ ማጠቃለያ)"
+                      value={period.registrationClosedDate}
+                      onChange={(val) => handleChange(c.value, "registrationClosedDate", val)}
+                      disabled={!canManageSchedules}
+                      defaultEthiopianYear={currentYear}
+                    />
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Period End Date
-                      </label>
-                      <input
-                        type="date"
-                        value={period.endDate}
-                        onChange={(e) => handleChange(c.value, "endDate", e.target.value)}
-                        disabled={!canManageSchedules}
-                        className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500"
-                      />
-                    </div>
+                    <EthiopianDatePicker
+                      label="Period End Date (መደበኛ ማብቂያ)"
+                      value={period.endDate}
+                      onChange={(val) => handleChange(c.value, "endDate", val)}
+                      disabled={!canManageSchedules}
+                      defaultEthiopianYear={currentYear}
+                    />
                   </div>
                 </div>
 

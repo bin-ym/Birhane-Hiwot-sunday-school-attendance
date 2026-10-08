@@ -284,6 +284,68 @@ export function StudentResultsPanel({
     }
   };
 
+  const recordedEntries = useMemo(() => {
+    const list: Array<{
+      subjectName: string;
+      assign: number;
+      mid: number;
+      final: number;
+      total: number;
+    }> = [];
+
+    if (subjects.length > 0) {
+      subjects.forEach((sub) => {
+        const r = resultBySubjectId.get(String(sub._id));
+        if (
+          r &&
+          (r.assignment1 !== undefined ||
+            r.midTest !== undefined ||
+            r.finalExam !== undefined ||
+            r.totalScore !== undefined)
+        ) {
+          const a = assignmentTotal(r);
+          const m = Number(r.midTest ?? 0);
+          const f = Number(r.finalExam ?? 0);
+          const t = r.totalScore !== undefined ? Number(r.totalScore) : a + m + f;
+          list.push({ subjectName: sub.name, assign: a, mid: m, final: f, total: t });
+        }
+      });
+    } else {
+      results.forEach((r) => {
+        const a = assignmentTotal(r);
+        const m = Number(r.midTest ?? 0);
+        const f = Number(r.finalExam ?? 0);
+        const t = r.totalScore !== undefined ? Number(r.totalScore) : a + m + f;
+        list.push({ subjectName: r.subjectName, assign: a, mid: m, final: f, total: t });
+      });
+    }
+    return list;
+  }, [subjects, resultBySubjectId, results]);
+
+  const totals = useMemo(() => {
+    const count = recordedEntries.length;
+    if (count === 0) return null;
+
+    const totalAssign = recordedEntries.reduce((sum, item) => sum + item.assign, 0);
+    const totalMid = recordedEntries.reduce((sum, item) => sum + item.mid, 0);
+    const totalFinal = recordedEntries.reduce((sum, item) => sum + item.final, 0);
+    const grandTotal = recordedEntries.reduce((sum, item) => sum + item.total, 0);
+    const maxPossible = count * 100;
+    const averagePct = maxPossible > 0 ? (grandTotal / count).toFixed(1) : "0.0";
+    const averageLetter = getUniversityGrade(Number(averagePct));
+
+    return {
+      count,
+      totalAssign,
+      totalMid,
+      totalFinal,
+      grandTotal,
+      maxPossible,
+      averagePct,
+      averageLetter,
+    };
+  }, [recordedEntries]);
+
   if (loading) return <div className="text-gray-500">Loading…</div>;
   if (!student) return <div className="text-red-500">Student not found</div>;
 
@@ -416,8 +478,87 @@ export function StudentResultsPanel({
               })
             )}
           </tbody>
+          {totals && (
+            <tfoot className="border-t-2 border-emerald-300">
+              {/* TOTAL ROW */}
+              <tr className="bg-emerald-50/80 font-black text-gray-900 border-b border-emerald-200">
+                <td className="p-3 text-left font-black uppercase tracking-wider text-emerald-950">
+                  TOTAL
+                </td>
+                <td className="p-3 text-left font-mono font-black text-emerald-950 text-base">
+                  {totals.totalAssign}
+                </td>
+                <td className="p-3 text-left font-mono font-black text-emerald-950 text-base">
+                  {totals.totalMid}
+                </td>
+                <td className="p-3 text-left font-mono font-black text-emerald-950 text-base">
+                  {totals.totalFinal}
+                </td>
+                <td className="p-3 text-left font-mono font-black text-emerald-950 text-lg">
+                  {totals.grandTotal}
+                </td>
+                <td className="p-3">
+                  <span className="px-2.5 py-1 rounded-md text-xs font-black bg-emerald-200 text-emerald-900">
+                    {totals.averageLetter}
+                  </span>
+                </td>
+                <td className="p-3 text-xs text-emerald-800 font-semibold italic text-right">
+                  Sum of {totals.count} {totals.count === 1 ? "subject" : "subjects"} (Max: {totals.maxPossible})
+                </td>
+              </tr>
+
+              {/* AVERAGE ROW */}
+              <tr className="bg-emerald-100/70 font-black text-emerald-950">
+                <td className="p-3 text-left font-black uppercase tracking-wider text-emerald-900">
+                  AVERAGE
+                </td>
+                <td className="p-3 text-left font-mono font-bold text-emerald-800 text-xs">
+                  {(totals.totalAssign / totals.count).toFixed(1)} / {MAX_ASSIGNMENT}
+                </td>
+                <td className="p-3 text-left font-mono font-bold text-emerald-800 text-xs">
+                  {(totals.totalMid / totals.count).toFixed(1)} / {MAX_MID}
+                </td>
+                <td className="p-3 text-left font-mono font-bold text-emerald-800 text-xs">
+                  {(totals.totalFinal / totals.count).toFixed(1)} / {MAX_FINAL}
+                </td>
+                <td className="p-3 text-left font-mono font-black text-emerald-950 text-lg">
+                  {totals.averagePct}%
+                </td>
+                <td className="p-3">
+                  <span className="px-2.5 py-1 rounded-md text-xs font-black bg-emerald-600 text-white">
+                    {totals.averageLetter}
+                  </span>
+                </td>
+                <td className="p-3 text-xs text-emerald-900 font-bold text-right">
+                  Score: {totals.averagePct}%
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
+
+      {/* CUMULATIVE SUMMARY CARDS */}
+      {totals && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-white rounded-2xl border border-emerald-200 shadow-sm">
+          <div className="p-2 text-center border-r border-emerald-100 last:border-none">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Subjects Recorded</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">{totals.count} / {subjects.length || totals.count}</p>
+          </div>
+          <div className="p-2 text-center border-r border-emerald-100 last:border-none">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Cumulative Score</p>
+            <p className="text-2xl font-black text-emerald-800 mt-0.5">{totals.grandTotal} <span className="text-xs text-gray-500 font-normal">/ {totals.maxPossible}</span></p>
+          </div>
+          <div className="p-2 text-center border-r border-emerald-100 last:border-none">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Mean Average</p>
+            <p className="text-2xl font-black text-emerald-600 mt-0.5">{totals.averagePct}%</p>
+          </div>
+          <div className="p-2 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Overall Grade</p>
+            <p className="text-2xl font-black text-emerald-900 mt-0.5">{totals.averageLetter}</p>
+          </div>
+        </div>
+      )}
 
       {modalOpen && activeSubject && (
         <div

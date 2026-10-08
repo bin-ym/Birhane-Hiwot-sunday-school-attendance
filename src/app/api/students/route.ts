@@ -102,7 +102,13 @@ export async function POST(req: NextRequest) {
         const existingStudent = await db.collection("students").findOne({
           Unique_ID: body.Unique_ID,
         });
-        const isNewStudent = !existingStudent;
+        if (existingStudent) {
+          return NextResponse.json(
+            { error: "A student with this Unique ID already exists." },
+            { status: 409 },
+          );
+        }
+        const isNewStudent = true;
 
         const authorization = await ensureStudentCreationAllowed({
           db,
@@ -140,6 +146,27 @@ export async function POST(req: NextRequest) {
           href: `/super-admin/students/${result.insertedId.toString()}`,
         });
 
+        // Ensure student has an initial active enrollment linked to class session
+        try {
+          const { createEnrollment } = await import("@/lib/enrollmentService");
+          await createEnrollment(
+            {
+              studentId: result.insertedId,
+              academicYear: String(body.Academic_Year),
+              classification: body.Classification || "Regular",
+              grade: body.Grade,
+              classSessionId: body.classSessionId,
+              classSessionName: body.classSessionName,
+              status: "active",
+              isCurrent: true,
+            },
+            db,
+          );
+        } catch (enrErr) {
+          // Non-blocking for student creation
+          console.warn("Auto enrollment creation note:", enrErr);
+        }
+
         return NextResponse.json(
           { _id: result.insertedId.toString() },
           { status: 201 },
@@ -174,25 +201,48 @@ export async function DELETE(req: NextRequest) {
       _id: new ObjectId(id),
     });
 
-    const result = await db
-      .collection<Student>("students")
-      .deleteOne({ _id: new ObjectId(id) });
-
-    if (result.deletedCount === 0) {
+    if (!student) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
+    // ARCHITECTURAL RULE: Do not delete students. Treat records as permanent institutional history.
+    const { getTodayEthiopianDateISO } = await import("@/lib/utils");
+    const todayEth = getTodayEthiopianDateISO();
+
+    await db.collection<Student>("students").updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          status: "archived",
+          statusReason: "Archived via student management (permanent institutional record preserved)",
+          statusEffectiveDate: todayEth,
+          statusChangedBy: String(token.email || token.id || "admin"),
+          statusChangedByRole: String(token.role || "Admin"),
+          statusUpdatedAt: new Date(),
+        },
+      },
+    );
+
+    // Also close any active enrollment
+    await db.collection("enrollments").updateMany(
+      { studentId: new ObjectId(id), status: "active" },
+      { $set: { status: "withdrawn", endDate: new Date(), updatedAt: new Date() } },
+    );
+
     logAudit({
-      action: "delete",
+      action: "update",
       collection: "students",
       documentId: id,
       userId: String(token.id || ""),
       userEmail: String(token.email || ""),
       userRole: String(token.role || ""),
-      summary: `Deleted student ${student?.Unique_ID || id} (${student?.First_Name || "?"} ${student?.Father_Name || "?"})`,
+      summary: `Archived student ${student?.Unique_ID || id} (${student?.First_Name || "?"} ${student?.Father_Name || "?"}) — institutional history preserved`,
     });
 
-    return NextResponse.json({ message: "Student deleted" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Student archived. Institutional history preserved.", archived: true },
+      { status: 200 },
+    );
   } catch (err) {
     return NextResponse.json(
       { error: sanitizeError(err) },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { FormField } from "@/components/ui/FormField";
 import { Student, UserRole } from "@/lib/models";
 import {
@@ -69,6 +69,40 @@ export function AcademicInfoSection({
     { value: "Private", label: "Private" },
   ];
 
+  // Class sessions for the current academic year and classification
+  const [classSessions, setClassSessions] = useState<Array<{
+    _id: string;
+    name: string;
+    nameAmharic: string;
+    dayOfWeek: string;
+    session: string;
+    grades: string[];
+  }>>([]);
+
+  useEffect(() => {
+    let active = true;
+    const year = formData.Academic_Year || currentEthiopianYear;
+    fetch(`/api/class-sessions?academicYear=${year}&classification=${classification}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (active) {
+          setClassSessions(Array.isArray(data) ? data : []);
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load class sessions:", err);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [formData.Academic_Year, classification, currentEthiopianYear]);
+
+  const selectedClassSession = useMemo(() => {
+    if (!formData.classSessionId) return null;
+    return classSessions.find((s) => s._id === formData.classSessionId) || null;
+  }, [classSessions, formData.classSessionId]);
+
   // Grades that Attendance Facilitators cannot assign (numeric grades 4, 6, 8, 12)
   const restrictedGradesForFacilitator = useMemo(() => [4, 6, 8, 12], []);
 
@@ -100,8 +134,19 @@ export function AcademicInfoSection({
       ];
     }
 
-    const availableOptions =
+    let availableOptions =
       CLASSIFICATION_GRADE_OPTIONS[classification] || GRADE_OPTIONS;
+
+    // Filter by selected class session if one is selected
+    if (
+      selectedClassSession &&
+      Array.isArray(selectedClassSession.grades) &&
+      selectedClassSession.grades.length > 0
+    ) {
+      availableOptions = availableOptions.filter((opt) =>
+        selectedClassSession.grades.includes(opt.value),
+      );
+    }
 
     if (userRole === "Attendance Facilitator") {
       // Filter out restricted grades for facilitators
@@ -357,6 +402,57 @@ export function AcademicInfoSection({
                 ? "bg-gray-100 cursor-not-allowed"
                 : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             }`}
+            readOnly={isFieldDisabled}
+            disabled={isFieldDisabled}
+          />
+        )}
+
+        {/* Class / Session field */}
+        {classSessions.length > 0 && (
+          <FormField
+            label="Class / Session (የክፍለ-ጊዜ መርሃ-ግብር)"
+            name="classSessionId"
+            type="select"
+            value={formData.classSessionId ? String(formData.classSessionId) : ""}
+            onChange={(e) => {
+              handleChange(e);
+              const found = classSessions.find((s) => s._id === e.target.value);
+              if (found) {
+                const syntheticEvent = {
+                  target: {
+                    name: "classSessionName",
+                    value: found.nameAmharic || found.name,
+                  },
+                } as any;
+                handleChange(syntheticEvent);
+
+                if (formData.Grade && !found.grades.includes(formData.Grade)) {
+                  const resetGradeEvent = {
+                    target: { name: "Grade", value: "" },
+                  } as any;
+                  handleChange(resetGradeEvent);
+                }
+              } else {
+                const clearNameEvent = {
+                  target: { name: "classSessionName", value: "" },
+                } as any;
+                handleChange(clearNameEvent);
+              }
+            }}
+            options={[
+              {
+                value: "",
+                label: "-- የክፍለ-ጊዜ መርሃ-ግብር ይምረጡ (Select Class Session) --",
+              },
+              ...classSessions.map((s) => ({
+                value: s._id,
+                label: `${s.nameAmharic} — ${s.name} (${
+                  s.dayOfWeek === "Saturday" ? "ቅዳሜ" : "እሁድ"
+                } ${s.session === "Morning" ? "ጠዋት" : "ከሰዓት"})`,
+              })),
+            ]}
+            className="text-responsive"
+            inputClassName="w-full p-3 border border-blue-300 bg-blue-50/50 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium"
             readOnly={isFieldDisabled}
             disabled={isFieldDisabled}
           />

@@ -54,7 +54,7 @@ export default function StudentDetails({
       case "Super Admin":
         return ["details", "enrollment", "attendance", "payment", "results"];
       case "Education Admin":
-        return ["details", "enrollment", "payment", "results"];
+        return ["details", "enrollment", "results"];
       case "Education Facilitator":
         return ["details", "results"];
       case "HR Admin":
@@ -116,7 +116,7 @@ export default function StudentDetails({
       )}
       {activeTab === "enrollment" && (
         <EnrollmentTab
-          studentId={student.Unique_ID || String(student._id)}
+          studentId={String(student._id)}
           currentAcademicYear={student.Academic_Year}
         />
       )}
@@ -133,12 +133,12 @@ export default function StudentDetails({
       {activeTab === "payment" && (
         <PaymentStatusTab
           academicYear={student.Academic_Year}
-          studentId={student.Unique_ID}
+          studentId={student.Unique_ID || String(student._id)}
         />
       )}
       {activeTab === "results" && (
         <ResultsTab
-          studentId={student.Unique_ID}
+          studentId={student.Unique_ID || String(student._id)}
           student={student}
           userRole={userRole}
         />

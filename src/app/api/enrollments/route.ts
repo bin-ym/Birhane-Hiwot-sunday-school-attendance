@@ -5,7 +5,7 @@ import {
   getEnrollmentsByStudent,
   EnrollmentServiceError,
 } from "@/lib/enrollmentService";
-import { requireAuth, requireRole, sanitizeError } from "@/lib/apiAuth";
+import { requireAuth, requireRole, requirePermission, sanitizeError } from "@/lib/apiAuth";
 import { validateEnrollmentPayload } from "@/lib/validation";
 import { isValidClassification, serializeEnrollment, validateSectionInput } from "./lib";
 
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireRole(req, "Super Admin", "Education Admin");
+  const { error } = await requirePermission(req, "enrollment:write");
   if (error) return error;
 
   try {
@@ -66,6 +66,8 @@ export async function POST(req: NextRequest) {
       "grade",
       "gradeNumber",
       "section",
+      "classSessionId",
+      "classSessionName",
     ]);
 
     for (const field of Object.keys(data)) {
@@ -91,6 +93,8 @@ export async function POST(req: NextRequest) {
       grade: (data.grade as string).trim(),
       gradeNumber: data.gradeNumber as number | undefined,
       section,
+      classSessionId: data.classSessionId as string | undefined,
+      classSessionName: data.classSessionName as string | undefined,
     });
 
     return NextResponse.json(serializeEnrollment(enrollment), { status: 201 });

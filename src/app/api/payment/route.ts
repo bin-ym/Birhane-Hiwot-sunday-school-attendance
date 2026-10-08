@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { ETHIOPIAN_MONTHS } from "@/lib/utils";
-import { requireAuth, requireRole, sanitizeError } from "@/lib/apiAuth";
+import { requireAuth, requireRole, requirePermission, sanitizeError } from "@/lib/apiAuth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { validatePaymentPayload } from "@/lib/validation";
 
@@ -50,11 +50,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const monthlyEditCounts: Record<string, number> = record.monthlyEditCounts || {};
+    const lockedMonths = Object.entries(monthlyEditCounts)
+      .filter(([_, count]) => (count as number) >= 2)
+      .map(([m]) => m);
+
     return NextResponse.json(
       {
         academicYear: record.academicYear,
         studentId: record.studentId,
         data: record.data,
+        monthlyEditCounts,
+        lockedMonths,
       },
       { status: 200 },
     );
@@ -64,7 +71,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireRole(req, "Super Admin", "HR Admin", "Attendance Facilitator");
+  const { error } = await requirePermission(req, "payment:write");
   if (error) return error;
 
   const rl = await enforceRateLimit(req, { maxRequests: 20, windowMs: 60_000 });
@@ -100,13 +107,64 @@ export async function POST(req: NextRequest) {
       }),
     );
 
+    // Fetch existing record to check month-level edit limits
+    const existingRecord = typeof collection.findOne === "function" 
+      ? await collection.findOne({ academicYear: year, studentId })
+      : null;
+    const existingData = existingRecord?.data || {};
+    const existingMonthlyCounts: Record<string, number> = existingRecord?.monthlyEditCounts || {};
+    const updatedMonthlyCounts: Record<string, number> = { ...existingMonthlyCounts };
+    const changedMonths: string[] = [];
+
+    // Evaluate each month individually
+    for (const m of ETHIOPIAN_MONTHS) {
+      const oldMonth = existingData[m];
+      let oldStatus = "Not Paid";
+      let oldAmount = "";
+      if (typeof oldMonth === "object" && oldMonth !== null) {
+        oldStatus = oldMonth.status === "Paid" ? "Paid" : "Not Paid";
+        oldAmount = String(oldMonth.amount || "").trim();
+      } else if (oldMonth === "Paid") {
+        oldStatus = "Paid";
+      }
+
+      const newMonth = normalizedData[m];
+      const newStatus = newMonth.status;
+      const newAmount = String(newMonth.amount || "").trim();
+
+      const isChanged = oldStatus !== newStatus || oldAmount !== newAmount;
+      if (isChanged) {
+        const currentCount = existingMonthlyCounts[m] || 0;
+        if (currentCount >= 2) {
+          return NextResponse.json(
+            { message: `Payment for ${m} is locked after 2 edits and cannot be modified.` },
+            { status: 403 },
+          );
+        }
+        changedMonths.push(m);
+        updatedMonthlyCounts[m] = currentCount + 1;
+      }
+    }
+
     await collection.updateOne(
       { academicYear: year, studentId },
-      { $set: { data: normalizedData } },
+      { 
+        $set: { 
+          data: normalizedData,
+          monthlyEditCounts: updatedMonthlyCounts,
+        },
+      },
       { upsert: true },
     );
 
-    return NextResponse.json({ message: "Saved successfully" }, { status: 200 });
+    return NextResponse.json(
+      { 
+        message: "Saved successfully", 
+        monthlyEditCounts: updatedMonthlyCounts,
+        changedMonths,
+      },
+      { status: 200 },
+    );
   } catch (err) {
     return NextResponse.json({ error: sanitizeError(err) }, { status: 500 });
   }

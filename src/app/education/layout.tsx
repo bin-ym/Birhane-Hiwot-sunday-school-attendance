@@ -10,6 +10,7 @@ const ADMIN_SECTIONS = [
   { key: "teachers", label: "Teachers", href: "/education/teachers" },
   { key: "subjects", label: "Subject Management", href: "/education/subjects" },
   { key: "students", label: "Student Records", href: "/education/students" },
+  { key: "results", label: "Results Management", href: "/education/results" },
   { key: "facilitators", label: "Education Facilitators", href: "/education/manage-facilitators" },
   { key: "reports", label: "Reports", href: "/education/reports" },
 ];
@@ -35,6 +36,7 @@ export default function EducationFacilitatorLayout({
 
   const getCurrentSection = () => {
     if (pathname.includes("/subjects")) return "subjects";
+    if (pathname.includes("/results")) return "results";
     if (pathname.includes("/students")) return "students";
     if (pathname.includes("/teachers")) return "teachers";
     if (pathname.includes("/manage-facilitators")) return "facilitators";

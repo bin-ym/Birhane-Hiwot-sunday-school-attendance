@@ -16,7 +16,7 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@radix-ui/react-dialog": "^1.1.15",
-    "@sentry/nextjs": "^11.4.0",
+    "@sentry/nextjs": "^11.5.0",
     "@upstash/redis": "^1.38.2",
     "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",

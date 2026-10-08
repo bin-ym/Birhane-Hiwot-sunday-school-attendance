@@ -1,12 +1,46 @@
 import { createSignedQrText } from "@/lib/qr";
-import { isCategoryRegistrationOpen } from "@/lib/utils";
+import {
+  isCategoryRegistrationOpen,
+  getAcademicYearLifecycle,
+  getGradeNumber,
+} from "@/lib/utils";
 import type { CategoryPeriod, Student, UserRole } from "@/lib/models";
 import type { Db, ObjectId } from "mongodb";
 
 export type StudentCreateBody = Omit<Student, "_id"> & {
   userRole?: UserRole;
   userEmail?: string;
+  isNewStudent?: boolean;
 };
+
+export function isGradeOfferedBySession(
+  sessionGrades: string[] | undefined,
+  grade: string,
+): boolean {
+  if (!Array.isArray(sessionGrades) || sessionGrades.length === 0) return true;
+  const targetGrade = String(grade || "").trim();
+  const targetNum = getGradeNumber(targetGrade);
+
+  return sessionGrades.some((g) => {
+    const trimmed = String(g).trim();
+    if (trimmed === targetGrade) return true;
+    if (targetNum !== undefined && trimmed === String(targetNum)) return true;
+    if (targetNum !== undefined && getGradeNumber(trimmed) === targetNum) return true;
+    if (targetGrade.includes("7") && trimmed.includes("7")) return true;
+    if (targetGrade.includes("ሰባተኛ") && trimmed.includes("7")) return true;
+    if (
+      targetGrade.toLowerCase().includes("preschool") &&
+      trimmed.toLowerCase().includes("preschool")
+    )
+      return true;
+    if (
+      targetGrade.includes("ቅድመ") &&
+      (trimmed.includes("ቅድመ") || trimmed.toLowerCase().includes("preschool"))
+    )
+      return true;
+    return false;
+  });
+}
 
 export function serializeStudent<T extends { _id: ObjectId }>(student: T) {
   return {
@@ -85,26 +119,161 @@ export async function ensureStudentCreationAllowed({
   userEmail?: string;
   isNewStudent: boolean;
 }) {
-  const adminRoles: UserRole[] = ["Super Admin", "HR Admin"];
-
   if (isNewStudent) {
+    // 1. RBAC permission check
+    const { checkPermission } = await import("@/lib/rbacServer");
+    const allowed = await checkPermission(userRole, "student:create");
+    if (!allowed) {
+      return {
+        ok: false,
+        status: 403,
+        error: "You do not have permission to register students.",
+      };
+    }
+
+    // 2. Academic Year lifecycle validation
+    const academicYear = String(body.Academic_Year || "").trim();
+    if (!academicYear) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Academic year is required for registration.",
+      };
+    }
+
+    const lifecycle = getAcademicYearLifecycle(academicYear);
+    if (lifecycle.status === "past") {
+      return {
+        ok: false,
+        status: 400,
+        error: "Past academic years cannot receive new students.",
+      };
+    }
+    if (lifecycle.status === "upcoming") {
+      return {
+        ok: false,
+        status: 400,
+        error: "Upcoming academic years cannot receive students until they become current.",
+      };
+    }
+    if (!lifecycle.isCurrent) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Only the current academic year can receive new student registrations.",
+      };
+    }
+
+    // 3. Classification & Registration Window Validation
+    const classification = body.Classification || "Regular";
     const period = await db
       .collection<CategoryPeriod>("category_periods")
       .findOne({
-        classification: body.Classification || "Regular",
-        academicYear: String(body.Academic_Year),
+        classification,
+        academicYear,
       });
 
     if (!isCategoryRegistrationOpen(period)) {
       return {
         ok: false,
         status: 403,
-        error:
-          "Registration is not open for this student category and academic year.",
+        error: `Registration for ${classification} students is currently closed.`,
       };
+    }
+
+    // 4. Class / Session Validation
+    if (!body.classSessionId) {
+      return {
+        ok: false,
+        status: 400,
+        error: "A valid class/session is required for registration.",
+      };
+    }
+
+    const { ObjectId } = await import("mongodb");
+    if (!ObjectId.isValid(String(body.classSessionId))) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Invalid classSessionId provided.",
+      };
+    }
+
+    const sessionDoc = await db.collection("class_sessions").findOne({
+      _id: new ObjectId(String(body.classSessionId)),
+    });
+
+    if (!sessionDoc) {
+      return {
+        ok: false,
+        status: 404,
+        error: "Selected class session does not exist.",
+      };
+    }
+
+    if (sessionDoc.isActive === false) {
+      return {
+        ok: false,
+        status: 400,
+        error: "The selected class/session is inactive.",
+      };
+    }
+
+    if (String(sessionDoc.academicYear) !== academicYear) {
+      return {
+        ok: false,
+        status: 400,
+        error: "The selected class/session belongs to a different academic year.",
+      };
+    }
+
+    if (!isGradeOfferedBySession(sessionDoc.grades, body.Grade)) {
+      const isGrade7 =
+        body.Grade === "7" ||
+        body.Grade === "Grade 7" ||
+        (typeof body.Grade === "string" && body.Grade.includes("ሰባተኛ"));
+      return {
+        ok: false,
+        status: 400,
+        error: isGrade7
+          ? "This class/session does not offer Grade 7."
+          : `This class/session does not offer Grade ${body.Grade}.`,
+      };
+    }
+
+    body.classSessionName = sessionDoc.nameAmharic || sessionDoc.name;
+
+    // 5. Server-side duplicate detection (Full Name + Mother's Name + Sex)
+    const raw = body as any;
+    const firstName = (body.First_Name || "").trim();
+    const fatherName = (body.Father_Name || raw.Last_Name || "").trim();
+    const motherName = (body.Mothers_Name || raw.Mother_Name || "").trim();
+    const sex = (body.Sex || "").trim();
+
+    if (firstName && fatherName && motherName && sex) {
+      const duplicateQuery: any = {
+        First_Name: { $regex: new RegExp(`^${firstName}$`, "i") },
+        Sex: { $regex: new RegExp(`^${sex}$`, "i") },
+        $or: [
+          { Father_Name: { $regex: new RegExp(`^${fatherName}$`, "i") } },
+          { Last_Name: { $regex: new RegExp(`^${fatherName}$`, "i") } },
+        ],
+      };
+
+      const existingDuplicate = await db.collection("students").findOne(duplicateQuery);
+
+      if (existingDuplicate) {
+        return {
+          ok: false,
+          status: 409,
+          error:
+            "A student with the same name, mother's name, and sex already exists.",
+        };
+      }
     }
   }
 
+  // Facilitator-specific restrictions
   if (userRole === "Attendance Facilitator" && isNewStudent) {
     if (!userEmail) {
       return {
@@ -147,21 +316,20 @@ export async function ensureStudentCreationAllowed({
         code: "RESTRICTED_GRADE",
       };
     }
-  } else if (isNewStudent && !adminRoles.includes(userRole)) {
-    return {
-      ok: false,
-      status: 403,
-      error: "You do not have permission to add students.",
-    };
   }
 
   return { ok: true };
 }
 
 export async function prepareStudentInsertPayload(body: StudentCreateBody) {
+  const { ObjectId } = await import("mongodb");
   const payload = { ...body } as StudentCreateBody;
   delete (payload as { userRole?: UserRole }).userRole;
   delete (payload as { userEmail?: string }).userEmail;
+
+  if (payload.classSessionId && ObjectId.isValid(String(payload.classSessionId))) {
+    (payload as any).classSessionId = new ObjectId(String(payload.classSessionId));
+  }
 
   try {
     const qrText = createSignedQrText(payload.Unique_ID);

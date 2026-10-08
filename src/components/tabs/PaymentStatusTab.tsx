@@ -21,6 +21,8 @@ export default function PaymentStatusTab({
   studentId,
 }: PaymentStatusTabProps) {
   const { canManagePayments, role } = useRBAC();
+  const [selectedYear, setSelectedYear] = useState(academicYear);
+  const [availableYears, setAvailableYears] = useState<string[]>([academicYear]);
   const [paymentStatus, setPaymentStatus] = useState<
     Record<string, PaymentStatusData>
   >({});
@@ -28,12 +30,33 @@ export default function PaymentStatusTab({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const [monthlyEditCounts, setMonthlyEditCounts] = useState<Record<string, number>>({});
+  const [initialStatus, setInitialStatus] = useState<Record<string, PaymentStatusData>>({});
+
+  useEffect(() => {
+    if (studentId) {
+      fetch(`/api/enrollments?studentId=${studentId}`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            const years = Array.from(new Set([academicYear, ...data.map((d: any) => d.academicYear)]));
+            setAvailableYears(years.filter(Boolean));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [studentId, academicYear]);
+
+  const allMonthsLocked = ETHIOPIAN_MONTHS.filter((m) => m !== "Pagumē").every(
+    (m) => (monthlyEditCounts[m] || 0) >= 2,
+  );
+
   useEffect(() => {
     const fetchPaymentStatus = async () => {
       setLoading(true);
       try {
         const res = await fetch(
-          `/api/payment?year=${academicYear}&studentId=${studentId}`,
+          `/api/payment?year=${selectedYear}&studentId=${studentId}`,
         );
         if (!res.ok) throw new Error("Network response was not ok");
 
@@ -60,6 +83,8 @@ export default function PaymentStatusTab({
         );
 
         setPaymentStatus(normalized);
+        setInitialStatus(normalized);
+        setMonthlyEditCounts(data.monthlyEditCounts || {});
         setMessage(null);
       } catch (err) {
         console.error("Failed to load data:", err);
@@ -73,7 +98,8 @@ export default function PaymentStatusTab({
   }, [academicYear, studentId]);
 
   const toggleStatus = (month: string) => {
-    if (!canManagePayments) return;
+    const isMonthLocked = (monthlyEditCounts[month] || 0) >= 2;
+    if (!canManagePayments || isMonthLocked) return;
     setPaymentStatus((prev) => {
       const isPaidNow = prev[month]?.status === "Paid";
       return {
@@ -87,7 +113,8 @@ export default function PaymentStatusTab({
   };
 
   const updateAmount = (month: string, val: string) => {
-    if (!canManagePayments) return;
+    const isMonthLocked = (monthlyEditCounts[month] || 0) >= 2;
+    if (!canManagePayments || isMonthLocked) return;
     setPaymentStatus((prev) => ({
       ...prev,
       [month]: {
@@ -99,13 +126,13 @@ export default function PaymentStatusTab({
 
   const saveChanges = async () => {
     if (!canManagePayments) {
-      setMessage("❌ Access denied: You do not have permission to update payments.");
+      setMessage("❌ Access denied: You do not have permission to manage payments.");
       return;
     }
 
     // Business validation (Phase 6 RBAC test alignment)
     const payload = {
-      year: academicYear,
+      year: selectedYear,
       studentId,
       data: paymentStatus,
     };
@@ -125,11 +152,19 @@ export default function PaymentStatusTab({
         body: JSON.stringify(payload),
       });
 
+      const resData = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to save");
+        throw new Error(resData.error || resData.message || "Failed to save payment status");
       }
-      setMessage("✅ Payment status saved successfully.");
+      
+      if (resData.monthlyEditCounts) {
+        setMonthlyEditCounts(resData.monthlyEditCounts);
+      }
+      setInitialStatus(paymentStatus);
+      const changedMsg = resData.changedMonths?.length
+        ? ` (${resData.changedMonths.join(", ")} updated)`
+        : "";
+      setMessage(`✅ Payment status saved successfully${changedMsg}.`);
     } catch (err) {
       console.error(err);
       setMessage(`❌ ${(err as Error).message || "Error saving payment status."}`);
@@ -156,18 +191,44 @@ export default function PaymentStatusTab({
             </p>
           </div>
         </div>
+      ) : allMonthsLocked ? (
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-red-700 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg w-fit">
+          <Lock className="h-4 w-4" />
+          <span>All Months Locked (2-Edit Limit Reached)</span>
+        </div>
       ) : (
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg w-fit">
           <ShieldCheck className="h-4 w-4" />
-          <span>Payment Edit Authorized ({role})</span>
+          <span>Payment Edit Authorized ({role}) · 2 Edits Allowed Per Month</span>
         </div>
       )}
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-          Payment Status for Academic Year {academicYear}
-        </h2>
-        {canManagePayments && (
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+            Payment Status for Academic Year {selectedYear}
+          </h2>
+          {availableYears.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="payment-academic-year-select" className="text-xs font-semibold text-gray-500 uppercase">
+                Year:
+              </label>
+              <select
+                id="payment-academic-year-select"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="text-sm font-medium border border-gray-300 rounded-lg px-2.5 py-1 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {availableYears.map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        {canManagePayments && !allMonthsLocked && (
           <button
             onClick={saveChanges}
             disabled={saving}
@@ -193,26 +254,52 @@ export default function PaymentStatusTab({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {ETHIOPIAN_MONTHS.map((month) => {
+        {ETHIOPIAN_MONTHS.filter(m => m !== "Pagumē").map((month) => {
           const isPaid = paymentStatus[month]?.status === "Paid";
+          const editCountForMonth = monthlyEditCounts[month] || 0;
+          const isMonthLocked = editCountForMonth >= 2;
+
           return (
             <div
               key={month}
               className={`flex flex-col justify-between p-4 border rounded-xl shadow-sm transition-all ${
-                isPaid ? "border-green-300 bg-green-50/50" : "border-gray-200 bg-white"
+                isMonthLocked
+                  ? "border-red-200 bg-red-50/20"
+                  : isPaid
+                  ? "border-green-300 bg-green-50/50"
+                  : "border-gray-200 bg-white"
               }`}
             >
               <div className="flex justify-between items-center mb-2">
-                <span className="font-semibold text-gray-800">{month}</span>
-                <span
-                  className={`text-xs px-2.5 py-1 rounded-full font-bold ${
-                    isPaid
-                      ? "bg-green-100 text-green-700 border border-green-300"
-                      : "bg-red-100 text-red-700 border border-red-300"
-                  }`}
-                >
-                  {paymentStatus[month]?.status || "Not Paid"}
-                </span>
+                <div>
+                  <span className="font-semibold text-gray-800">{month}</span>
+                  <span
+                    className={`block text-[10px] font-semibold ${
+                      isMonthLocked ? "text-red-600 font-bold" : "text-gray-400"
+                    }`}
+                  >
+                    {isMonthLocked ? "Locked (2/2 edits used)" : `${editCountForMonth}/2 edits`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {isMonthLocked && (
+                    <span
+                      className="p-1 rounded-full bg-red-100 text-red-600"
+                      title="This month has reached its 2-edit limit and is locked"
+                    >
+                      <Lock className="h-3 w-3" />
+                    </span>
+                  )}
+                  <span
+                    className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                      isPaid
+                        ? "bg-green-100 text-green-700 border border-green-300"
+                        : "bg-red-100 text-red-700 border border-red-300"
+                    }`}
+                  >
+                    {paymentStatus[month]?.status || "Not Paid"}
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-2 mt-2">
@@ -221,25 +308,36 @@ export default function PaymentStatusTab({
                   placeholder="Amount (ETB)"
                   value={paymentStatus[month]?.amount || ""}
                   onChange={(e) => updateAmount(month, e.target.value)}
-                  disabled={!canManagePayments}
+                  disabled={!canManagePayments || isMonthLocked}
                   className={`w-full text-sm border rounded-lg p-2 transition ${
-                    !canManagePayments
-                      ? "bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200"
+                    !canManagePayments || isMonthLocked
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200"
                       : "border-gray-300 focus:ring-2 focus:ring-blue-500"
                   }`}
                 />
 
                 {canManagePayments && (
-                  <button
-                    onClick={() => toggleStatus(month)}
-                    className={`w-full text-xs font-semibold py-2 px-3 rounded-lg border transition ${
-                      isPaid
-                        ? "bg-white border-red-300 text-red-700 hover:bg-red-50"
-                        : "bg-white border-green-400 text-green-700 hover:bg-green-50"
-                    }`}
-                  >
-                    Mark as {isPaid ? "Not Paid" : "Paid"}
-                  </button>
+                  isMonthLocked ? (
+                    <button
+                      disabled
+                      type="button"
+                      className="w-full text-xs font-semibold py-2 px-3 rounded-lg border bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                    >
+                      Locked (Max Edits)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleStatus(month)}
+                      className={`w-full text-xs font-semibold py-2 px-3 rounded-lg border transition ${
+                        isPaid
+                          ? "bg-white border-red-300 text-red-700 hover:bg-red-50"
+                          : "bg-white border-green-400 text-green-700 hover:bg-green-50"
+                      }`}
+                    >
+                      Mark as {isPaid ? "Not Paid" : "Paid"}
+                    </button>
+                  )
                 )}
               </div>
             </div>
