@@ -504,7 +504,7 @@ export default function EnrollmentTab({
             </div>
             <p className="text-amber-800">
               Student has not yet been registered or placed into an active class cohort for the current academic year.
-              Use "New Enrollment" above to assign an active class session.
+              Use &quot;New Enrollment&quot; above to assign an active class session.
             </p>
           </div>
         ) : (

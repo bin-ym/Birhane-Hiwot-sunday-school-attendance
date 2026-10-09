@@ -302,7 +302,7 @@ export function ClassSessionsSettingsTab() {
         </div>
       ) : classes.length === 0 ? (
         <div className="p-12 text-center text-sm text-gray-500 bg-white rounded-2xl border">
-          No class sessions configured for {selectedYear} ዓ.ም.. Click "Add Class" to create one.
+          No class sessions configured for {selectedYear} ዓ.ም.. Click &quot;Add Class&quot; to create one.
         </div>
       ) : (
         <div className="space-y-6">

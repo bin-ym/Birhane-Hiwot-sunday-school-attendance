@@ -129,7 +129,7 @@ export function AttendanceCalendarSettingsTab() {
                   Liturgical Sundays Only
                 </h4>
                 <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                  Attendance can only be recorded and viewed on valid liturgical Sundays that fall inside the student cohort's schedule period. Non-Sundays are unavailable.
+                  Attendance can only be recorded and viewed on valid liturgical Sundays that fall inside the student cohort&apos;s schedule period. Non-Sundays are unavailable.
                 </p>
               </div>
 

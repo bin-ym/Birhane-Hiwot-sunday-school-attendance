@@ -95,7 +95,7 @@ export default function PaymentStatusTab({
     };
 
     if (studentId) fetchPaymentStatus();
-  }, [academicYear, studentId]);
+  }, [selectedYear, studentId]);
 
   const toggleStatus = (month: string) => {
     const isMonthLocked = (monthlyEditCounts[month] || 0) >= 2;
