@@ -40,6 +40,10 @@ jest.mock("@/lib/notifications", () => ({
   createNotification: jest.fn(),
 }));
 
+jest.mock("@/lib/enrollmentService", () => ({
+  createEnrollment: jest.fn().mockResolvedValue({}),
+}));
+
 describe("Phase 1 RBAC Guardrails: POST /api/students", () => {
   let mockDb: any;
 

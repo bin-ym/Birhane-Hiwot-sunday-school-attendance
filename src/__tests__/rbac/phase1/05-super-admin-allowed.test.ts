@@ -30,6 +30,10 @@ jest.mock("@/lib/rateLimit", () => ({
   enforceRateLimit: jest.fn().mockResolvedValue(null),
 }));
 
+jest.mock("@/lib/enrollmentService", () => ({
+  createEnrollment: jest.fn().mockResolvedValue({}),
+}));
+
 describe("Phase 1 RBAC - super administrator access", () => {
   beforeEach(() => {
     jest.clearAllMocks();

@@ -50,6 +50,7 @@ sun.json
 # documentation and sensitive docs
 docs/PROJECT_DOCUMENTATION.pdf
 docs/የ2018 ዓ.ም የከሰዓት መርሃ ግብር መጀመሪያው መንፈቅ ዓመት የአቴንዳንስ.xlsx
+docs/የ 2019 ዓ_ም የከሰዓት መርሐ ግብር.xlsx
 docs/PROJECT_DOCUMENTATION.md
 docs/ENV_VARS.md
 
@@ -58,4 +59,6 @@ docs/ENV_VARS.md
 .env.sentry-build-plugin
 
 scripts/*.mjs
+!scripts/reconcile-legacy-enrollments.mjs
+!scripts/audit-student-unique-id.mjs
 test-mongo.mjs

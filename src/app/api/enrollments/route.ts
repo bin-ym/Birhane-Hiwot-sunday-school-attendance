@@ -7,7 +7,7 @@ import {
 } from "@/lib/enrollmentService";
 import { requireAuth, requireRole, requirePermission, sanitizeError } from "@/lib/apiAuth";
 import { validateEnrollmentPayload } from "@/lib/validation";
-import { isValidClassification, serializeEnrollment, validateSectionInput } from "./lib";
+import { isValidClassification, serializeEnrollment, validateSectionInput, resolveStudentId } from "./lib";
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAuth(req);
@@ -17,15 +17,16 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId");
 
-    if (!studentId) {
+    if (!studentId || !studentId.trim()) {
       return NextResponse.json({ error: "studentId is required" }, { status: 400 });
     }
 
-    if (!ObjectId.isValid(studentId)) {
-      return NextResponse.json({ error: "Valid studentId is required" }, { status: 400 });
+    const resolvedStudentId = await resolveStudentId(studentId);
+    if (!resolvedStudentId) {
+      return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    const enrollments = await getEnrollmentsByStudent(studentId);
+    const enrollments = await getEnrollmentsByStudent(resolvedStudentId);
     return NextResponse.json(enrollments.map((item) => serializeEnrollment(item)), { status: 200 });
   } catch (err) {
     if (err instanceof EnrollmentServiceError) {
@@ -76,7 +77,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!ObjectId.isValid(data.studentId as string)) {
+    const resolvedStudentId = await resolveStudentId(data.studentId as string);
+    if (!resolvedStudentId) {
       return NextResponse.json({ error: "Valid studentId is required" }, { status: 400 });
     }
 
@@ -87,7 +89,7 @@ export async function POST(req: NextRequest) {
     const section = validateSectionInput(data.section);
 
     const enrollment = await createEnrollment({
-      studentId: data.studentId as string,
+      studentId: resolvedStudentId,
       academicYear: (data.academicYear as string).trim(),
       classification: data.classification,
       grade: (data.grade as string).trim(),

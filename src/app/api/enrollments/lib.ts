@@ -1,4 +1,5 @@
 import { ObjectId } from "mongodb";
+import type { Db } from "mongodb";
 import type { Enrollment, StudentClassification } from "@/lib/models";
 import { EnrollmentServiceError } from "@/lib/enrollmentService";
 
@@ -54,3 +55,32 @@ export function requireValidObjectId(value: string | undefined, fieldName: strin
 
   return new ObjectId(value);
 }
+
+/**
+ * Resolves a raw student identifier (either MongoDB ObjectId or school-facing Unique_ID)
+ * into a canonical MongoDB ObjectId.
+ * Returns null if not a valid ObjectId and not found by Unique_ID.
+ */
+export async function resolveStudentId(
+  rawStudentId: string | undefined | null,
+  db?: Db,
+): Promise<ObjectId | null> {
+  if (!rawStudentId) return null;
+  const trimmed = String(rawStudentId).trim();
+  if (!trimmed) return null;
+
+  if (ObjectId.isValid(trimmed)) {
+    return new ObjectId(trimmed);
+  }
+
+  // Not a 24-hex ObjectId: resolve via school-facing Unique_ID
+  const { getDb } = await import("@/lib/mongodb");
+  const database = db ?? (await getDb());
+  const student = await database.collection("students").findOne(
+    { Unique_ID: trimmed },
+    { projection: { _id: 1 } },
+  );
+
+  return student ? (student._id as ObjectId) : null;
+}
+

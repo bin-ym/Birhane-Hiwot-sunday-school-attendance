@@ -34,6 +34,10 @@ jest.mock("@/lib/auditLog", () => ({
   logAudit: jest.fn(),
 }));
 
+jest.mock("@/lib/enrollmentService", () => ({
+  createEnrollment: jest.fn().mockResolvedValue({}),
+}));
+
 jest.mock("@/lib/notifications", () => ({
   createNotification: jest.fn(),
 }));

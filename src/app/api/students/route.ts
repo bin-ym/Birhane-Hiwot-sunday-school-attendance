@@ -138,14 +138,6 @@ export async function POST(req: NextRequest) {
           summary: `Created student ${body.Unique_ID} (${body.First_Name} ${body.Father_Name})`,
         });
 
-        createNotification({
-          type: "student_created",
-          title: "New Student Enrolled",
-          message: `${body.First_Name} ${body.Father_Name} (${body.Unique_ID}) enrolled in ${body.Grade}.`,
-          targetRoles: ["Super Admin", "HR Admin"],
-          href: `/super-admin/students/${result.insertedId.toString()}`,
-        });
-
         // Ensure student has an initial active enrollment linked to class session
         try {
           const { createEnrollment } = await import("@/lib/enrollmentService");
@@ -163,9 +155,80 @@ export async function POST(req: NextRequest) {
             db,
           );
         } catch (enrErr) {
-          // Non-blocking for student creation
-          console.warn("Auto enrollment creation note:", enrErr);
+          // Compensating cleanup (NOT a distributed multi-doc transaction):
+          // Rollback ONLY the newly inserted student record to prevent un-enrolled orphan.
+          const newlyInsertedId = result.insertedId;
+          const enrErrorMessage = (enrErr as Error)?.message || "Unknown enrollment error";
+          let cleanupSucceeded = false;
+          let cleanupError: Error | null = null;
+          let deleteResult: { deletedCount?: number } | null = null;
+
+          try {
+            if (typeof db.collection("students").deleteOne === "function") {
+              deleteResult = await db.collection("students").deleteOne({ _id: newlyInsertedId });
+              cleanupSucceeded = deleteResult?.deletedCount === 1;
+            }
+          } catch (delErr) {
+            cleanupError = delErr instanceof Error ? delErr : new Error(String(delErr));
+            cleanupSucceeded = false;
+          }
+
+          if (cleanupSucceeded) {
+            logAudit({
+              action: "delete",
+              collection: "students",
+              documentId: newlyInsertedId.toString(),
+              userId: userEmail || "unknown",
+              userEmail: userEmail || "unknown",
+              userRole,
+              summary: `Compensating cleanup: successfully rolled back student ${body.Unique_ID} (${newlyInsertedId.toString()}) after initial enrollment failure: ${enrErrorMessage}`,
+            });
+            console.error("Initial enrollment failed during student registration; rolled back student:", enrErr);
+            return NextResponse.json(
+              {
+                error: "Failed to create initial enrollment. Student registration was rolled back.",
+                cleanupConfirmed: true,
+              },
+              { status: 500 },
+            );
+          } else {
+            const failureDetail = cleanupError
+              ? cleanupError.message
+              : `deletedCount was ${deleteResult?.deletedCount ?? 0} (expected 1)`;
+            logAudit({
+              action: "delete",
+              collection: "students",
+              documentId: newlyInsertedId.toString(),
+              userId: userEmail || "unknown",
+              userEmail: userEmail || "unknown",
+              userRole,
+              summary: `CLEANUP_FAILED: Initial enrollment failed for student ${body.Unique_ID} (${newlyInsertedId.toString()}) and compensating rollback could not be confirmed: ${failureDetail}. Enrollment error: ${enrErrorMessage}`,
+            });
+            console.error(
+              `CRITICAL: Initial enrollment failed and compensating rollback failed for student ${body.Unique_ID}:`,
+              {
+                enrollmentError: enrErr,
+                cleanupError,
+                deleteResult,
+              },
+            );
+            return NextResponse.json(
+              {
+                error: "Failed to create initial enrollment and compensating student cleanup could not be confirmed. Please contact a system administrator.",
+                cleanupConfirmed: false,
+              },
+              { status: 500 },
+            );
+          }
         }
+
+        createNotification({
+          type: "student_created",
+          title: "New Student Enrolled",
+          message: `${body.First_Name} ${body.Father_Name} (${body.Unique_ID}) enrolled in ${body.Grade}.`,
+          targetRoles: ["Super Admin", "HR Admin"],
+          href: `/super-admin/students/${result.insertedId.toString()}`,
+        });
 
         return NextResponse.json(
           { _id: result.insertedId.toString() },

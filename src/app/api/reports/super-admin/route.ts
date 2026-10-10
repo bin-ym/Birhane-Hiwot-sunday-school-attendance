@@ -1,5 +1,6 @@
 // src/app/api/reports/super-admin/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { requireRole, sanitizeError } from "@/lib/apiAuth";
 import { enforceRateLimit } from "@/lib/rateLimit";
@@ -80,6 +81,9 @@ export async function GET(req: NextRequest) {
     const studentIdToStudentMap = new Map<string, typeof allStudents[0]>();
     for (const s of allStudents) {
       studentIdToStudentMap.set(s._id.toString(), s);
+      if (s.Unique_ID) {
+        studentIdToStudentMap.set(String(s.Unique_ID).trim(), s);
+      }
     }
 
     // Demographics: Grade distribution
@@ -192,11 +196,64 @@ export async function GET(req: NextRequest) {
       filteredAttendance = filteredAttendance.filter((a) => new Date(a.date) <= to);
     }
 
+    // Resolve any student IDs in attendance that were not in studentIdToStudentMap (e.g. if studentQuery was filtered or historical IDs)
+    const unresolvedAttendanceIds = new Set<string>();
+    for (const record of filteredAttendance) {
+      const rawId = String(record.studentId || "").trim();
+      if (rawId && !studentIdToStudentMap.has(rawId)) {
+        unresolvedAttendanceIds.add(rawId);
+      }
+    }
+
+    if (unresolvedAttendanceIds.size > 0) {
+      const idArray = Array.from(unresolvedAttendanceIds);
+      const objectIds: ObjectId[] = [];
+      const uniqueIds: string[] = [];
+
+      for (const idStr of idArray) {
+        if (ObjectId.isValid(idStr) && idStr.length === 24) {
+          objectIds.push(new ObjectId(idStr));
+        }
+        uniqueIds.push(idStr);
+      }
+
+      const queryConditions: any[] = [{ Unique_ID: { $in: uniqueIds } }];
+      if (objectIds.length > 0) {
+        queryConditions.push({ _id: { $in: objectIds } });
+      }
+
+      const extraStudents = await db.collection("students").find(
+        { $or: queryConditions },
+        {
+          projection: {
+            _id: 1,
+            Unique_ID: 1,
+            First_Name: 1,
+            Father_Name: 1,
+            Grandfather_Name: 1,
+            Grade: 1,
+            Academic_Year: 1,
+            Classification: 1,
+            Sex: 1,
+            Age: 1,
+            Phone_Number: 1,
+          },
+        }
+      ).toArray();
+
+      for (const s of extraStudents) {
+        studentIdToStudentMap.set(s._id.toString(), s);
+        if (s.Unique_ID) {
+          studentIdToStudentMap.set(String(s.Unique_ID).trim(), s);
+        }
+      }
+    }
+
     const totalAttendanceRecords = filteredAttendance.length;
     let totalPresentMarks = 0;
     let totalAbsentMarks = 0;
 
-    // Student ID -> attendance totals
+    // Student canonical ID -> attendance totals
     const studentAttendanceMap = new Map<string, { present: number; absent: number; lastDate: string }>();
 
     // Grade -> attendance totals
@@ -213,19 +270,25 @@ export async function GET(req: NextRequest) {
       if (isPresent) totalPresentMarks++;
       else totalAbsentMarks++;
 
-      // Per-student attendance tracking
-      const stId = String(record.studentId);
-      const studentStat = studentAttendanceMap.get(stId) || { present: 0, absent: 0, lastDate: "" };
+      // Dual-key student resolution:
+      // Resolves by either MongoDB _id.toString() or school-facing Unique_ID
+      const rawId = String(record.studentId || "").trim();
+      const st = rawId ? studentIdToStudentMap.get(rawId) : undefined;
+      // Canonical key prevents duplicate counting: use st._id.toString() if resolved, else fallback to rawId
+      const canonicalKey = st ? st._id.toString() : rawId || "unresolved";
+
+      // Per-student attendance tracking (keyed by canonical student identifier)
+      const studentStat = studentAttendanceMap.get(canonicalKey) || { present: 0, absent: 0, lastDate: "" };
       if (isPresent) studentStat.present++;
       else studentStat.absent++;
       if (record.date) studentStat.lastDate = record.date;
-      studentAttendanceMap.set(stId, studentStat);
+      studentAttendanceMap.set(canonicalKey, studentStat);
 
       // Per-grade attendance tracking
       // Resolve grade from record.Grade or look up in student map
       let recordGrade = record.Grade;
-      if (!recordGrade && studentIdToStudentMap.has(stId)) {
-        recordGrade = studentIdToStudentMap.get(stId)?.Grade;
+      if (!recordGrade && st?.Grade) {
+        recordGrade = st.Grade;
       }
       if (recordGrade) {
         const ga = gradeAttendanceMap.get(recordGrade) || { total: 0, present: 0, absent: 0 };
@@ -280,9 +343,9 @@ export async function GET(req: NextRequest) {
       lastRecordedDate: string;
     }> = [];
 
-    for (const [stId, stat] of studentAttendanceMap.entries()) {
+    for (const [canonicalKey, stat] of studentAttendanceMap.entries()) {
       if (stat.absent <= 0) continue;
-      const st = studentIdToStudentMap.get(stId);
+      const st = studentIdToStudentMap.get(canonicalKey);
       
       // If student was filtered out by grade or academic year, skip
       if (grade && st && st.Grade !== grade) continue;
@@ -290,9 +353,11 @@ export async function GET(req: NextRequest) {
 
       const totalRecorded = stat.present + stat.absent;
       frequentAbsences.push({
-        studentId: stId,
+        studentId: st ? st._id.toString() : "unresolved",
         uniqueId: st?.Unique_ID || "—",
-        name: st ? [st.First_Name, st.Father_Name].filter(Boolean).join(" ") : `Student (${stId.slice(-6)})`,
+        name: st
+          ? [st.First_Name, st.Father_Name].filter(Boolean).join(" ")
+          : "Unknown Student",
         grade: st?.Grade || "—",
         academicYear: String(st?.Academic_Year || "—"),
         absentCount: stat.absent,
@@ -320,7 +385,7 @@ export async function GET(req: NextRequest) {
 
     const paymentByStudentMap = new Map<string, typeof paymentRecords[0]>();
     for (const p of paymentRecords) {
-      paymentByStudentMap.set(String(p.studentId), p);
+      paymentByStudentMap.set(String(p.studentId).trim(), p);
     }
 
     let paidStudentsCount = 0;
@@ -344,10 +409,10 @@ export async function GET(req: NextRequest) {
       monthsSummary: string;
     }> = [];
 
-    // Evaluate payment status for the students in scope
+    // Evaluate payment status for the students in scope (supports dual-key lookup: _id and Unique_ID)
     for (const st of allStudents) {
       const stId = st._id.toString();
-      const pRecord = paymentByStudentMap.get(stId);
+      const pRecord = paymentByStudentMap.get(stId) || (st.Unique_ID ? paymentByStudentMap.get(String(st.Unique_ID).trim()) : undefined);
       let paidCount = 0;
       let unpaidCount = 0;
 
@@ -471,8 +536,9 @@ export async function GET(req: NextRequest) {
     }> = [];
 
     for (const res of resultsDocs) {
-      // Find associated student to verify grade
-      const st = studentIdToStudentMap.get(String(res.studentId));
+      // Find associated student to verify grade (dual-key resolution via _id or Unique_ID)
+      const rawResStudentId = String(res.studentId || "").trim();
+      const st = rawResStudentId ? studentIdToStudentMap.get(rawResStudentId) : undefined;
       const resGrade = st?.Grade || res.grade || "Unassigned";
 
       if (grade && resGrade !== grade) continue;
@@ -497,7 +563,7 @@ export async function GET(req: NextRequest) {
       gradeResultsMap.set(resGrade, gr);
 
       const performerItem = {
-        studentId: String(res.studentId),
+        studentId: st ? st._id.toString() : rawResStudentId,
         studentName: res.studentName || (st ? [st.First_Name, st.Father_Name].filter(Boolean).join(" ") : "Student"),
         grade: resGrade,
         subjectName: res.subjectName || "Subject",
