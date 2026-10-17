@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { Student, User, Attendance, StudentClassification } from "@/lib/models";
+import { Student, User, Attendance, StudentClassification, ScheduleSession } from "@/lib/models";
 import { GRADE_OPTIONS, STUDENT_CLASSIFICATIONS } from "@/lib/constants";
 import {
   academicYearMatchesEthiopian,
@@ -19,6 +19,7 @@ import {
   DonutChart,
   Skeleton,
 } from "@/components/reports/ReportPageLayout";
+import AttendanceMatrixViewer from "@/components/reports/AttendanceMatrixViewer";
 import {
   Users,
   GraduationCap,
@@ -67,6 +68,7 @@ export default function SuperAdminReportsDashboard() {
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [periods, setPeriods] = useState<CategoryPeriodItem[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -82,12 +84,13 @@ export default function SuperAdminReportsDashboard() {
     else setRefreshing(true);
 
     try {
-      const [s, f, a, p, pay] = await Promise.all([
+      const [s, f, a, p, pay, sched] = await Promise.all([
         safeFetch<Student[]>("/api/v1/students", []),
         safeFetch<User[]>("/api/v1/facilitators", []),
         safeFetch<Attendance[]>("/api/v1/attendance", []),
         safeFetch<CategoryPeriodItem[]>("/api/v1/category-periods", []),
         safeFetch<PaymentRecord[]>(`/api/v1/payment?year=${selectedYear || currentEcYear}`, []),
+        safeFetch<{ schedules: ScheduleSession[] }>("/api/v1/schedules", { schedules: [] }),
       ]);
 
       setStudents(Array.isArray(s) ? s : []);
@@ -95,6 +98,7 @@ export default function SuperAdminReportsDashboard() {
       setAttendance(Array.isArray(a) ? a : []);
       setPeriods(Array.isArray(p) ? p : []);
       setPayments(Array.isArray(pay) ? pay : []);
+      setSchedules(Array.isArray(sched?.schedules) ? sched.schedules : []);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -729,6 +733,20 @@ export default function SuperAdminReportsDashboard() {
             </table>
           </div>
         )}
+      </ReportSection>
+
+      {/* Official Ethiopian Attendance Matrix & Excel Registry */}
+      <ReportSection title="Official Attendance Matrix & Semester Registry (የአቴንዳንስ ማውጫ)">
+        <p className="mb-4 text-xs text-gray-500">
+          Complete Ethiopian calendar semester schedule matrix. Displays real session statuses (Present, Absent, Permission, Pending, No Class), calculates percentages based on scheduled sessions only, and exports to Excel in the verified workbook format.
+        </p>
+        <AttendanceMatrixViewer
+          students={students}
+          attendance={attendance}
+          schedules={schedules}
+          defaultAcademicYear={selectedYear || String(currentEcYear)}
+          defaultGrade={selectedGrade || "Grade 7"}
+        />
       </ReportSection>
 
       {/* Database Raw Exports */}

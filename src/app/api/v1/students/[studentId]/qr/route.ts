@@ -1,6 +1,8 @@
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
+import { requireAdmin } from "@/lib/apiAuth";
+import { createSignedQrText } from "@/lib/qr";
 
 export async function GET(
   req: NextRequest,
@@ -52,3 +54,54 @@ export async function GET(
     );
   }
 }
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ studentId: string }> },
+) {
+  try {
+    const { error } = await requireAdmin(req);
+    if (error) return error;
+
+    const { studentId } = await params;
+    if (!studentId || !ObjectId.isValid(studentId)) {
+      return NextResponse.json(
+        { error: "Valid student ID is required" },
+        { status: 400 },
+      );
+    }
+
+    const db = await getDb();
+    const student = await db
+      .collection("students")
+      .findOne({ _id: new ObjectId(studentId) });
+
+    if (!student) {
+      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+    }
+
+    const qrText = createSignedQrText(student.Unique_ID);
+    const QRCode = await import("qrcode");
+    const qrDataUrl = await QRCode.toDataURL(qrText, {
+      errorCorrectionLevel: "H",
+      margin: 2,
+      width: 256,
+    });
+
+    await db.collection("students").updateOne(
+      { _id: new ObjectId(studentId) },
+      { $set: { qr_code: qrDataUrl, updatedAt: new Date() } },
+    );
+
+    return NextResponse.json(
+      { ok: true, message: "QR code regenerated successfully", qr_code: qrDataUrl },
+      { status: 200 },
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { error: (error as Error).message || "Failed to regenerate QR code" },
+      { status: 500 },
+    );
+  }
+}
+

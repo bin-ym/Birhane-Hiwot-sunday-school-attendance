@@ -14,7 +14,9 @@ export type AuditCollection =
   | "student_requests"
   | "student_results"
   | "subjects"
-  | "facilitators";
+  | "facilitators"
+  | "roles"
+  | "schedules";
 
 export interface AuditEntry {
   timestamp: Date;

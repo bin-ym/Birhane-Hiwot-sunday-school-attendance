@@ -271,3 +271,25 @@ export interface StudentResult {
 }
 
 export type WithStringId<T> = Omit<T, "_id"> & { _id: string };
+
+export type ScheduleStatus = "scheduled" | "completed" | "cancelled";
+
+export interface ScheduleSession {
+  _id?: ObjectId;
+  academicYear: string | number;
+  semester: string;
+  department: string;
+  grade: string;
+  section?: string | null;
+  date: string;
+  sundayName?: string;
+  startTime: string;
+  endTime: string;
+  room?: string;
+  status: ScheduleStatus;
+  notes?: string;
+  createdBy?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+

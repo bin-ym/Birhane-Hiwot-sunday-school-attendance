@@ -18,7 +18,9 @@ import {
   Skeleton,
   ReportFilters,
 } from "@/components/reports/ReportPageLayout";
+import AttendanceMatrixViewer from "@/components/reports/AttendanceMatrixViewer";
 import { UserCheck, AlertTriangle, FileText } from "lucide-react";
+import { ScheduleSession } from "@/lib/models";
 
 import { exportToExcel } from "@/lib/excelExport";
 import { exportToPDF } from "@/lib/pdfExport";
@@ -29,6 +31,7 @@ export default function FacilitatorReportsDashboard() {
   const ecYear = getCurrentEthiopianYear();
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<{ dateFrom?: string; dateTo?: string }>({});
 
@@ -55,9 +58,11 @@ export default function FacilitatorReportsDashboard() {
     Promise.all([
       safeFetch<any[]>(`/api/v1/students${qs}`, []),
       safeFetch<any[]>(`/api/v1/attendance${qs}`, []),
-    ]).then(([s, a]) => {
+      safeFetch<{ schedules: ScheduleSession[] }>(`/api/v1/schedules${qs}`, { schedules: [] }),
+    ]).then(([s, a, sched]) => {
       setStudents(Array.isArray(s) ? s : []);
       setAttendance(Array.isArray(a) ? a : []);
+      setSchedules(Array.isArray(sched?.schedules) ? sched.schedules : []);
     }).finally(() => setLoading(false));
   }, [facilitatorGrade]);
 
@@ -256,6 +261,17 @@ export default function FacilitatorReportsDashboard() {
             />
           </div>
         </ReportSection>
+      </div>
+
+      <div className="mt-8">
+        <AttendanceMatrixViewer
+          students={students}
+          attendance={attendance}
+          schedules={schedules}
+          defaultAcademicYear={String(ecYear)}
+          defaultGrade={Array.isArray(facilitatorGrade) ? facilitatorGrade[0] : facilitatorGrade || "Grade 7"}
+          allowedGrades={Array.isArray(facilitatorGrade) ? facilitatorGrade : facilitatorGrade ? [facilitatorGrade] : []}
+        />
       </div>
     </ReportPageLayout>
   );
