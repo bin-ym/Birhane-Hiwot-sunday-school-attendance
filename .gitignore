@@ -59,7 +59,16 @@ docs/implementation-reports/
 # Sentry Config File
 .env.sentry-build-plugin
 
+# SWC & Turbo cache
+.swc/
+.turbo/
+
+# Logs
+*.log
+
 scripts/*.mjs
 !scripts/reconcile-legacy-enrollments.mjs
 !scripts/audit-student-unique-id.mjs
+!scripts/prepare-grades-8-and-12-dry-run.mjs
 test-mongo.mjs
+
