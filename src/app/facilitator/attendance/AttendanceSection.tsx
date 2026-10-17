@@ -5,9 +5,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { gregorianToEthiopian, formatEthiopianDate } from "@/lib/utils";
-import { Student } from "@/lib/models";
+import { Student, ScheduleSession } from "@/lib/models";
 import toast, { Toaster } from "react-hot-toast";
 import dynamic from "next/dynamic";
+import { CalendarX, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 
 const QRScannerModal = dynamic(() => import("@/components/QRScannerModal"), {
   ssr: false,
@@ -112,9 +113,38 @@ export default function AttendanceSection() {
     else setError(null);
   }, [studentsError, attendanceError, facilitatorGrade]);
 
-  const currentYear = Math.max(
-    ...students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean),
+  const currentYear = useMemo(() => {
+    if (students.length === 0) return 2018;
+    const years = students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean);
+    return years.length > 0 ? Math.max(...years) : 2018;
+  }, [students]);
+
+  const { data: scheduleData, isLoading: scheduleLoading } = useSWR<{
+    schedules: ScheduleSession[];
+  }>(
+    `/api/v1/schedules?date=${encodeURIComponent(formattedDate)}&academicYear=${currentYear}`,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 600000 }
   );
+
+  const activeSession = useMemo(() => {
+    const list = scheduleData?.schedules || [];
+    if (selectedGrade) {
+      return list.find((s) => s.grade === selectedGrade) || null;
+    }
+    if (facilitatorGrade) {
+      const g = Array.isArray(facilitatorGrade) ? facilitatorGrade : [facilitatorGrade];
+      return list.find((s) => g.includes(s.grade)) || null;
+    }
+    return list[0] || null;
+  }, [scheduleData, selectedGrade, facilitatorGrade]);
+
+  const isNoClass = useMemo(() => {
+    if (scheduleLoading) return false;
+    if (!scheduleData?.schedules) return false;
+    return !activeSession || activeSession.status === "cancelled";
+  }, [activeSession, scheduleData, scheduleLoading]);
+
   const currentYearStudents = students.filter(
     (s: Student) => s.Academic_Year === String(currentYear),
   );
@@ -229,6 +259,11 @@ export default function AttendanceSection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isNoClass) {
+      toast.error("Cannot record attendance: No class session is scheduled for this grade on this date.");
+      return;
+    }
+
     let allRecords = attendance;
     if (
       !attendance.some(
@@ -250,6 +285,7 @@ export default function AttendanceSection() {
             hasPermission: false,
             reason: "",
             markedBy: facilitatorEmail,
+            sessionId: activeSession?._id,
           }
         );
       });
@@ -262,6 +298,7 @@ export default function AttendanceSection() {
       const timestamp = formatEthiopianDate(new Date());
       const payload = {
         date: formattedDate,
+        sessionId: activeSession?._id,
         attendance: allRecords
           .filter((r) => r.date === formattedDate)
           .map((r) => ({
@@ -392,6 +429,41 @@ export default function AttendanceSection() {
         </div>
       </div>
 
+      {/* Schedule Banner: No Class vs Scheduled Session */}
+      {isNoClass ? (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 shadow-sm flex items-start gap-3">
+          <CalendarX className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <div>
+            <h4 className="text-sm font-bold text-amber-900">
+              No Class Scheduled
+            </h4>
+            <p className="text-xs text-amber-700 mt-0.5">
+              {activeSession?.status === "cancelled"
+                ? `The session for ${selectedGrade || "this grade"} on ${formattedDate} has been cancelled.`
+                : `There is no class scheduled for ${selectedGrade || "this grade"} on ${formattedDate}.`}
+              {" "}Students are <strong>not marked absent</strong>. Attendance roll-call is disabled for unscheduled dates.
+            </p>
+          </div>
+        </div>
+      ) : activeSession ? (
+        <div className="mb-6 p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 shadow-sm flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2.5">
+            <Clock className="h-5 w-5 text-blue-600 shrink-0" />
+            <div>
+              <span className="text-xs font-bold text-blue-900">
+                Scheduled Session: {activeSession.grade} ({activeSession.startTime} - {activeSession.endTime})
+              </span>
+              <p className="text-xs text-blue-700">
+                {activeSession.topic || "Regular Curriculum Session"} {activeSession.assignedTeacherName ? `• Teacher: ${activeSession.assignedTeacherName}` : ""}
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+            Session Active
+          </span>
+        </div>
+      ) : null}
+
       <form
         onSubmit={handleSubmit}
         className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4"
@@ -422,9 +494,9 @@ export default function AttendanceSection() {
         <button
           type="submit"
           className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
-          disabled={loading}
+          disabled={loading || isNoClass}
         >
-          {loading ? "Submitting…" : "Submit Attendance"}
+          {loading ? "Submitting…" : isNoClass ? "No Class Scheduled" : "Submit Attendance"}
         </button>
       </form>
 
@@ -441,6 +513,9 @@ export default function AttendanceSection() {
               </th>
               <th className="border p-3 text-left text-responsive font-medium">
                 Grade
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Status
               </th>
               <th className="border p-3 text-left text-responsive font-medium">
                 Present
@@ -466,6 +541,29 @@ export default function AttendanceSection() {
                   <td className="border p-3 text-responsive">
                     {student.Grade}
                   </td>
+                  <td className="border p-3 text-responsive">
+                    {isNoClass ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-500">
+                        No Class
+                      </span>
+                    ) : record?.present ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">
+                        Present
+                      </span>
+                    ) : record?.hasPermission ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-800">
+                        Permission
+                      </span>
+                    ) : record ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">
+                        Absent
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">
+                        Pending
+                      </span>
+                    )}
+                  </td>
                   <td className="border p-3 text-center">
                     <input
                       type="checkbox"
@@ -473,7 +571,7 @@ export default function AttendanceSection() {
                       onChange={() =>
                         student._id && toggleAttendance(student._id.toString())
                       }
-                      disabled={loading}
+                      disabled={loading || isNoClass}
                       className="w-4 h-4"
                     />
                   </td>
@@ -484,7 +582,7 @@ export default function AttendanceSection() {
                       onChange={() =>
                         student._id && togglePermission(student._id.toString())
                       }
-                      disabled={loading}
+                      disabled={loading || isNoClass}
                       className="w-4 h-4"
                     />
                   </td>

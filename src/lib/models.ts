@@ -270,6 +270,31 @@ export interface StudentResult {
   recordedDate: string; // Ethiopian ISO
 }
 
+export type ScheduleStatus = "scheduled" | "completed" | "cancelled" | "unscheduled";
+
+export interface ScheduleSession {
+  _id?: ObjectId;
+  academicYear: string;
+  semester: string;
+  department: string;
+  grade: string;
+  section?: string;
+  date: string;
+  sundayNumber?: number;
+  sundayName?: string;
+  startTime: string;
+  endTime: string;
+  status: ScheduleStatus;
+  topic?: string;
+  assignedTeacherId?: string;
+  assignedTeacherName?: string;
+  assignedSchedulerId?: string;
+  assignedSchedulerName?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type WithStringId<T> = Omit<T, "_id"> & { _id: string };
 
 export type ScheduleStatus = "scheduled" | "completed" | "cancelled";
