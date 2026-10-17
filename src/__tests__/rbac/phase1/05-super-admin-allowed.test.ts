@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/students/route";
+import { POST } from "@/app/api/v1/students/route";
 import { getToken } from "next-auth/jwt";
 import { getDb } from "@/lib/mongodb";
 import { ensureStudentCreationAllowed } from "@/lib/studentService";
@@ -49,7 +49,7 @@ describe("Phase 1 RBAC - super administrator access", () => {
   it("allows a super admin to create a student", async () => {
     (ensureStudentCreationAllowed as jest.Mock).mockResolvedValue({ ok: true });
 
-    const req = new NextRequest("http://localhost:3000/api/students", {
+    const req = new NextRequest("http://localhost:3000/api/v1/students", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

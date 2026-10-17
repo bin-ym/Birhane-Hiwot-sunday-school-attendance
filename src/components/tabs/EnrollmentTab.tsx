@@ -63,7 +63,7 @@ export default function EnrollmentTab({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/enrollments?studentId=${studentId}`);
+      const res = await fetch(`/api/v1/enrollments?studentId=${studentId}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to load enrollments");
@@ -109,7 +109,7 @@ export default function EnrollmentTab({
     setSuccess(null);
 
     try {
-      const res = await fetch("/api/enrollments", {
+      const res = await fetch("/api/v1/enrollments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -137,7 +137,7 @@ export default function EnrollmentTab({
     setError(null);
 
     try {
-      const res = await fetch(`/api/enrollments/${enrollmentId}/section`, {
+      const res = await fetch(`/api/v1/enrollments/${enrollmentId}/section`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ section: editSectionValue.trim().toUpperCase() || null }),

@@ -18,8 +18,8 @@ export default function EducationStudentDetailPage() {
       setLoading(true);
       try {
         const [studentRes, attendanceRes] = await Promise.all([
-          fetch(`/api/students/${studentId}`),
-          fetch(`/api/attendance?studentId=${studentId}`),
+          fetch(`/api/v1/students/${studentId}`),
+          fetch(`/api/v1/attendance?studentId=${studentId}`),
         ]);
 
         if (!studentRes.ok || !attendanceRes.ok) {

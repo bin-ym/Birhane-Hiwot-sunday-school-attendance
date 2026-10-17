@@ -11,19 +11,37 @@ const fetcher = async (url: string) => {
 };
 
 import Link from "next/link";
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx";
 import toast, { Toaster } from "react-hot-toast";
+import { getCurrentEthiopianYear } from "@/lib/utils";
 
 export default function SuperAdminStudentRegistry() {
   const { data, error, isLoading, mutate } = useSWR<Student[]>(
-    "/api/students",
+    "/api/v1/students",
     fetcher,
     {
       revalidateOnFocus: false,
       dedupingInterval: 600000,
     },
   );
+
+  const { data: periods } = useSWR<any[]>(
+    "/api/v1/category-periods",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 600000,
+    },
+  );
+
+  const activeAcademicYear = useMemo(() => {
+    if (Array.isArray(periods)) {
+      const active = periods.find((p) => p.isActive && p.academicYear);
+      if (active?.academicYear) return String(active.academicYear);
+    }
+    return String(getCurrentEthiopianYear());
+  }, [periods]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -79,7 +97,7 @@ export default function SuperAdminStudentRegistry() {
             isNewStudent: true,
           };
 
-          const res = await fetch("/api/students", {
+          const res = await fetch("/api/v1/students", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(mappedStudent),
@@ -113,7 +131,7 @@ export default function SuperAdminStudentRegistry() {
 
   const handleDelete = useCallback(async (studentId: string) => {
     try {
-      const res = await fetch("/api/students", {
+      const res = await fetch("/api/v1/students", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: studentId }),
@@ -197,6 +215,7 @@ export default function SuperAdminStudentRegistry() {
         title="Global student directory"
         description="Search every enrolled student in one place. Filter by year, grade, or gender, then open a profile or academic results from the student page."
         hideYearFilter={false}
+        defaultAcademicYear={activeAcademicYear}
         actionLabel="View"
         onDelete={handleDelete}
       />

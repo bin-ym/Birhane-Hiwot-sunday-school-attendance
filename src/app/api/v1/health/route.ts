@@ -1,4 +1,4 @@
-// src/app/api/health/route.ts
+// src/app/api/v1/health/route.ts
 // System health endpoint — reports DB status, collection sizes, and basic metrics.
 // Super Admin only.
 import { NextRequest, NextResponse } from "next/server";

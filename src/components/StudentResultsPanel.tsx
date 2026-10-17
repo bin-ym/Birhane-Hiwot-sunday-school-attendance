@@ -113,12 +113,12 @@ export function StudentResultsPanel({
     if (!studentMongoId) return;
     setLoading(true);
     try {
-      const studentRes = await fetch(`/api/students/${studentMongoId}`);
+      const studentRes = await fetch(`/api/v1/students/${studentMongoId}`);
       if (!studentRes.ok) throw new Error("Failed to fetch student");
       const studentData: Student = await studentRes.json();
       setStudent(studentData);
 
-      const subjectsRes = await fetch("/api/subjects");
+      const subjectsRes = await fetch("/api/v1/subjects");
       if (!subjectsRes.ok) throw new Error("Failed to fetch subjects");
       const allGroups: SubjectGroup[] = await subjectsRes.json();
 
@@ -143,7 +143,7 @@ export function StudentResultsPanel({
       setSubjects(forGrade);
 
       const resultsRes = await fetch(
-        `/api/student-results?studentId=${encodeURIComponent(studentData.Unique_ID)}`,
+        `/api/v1/student-results?studentId=${encodeURIComponent(studentData.Unique_ID)}`,
       );
       if (!resultsRes.ok) throw new Error("Failed to fetch results");
       const resultsData: Result[] = await resultsRes.json();
@@ -230,7 +230,7 @@ export function StudentResultsPanel({
       };
 
       if (editingResultId) {
-        const resp = await fetch(`/api/student-results/${editingResultId}`, {
+        const resp = await fetch(`/api/v1/student-results/${editingResultId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -248,7 +248,7 @@ export function StudentResultsPanel({
           throw new Error(body.error || "Update failed");
         }
       } else {
-        const resp = await fetch("/api/student-results", {
+        const resp = await fetch("/api/v1/student-results", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -274,7 +274,7 @@ export function StudentResultsPanel({
   const deleteResult = async (rid: string) => {
     if (!confirm("Remove this subject result?")) return;
     try {
-      const resp = await fetch(`/api/student-results/${rid}`, {
+      const resp = await fetch(`/api/v1/student-results/${rid}`, {
         method: "DELETE",
       });
       if (!resp.ok) throw new Error("Delete failed");

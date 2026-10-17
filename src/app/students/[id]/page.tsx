@@ -26,7 +26,7 @@ export default function StudentDetails() {
       window.location.href = "/login";
     } else if (status === "authenticated") {
       // Fetch student data
-      fetch(`/api/students/${id}`)
+      fetch(`/api/v1/students/${id}`)
         .then((res) => {
           if (!res.ok) throw new Error(`Failed to fetch student: ${res.status}`);
           return res.json();
@@ -39,7 +39,7 @@ export default function StudentDetails() {
         });
 
       // Fetch attendance data
-      fetch(`/api/attendance/${id}`)
+      fetch(`/api/v1/attendance/${id}`)
         .then((res) => {
           if (!res.ok) throw new Error(`Failed to fetch attendance: ${res.status}`);
           return res.json();

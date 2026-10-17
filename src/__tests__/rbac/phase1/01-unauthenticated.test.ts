@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/students/route";
+import { POST } from "@/app/api/v1/students/route";
 import { getToken } from "next-auth/jwt";
 
 jest.mock("next-auth/jwt", () => ({
@@ -28,7 +28,7 @@ describe("Phase 1 RBAC - unauthenticated access", () => {
   });
 
   it("rejects student creation when there is no auth session", async () => {
-    const req = new NextRequest("http://localhost:3000/api/students", {
+    const req = new NextRequest("http://localhost:3000/api/v1/students", {
       method: "POST",
       body: JSON.stringify({
         Unique_ID: "ST-001",

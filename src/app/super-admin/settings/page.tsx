@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast, Toaster } from "react-hot-toast";
 import { Calendar, Save, CheckCircle2, AlertCircle } from "lucide-react";
 import {
@@ -45,7 +46,7 @@ export default function SuperAdminSettingsPage() {
     async function fetchPeriods() {
       try {
         const res = await fetch(
-          `/api/category-periods?academicYear=${currentYear}`,
+          `/api/v1/category-periods?academicYear=${currentYear}`,
         );
 
         if (!res.ok) {
@@ -109,7 +110,7 @@ export default function SuperAdminSettingsPage() {
       const promises = STUDENT_CLASSIFICATIONS.map(async (category) => {
         const p = periods[category.value] ?? createDefaultPeriod();
 
-        const res = await fetch("/api/category-periods", {
+        const res = await fetch("/api/v1/category-periods", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -144,18 +145,28 @@ export default function SuperAdminSettingsPage() {
       <Toaster position="top-right" />
 
       <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-violet-900 p-6 text-white shadow-xl sm:p-8">
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-indigo-200">
-          Super Admin Settings
-        </p>
-        <h1 className="text-2xl font-black sm:text-3xl">
-          Category Registration Periods
-        </h1>
-        <p className="mt-2 text-sm text-white/80">
-          Set the registration start, end, and close dates for every student category.
-        </p>
-        <p className="mt-1 text-xs text-white/50">
-          Academic Year: {currentYear} EC
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-indigo-200">
+              Super Admin Settings
+            </p>
+            <h1 className="text-2xl font-black sm:text-3xl">
+              System Settings
+            </h1>
+            <p className="mt-2 text-sm text-white/80">
+              Manage system configuration, security rules, and student admission cycles.
+            </p>
+            <p className="mt-1 text-xs text-white/50">
+              Current Academic Year: {currentYear} EC
+            </p>
+          </div>
+          <Link
+            href="/super-admin/registration-periods"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all self-start sm:self-auto"
+          >
+            Dedicated Periods Page →
+          </Link>
+        </div>
       </div>
 
       {loading ? (

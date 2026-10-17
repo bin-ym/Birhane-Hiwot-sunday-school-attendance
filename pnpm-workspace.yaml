@@ -1,0 +1,10 @@
+onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - "core-js"
+  - "sharp"
+  - "unrs-resolver"
+allowBuilds:
+  '@parcel/watcher': true
+  core-js: true
+  sharp: true
+  unrs-resolver: true

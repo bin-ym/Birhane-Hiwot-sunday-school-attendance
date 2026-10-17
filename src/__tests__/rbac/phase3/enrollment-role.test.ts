@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/enrollments/route";
+import { POST } from "@/app/api/v1/enrollments/route";
 import { getToken } from "next-auth/jwt";
 import { createEnrollment } from "@/lib/enrollmentService";
 
@@ -31,7 +31,7 @@ describe("Phase 3 RBAC - enrollment domain enforcement", () => {
   it("blocks HR Admin from creating enrollment records", async () => {
     (getToken as jest.Mock).mockResolvedValue({ role: "HR Admin" });
 
-    const req = new NextRequest("http://localhost:3000/api/enrollments", {
+    const req = new NextRequest("http://localhost:3000/api/v1/enrollments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -58,7 +58,7 @@ describe("Phase 3 RBAC - enrollment domain enforcement", () => {
       section: null,
     });
 
-    const req = new NextRequest("http://localhost:3000/api/enrollments", {
+    const req = new NextRequest("http://localhost:3000/api/v1/enrollments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

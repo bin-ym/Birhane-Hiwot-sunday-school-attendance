@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/students/route";
+import { POST } from "@/app/api/v1/students/route";
 import { getToken } from "next-auth/jwt";
 import { getDb } from "@/lib/mongodb";
 import { ensureStudentCreationAllowed } from "@/lib/studentService";
@@ -40,7 +40,7 @@ jest.mock("@/lib/notifications", () => ({
   createNotification: jest.fn(),
 }));
 
-describe("Phase 1 RBAC Guardrails: POST /api/students", () => {
+describe("Phase 1 RBAC Guardrails: POST /api/v1/students", () => {
   let mockDb: any;
 
   beforeEach(() => {
@@ -58,7 +58,7 @@ describe("Phase 1 RBAC Guardrails: POST /api/students", () => {
   test("D. Unauthenticated request returns 401 Unauthorized", async () => {
     (getToken as jest.Mock).mockResolvedValue(null);
 
-    const req = new NextRequest("http://localhost:3000/api/students", {
+    const req = new NextRequest("http://localhost:3000/api/v1/students", {
       method: "POST",
       body: JSON.stringify({
         Unique_ID: "ST-TEST-001",
@@ -95,7 +95,7 @@ describe("Phase 1 RBAC Guardrails: POST /api/students", () => {
     });
 
     // Client tries to inject Super Admin role & email via JSON body
-    const req = new NextRequest("http://localhost:3000/api/students", {
+    const req = new NextRequest("http://localhost:3000/api/v1/students", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -134,7 +134,7 @@ describe("Phase 1 RBAC Guardrails: POST /api/students", () => {
       error: "Restricted grade scope / not allowed",
     });
 
-    const req = new NextRequest("http://localhost:3000/api/students", {
+    const req = new NextRequest("http://localhost:3000/api/v1/students", {
       method: "POST",
       body: JSON.stringify({
         Unique_ID: "ST-TEST-002",
@@ -161,7 +161,7 @@ describe("Phase 1 RBAC Guardrails: POST /api/students", () => {
 
     (ensureStudentCreationAllowed as jest.Mock).mockResolvedValue({ ok: true });
 
-    const req = new NextRequest("http://localhost:3000/api/students", {
+    const req = new NextRequest("http://localhost:3000/api/v1/students", {
       method: "POST",
       body: JSON.stringify({
         Unique_ID: "ST-TEST-003",
@@ -187,7 +187,7 @@ describe("Phase 1 RBAC Guardrails: POST /api/students", () => {
 
     (ensureStudentCreationAllowed as jest.Mock).mockResolvedValue({ ok: true });
 
-    const req = new NextRequest("http://localhost:3000/api/students", {
+    const req = new NextRequest("http://localhost:3000/api/v1/students", {
       method: "POST",
       body: JSON.stringify({
         Unique_ID: "ST-TEST-004",

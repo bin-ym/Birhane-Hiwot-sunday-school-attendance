@@ -264,7 +264,7 @@ export function useStudentForm(
 
       const generateID = async () => {
         try {
-          const res = await fetch("/api/students/count", {
+          const res = await fetch("/api/v1/students/count", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -336,7 +336,7 @@ export function useStudentForm(
   const checkDuplicate = async () => {
     if (student) return false;
     try {
-      const res = await fetch("/api/students/check-duplicate", {
+      const res = await fetch("/api/v1/students/check-duplicate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -402,7 +402,7 @@ export function useStudentForm(
   const handleRequestAdmin = async (requestData: Omit<Student, "_id">) => {
     setIsRequestingAdmin(true);
     try {
-      const response = await fetch("/api/student-requests", {
+      const response = await fetch("/api/v1/student-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

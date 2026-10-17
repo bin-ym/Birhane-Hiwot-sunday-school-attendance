@@ -18,14 +18,27 @@ export async function GET(req: NextRequest) {
     const year = url.searchParams.get("year");
     const studentId = url.searchParams.get("studentId");
 
-    if (!year || !studentId) {
+    if (!year && !studentId) {
       return NextResponse.json(
         { message: "Year and studentId are required" },
         { status: 400 },
       );
     }
 
+    if (!year) {
+      return NextResponse.json(
+        { message: "Year is required" },
+        { status: 400 },
+      );
+    }
+
     const collection = db.collection("payment_status");
+
+    // If only academic year is requested, return all records for reporting
+    if (!studentId) {
+      const records = await collection.find({ academicYear: year }).toArray();
+      return NextResponse.json(records, { status: 200 });
+    }
 
     // Try to find existing record
     let record = await collection.findOne({ academicYear: year, studentId });

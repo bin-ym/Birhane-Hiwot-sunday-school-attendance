@@ -24,7 +24,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { data, mutate } = useSWR<{ notifications: Notification[]; unreadCount: number }>(
-    "/api/notifications",
+    "/api/v1/notifications",
     fetcher,
     { refreshInterval: 30_000 },
   );
@@ -42,7 +42,7 @@ export function NotificationBell() {
   }, []);
 
   const markAllRead = async () => {
-    await fetch("/api/notifications", {
+    await fetch("/api/v1/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ markAll: true }),
@@ -51,7 +51,7 @@ export function NotificationBell() {
   };
 
   const markRead = async (id: string) => {
-    await fetch("/api/notifications", {
+    await fetch("/api/v1/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ notifId: id }),

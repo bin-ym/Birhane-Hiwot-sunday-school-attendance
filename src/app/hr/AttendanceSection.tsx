@@ -63,7 +63,7 @@ export default function AttendanceSection() {
       setLoading(true);
       try {
         // Fetch students
-        let url = "/api/students";
+        let url = "/api/v1/students";
         if (!isHRAdmin && facilitatorGrade) {
           const params = new URLSearchParams();
           if (Array.isArray(facilitatorGrade)) {
@@ -82,7 +82,7 @@ export default function AttendanceSection() {
 
         // Fetch final attendance for today
         const finalRes = await fetch(
-          `/api/attendance?date=${encodeURIComponent(formattedDate)}`,
+          `/api/v1/attendance?date=${encodeURIComponent(formattedDate)}`,
         );
         if (!finalRes.ok) throw new Error("Failed to load attendance");
         const finalData = await finalRes.json();
@@ -281,7 +281,7 @@ export default function AttendanceSection() {
           })),
       };
 
-      const res = await fetch("/api/attendance", {
+      const res = await fetch("/api/v1/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

@@ -33,7 +33,7 @@ export default function StudentList({
       (!facilitatorGrade || facilitatorGrade.length === 0)
     )
       return null;
-    const base = "/api/students";
+    const base = "/api/v1/students";
     if (isSuperAdminOrHR) return base;
 
     const params = new URLSearchParams();

@@ -8,5 +8,5 @@ interface ClientSessionProviderProps {
 }
 
 export default function ClientSessionProvider({ children }: ClientSessionProviderProps) {
-  return <SessionProvider>{children}</SessionProvider>;
+  return <SessionProvider basePath="/api/v1/auth">{children}</SessionProvider>;
 }

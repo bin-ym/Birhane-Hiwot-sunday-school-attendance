@@ -175,6 +175,17 @@ export type UserRole =
   | "Schedule Manager"
   | "Teacher";
 
+export interface RoleDocument {
+  _id?: ObjectId;
+  name: string;
+  description: string;
+  isBuiltIn: boolean;
+  isActive: boolean;
+  permissions: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 /** Category registration period settings — managed by Super Admin */
 export interface CategoryPeriod {
   _id?: ObjectId;

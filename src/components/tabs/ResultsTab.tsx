@@ -110,7 +110,7 @@ export default function ResultsTab({
       let currentStudent = student;
       if (!currentStudent && studentId) {
         const studentRes = await fetch(
-          `/api/students?uniqueId=${encodeURIComponent(studentId)}`,
+          `/api/v1/students?uniqueId=${encodeURIComponent(studentId)}`,
         );
         if (studentRes.ok) {
           const data = await studentRes.json();
@@ -127,7 +127,7 @@ export default function ResultsTab({
       }
 
       // 1. Fetch curriculum subjects (grouped format)
-      const subjectsRes = await fetch("/api/subjects");
+      const subjectsRes = await fetch("/api/v1/subjects");
       if (!subjectsRes.ok) throw new Error("Failed to fetch subjects");
       const allGroups: SubjectGroup[] = await subjectsRes.json();
 
@@ -202,7 +202,7 @@ export default function ResultsTab({
 
       // 2. Fetch recorded student results
       const resultsRes = await fetch(
-        `/api/student-results?studentId=${encodeURIComponent(studentId)}`,
+        `/api/v1/student-results?studentId=${encodeURIComponent(studentId)}`,
       );
       if (!resultsRes.ok) throw new Error("Failed to fetch results");
       setResults(await resultsRes.json());
@@ -333,7 +333,7 @@ export default function ResultsTab({
       };
 
       if (editingResultId) {
-        const res = await fetch(`/api/student-results/${editingResultId}`, {
+        const res = await fetch(`/api/v1/student-results/${editingResultId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -351,7 +351,7 @@ export default function ResultsTab({
           throw new Error(body.error || "Failed to update result");
         }
       } else {
-        const res = await fetch("/api/student-results", {
+        const res = await fetch("/api/v1/student-results", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -376,7 +376,7 @@ export default function ResultsTab({
     if (!confirm("Are you sure you want to clear/delete this recorded result?"))
       return;
     try {
-      const res = await fetch(`/api/student-results/${resultId}`, {
+      const res = await fetch(`/api/v1/student-results/${resultId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete result");

@@ -53,8 +53,8 @@ export default function FacilitatorReportsDashboard() {
     const qs = `?${params.toString()}`;
 
     Promise.all([
-      safeFetch<any[]>(`/api/students${qs}`, []),
-      safeFetch<any[]>(`/api/attendance${qs}`, []),
+      safeFetch<any[]>(`/api/v1/students${qs}`, []),
+      safeFetch<any[]>(`/api/v1/attendance${qs}`, []),
     ]).then(([s, a]) => {
       setStudents(Array.isArray(s) ? s : []);
       setAttendance(Array.isArray(a) ? a : []);

@@ -155,12 +155,12 @@ const CATEGORIES: CategoryOption[] = [
     tagline: "የተማሪው ምድብ (6 months)",
     description: "በሐገር አቀባበል የሚሰጥ የተማሪው ምድብ። ለ6 ወር የሚናጠር የተማሪው ምድብ ነው።",
     badge: "ብሕ/በ/",
-    schedule: "በሐገር ሥርዓት (BeGena Schedule)",
+    schedule: "በገና ሥርዓት (BeGena Schedule)",
     grades: "በገና ክፍል (1 Grade)",
     features: [
       "በሐገር የሚሰጥ የተማሪው ምድብ",
       "6 ወር የሚናጠር ሥርዓት (6 month program)",
-      "የተማሪው ምድብ በሐገር ይሰጣል",
+      "የተማሪው ምድብ በገና ይሰጣል",
     ],
     gradient: "from-red-500/10 via-rose-500/5 to-transparent",
     borderColor: "border-red-200",
@@ -190,7 +190,7 @@ export function StudentCategorySelector({
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/category-periods?academicYear=${academicYear}`)
+    fetch(`/api/v1/category-periods?academicYear=${academicYear}`)
       .then((response) => {
         if (!response.ok) throw new Error("Failed to load registration periods");
         return response.json();

@@ -34,7 +34,7 @@ export default function DetailsTab({
   const handleGenerateQR = async () => {
     setGenerating(true);
     try {
-      const res = await fetch(`/api/students/${student._id}`, {
+      const res = await fetch(`/api/v1/students/${student._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ generateQR: true }),
@@ -114,12 +114,12 @@ export default function DetailsTab({
               <div className="flex flex-col items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`/api/students/${student._id}/qr`}
+                  src={`/api/v1/students/${student._id}/qr`}
                   alt="Student QR Code"
                   className="w-40 h-40 border-2 border-gray-300 rounded-lg shadow-md mb-3"
                 />
                 <a
-                  href={`/api/students/${student._id}/qr`}
+                  href={`/api/v1/students/${student._id}/qr`}
                   download={`${student.Unique_ID}_QR.png`}
                   className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm text-center hover:bg-blue-700 transition"
                 >

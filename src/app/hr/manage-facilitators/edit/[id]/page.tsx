@@ -37,7 +37,7 @@ export default function EditFacilitatorPage() {
     if (!id) return;
 
     setLoading(true);
-    fetch(`/api/facilitators?id=${id}`)
+    fetch(`/api/v1/facilitators?id=${id}`)
       .then((res) => {
         if (!res.ok) throw new Error("Facilitator not found");
         return res.json();
@@ -108,7 +108,7 @@ export default function EditFacilitatorPage() {
     }
 
     try {
-      const res = await fetch("/api/facilitators", {
+      const res = await fetch("/api/v1/facilitators", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, ...facForm }),

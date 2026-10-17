@@ -21,7 +21,7 @@ export default function StudentRequests() {
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/student-requests?status=pending");
+      const res = await fetch("/api/v1/student-requests?status=pending");
       if (!res.ok) throw new Error("Failed to fetch requests");
       const data = await res.json();
       setRequests(data);
@@ -40,7 +40,7 @@ export default function StudentRequests() {
   const handleApprove = async (requestId: string) => {
     setProcessingId(requestId);
     try {
-      const res = await fetch("/api/student-requests", {
+      const res = await fetch("/api/v1/student-requests", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -69,7 +69,7 @@ export default function StudentRequests() {
 
     setProcessingId(requestId);
     try {
-      const res = await fetch("/api/student-requests", {
+      const res = await fetch("/api/v1/student-requests", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

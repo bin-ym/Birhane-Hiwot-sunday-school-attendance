@@ -13,7 +13,7 @@ const fetcher = async (url: string) => {
 export default function StudentsByGrade() {
   const targetGrade = "ሰባተኛ ክፍል ጥዋት";
   const { data, error, isLoading } = useSWR<Student[]>(
-    `/api/students?grade=${encodeURIComponent(targetGrade)}`,
+    `/api/v1/students?grade=${encodeURIComponent(targetGrade)}`,
     fetcher,
     {
       revalidateOnFocus: false,

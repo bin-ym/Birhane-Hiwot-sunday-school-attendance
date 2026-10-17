@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
     const all = searchParams.get("all") === "true";
 
     const auth = await createAuth();
-    const sheetsApi = google.sheets({ version: "v4", auth });
+    const sheetsApi = google.sheets({ version: "v4", auth: auth as any });
 
     let sheetNames: string[] = [];
     if (all || sheetParam || sheetsParam) {

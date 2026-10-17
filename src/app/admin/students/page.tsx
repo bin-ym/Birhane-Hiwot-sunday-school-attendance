@@ -93,10 +93,10 @@ export default function AdminStudents() {
     try {
       const [studentsRes, subjectsRes, resultsRes, requestsRes] =
         await Promise.all([
-          fetch("/api/students"),
-          fetch("/api/subjects"),
-          fetch("/api/student-results"),
-          fetch("/api/student-requests?status=pending"),
+          fetch("/api/v1/students"),
+          fetch("/api/v1/subjects"),
+          fetch("/api/v1/student-results"),
+          fetch("/api/v1/student-requests?status=pending"),
         ]);
 
       // Students
@@ -197,7 +197,7 @@ export default function AdminStudents() {
     async (id: string) => {
       if (!confirm("Are you sure you want to delete this student?")) return;
       try {
-        const res = await fetch("/api/students", {
+        const res = await fetch("/api/v1/students", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id }),

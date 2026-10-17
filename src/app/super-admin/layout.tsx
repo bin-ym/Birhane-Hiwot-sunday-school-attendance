@@ -5,9 +5,13 @@ import RoleLayoutShell from "@/components/RoleLayoutShell";
 const superAdminLinks = [
   { label: "Dashboard", href: "/super-admin/dashboard" },
   { label: "Global Students", href: "/super-admin/students" },
+  { label: "Student ID Cards", href: "/super-admin/id-cards" },
+  { label: "Schedule Control", href: "/super-admin/schedule" },
   { label: "Department Admins", href: "/super-admin/department-admins" },
   { label: "Global Facilitators", href: "/super-admin/facilitators" },
+  { label: "Roles & Permissions", href: "/super-admin/roles" },
   { label: "Reports", href: "/super-admin/reports" },
+  { label: "Registration Periods", href: "/super-admin/registration-periods" },
   { label: "Audit Logs", href: "/super-admin/audit-logs" },
   { label: "System Health", href: "/super-admin/system-health" },
   { label: "Settings", href: "/super-admin/settings" },

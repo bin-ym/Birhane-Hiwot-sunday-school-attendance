@@ -48,7 +48,7 @@ export default function AttendanceSection() {
 
   const studentsUrl = useMemo(() => {
     if (!facilitatorGrade || facilitatorGrade.length === 0) return null;
-    const url = "/api/students";
+    const url = "/api/v1/students";
     const params = new URLSearchParams();
     if (Array.isArray(facilitatorGrade)) {
       facilitatorGrade.forEach((grade) => params.append("grade", grade));
@@ -74,7 +74,7 @@ export default function AttendanceSection() {
     isLoading: attendanceLoading,
   } = useSWR<AttendanceRecord[]>(
     studentsUrl
-      ? `/api/attendance?date=${encodeURIComponent(formattedDate)}`
+      ? `/api/v1/attendance?date=${encodeURIComponent(formattedDate)}`
       : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 600000 },
@@ -271,7 +271,7 @@ export default function AttendanceSection() {
           })),
       };
 
-      const res = await fetch("/api/attendance", {
+      const res = await fetch("/api/v1/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

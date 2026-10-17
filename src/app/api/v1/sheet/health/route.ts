@@ -17,7 +17,7 @@ export async function GET() {
     }
 
     const auth = await createAuth();
-    const sheetsApi = google.sheets({ version: "v4", auth });
+    const sheetsApi = google.sheets({ version: "v4", auth: auth as any });
 
     // Test basic access
     const meta = await sheetsApi.spreadsheets.get({

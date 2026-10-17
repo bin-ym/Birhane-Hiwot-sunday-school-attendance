@@ -28,9 +28,9 @@ export default function EducationAdminDashboard() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      safeFetch<{ total?: number }>('/api/students/total', {}),
-      safeFetch<any[]>('/api/education-facilitators', []),
-      safeFetch<any[]>('/api/subjects', []),
+      safeFetch<{ total?: number }>('/api/v1/students/total', {}),
+      safeFetch<any[]>('/api/v1/education-facilitators', []),
+      safeFetch<any[]>('/api/v1/subjects', []),
     ]).then(([s, f, sub]) => {
       setStudentsCount(s?.total ?? 0);
       setTeachersCount(Array.isArray(f) ? f.length : 0);

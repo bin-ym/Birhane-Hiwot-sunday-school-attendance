@@ -103,7 +103,7 @@ export default function TeachersAttendance() {
     setLoading(true);
     try {
       // Fetch teachers
-      const teachersRes = await fetch("/api/facilitators");
+      const teachersRes = await fetch("/api/v1/facilitators");
       const teachersData = await teachersRes.json();
       if (!teachersRes.ok) {
         throw new Error(teachersData.error || "Failed to load teachers");
@@ -111,7 +111,7 @@ export default function TeachersAttendance() {
       setTeachers(teachersData);
 
       // Fetch grades from students
-      const studentsRes = await fetch("/api/students");
+      const studentsRes = await fetch("/api/v1/students");
       const studentsData = await studentsRes.json();
       if (!studentsRes.ok) {
         throw new Error(studentsData.error || "Failed to load students");
@@ -122,7 +122,7 @@ export default function TeachersAttendance() {
       setGrades(uniqueGrades);
 
       // Fetch subjects
-      const subjectsRes = await fetch("/api/subjects");
+      const subjectsRes = await fetch("/api/v1/subjects");
       const subjectsData = await subjectsRes.json();
       if (!subjectsRes.ok) {
         throw new Error(subjectsData.error || "Failed to load subjects");
@@ -130,7 +130,7 @@ export default function TeachersAttendance() {
       setSubjects(subjectsData);
 
       // Fetch teacher assignments
-      const assignmentsRes = await fetch("/api/teacher-assignments");
+      const assignmentsRes = await fetch("/api/v1/teacher-assignments");
       const assignmentsData = await assignmentsRes.json();
       if (!assignmentsRes.ok) {
         throw new Error(assignmentsData.error || "Failed to load assignments");
@@ -152,7 +152,7 @@ export default function TeachersAttendance() {
     }
 
     try {
-      const response = await fetch("/api/facilitators", {
+      const response = await fetch("/api/v1/facilitators", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -199,7 +199,7 @@ export default function TeachersAttendance() {
     }
 
     try {
-      const response = await fetch("/api/teacher-assignments", {
+      const response = await fetch("/api/v1/teacher-assignments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -234,7 +234,7 @@ export default function TeachersAttendance() {
 
   const removeAssignment = async (assignmentId: string) => {
     try {
-      const response = await fetch(`/api/teacher-assignments/${assignmentId}`, {
+      const response = await fetch(`/api/v1/teacher-assignments/${assignmentId}`, {
         method: "DELETE",
       });
 

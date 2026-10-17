@@ -37,7 +37,7 @@ export default function ScheduleManagerPage() {
     async function fetchPeriods() {
       try {
         const res = await fetch(
-          `/api/category-periods?academicYear=${currentYear}`,
+          `/api/v1/category-periods?academicYear=${currentYear}`,
         );
 
         if (!res.ok) {
@@ -105,7 +105,7 @@ export default function ScheduleManagerPage() {
 
     setSaving(true);
     try {
-      const res = await fetch("/api/category-periods", {
+      const res = await fetch("/api/v1/category-periods", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

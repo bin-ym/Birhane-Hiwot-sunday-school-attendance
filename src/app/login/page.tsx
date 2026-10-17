@@ -55,7 +55,7 @@ export default function LoginPage() {
     setSetupMessage("");
     setError("");
     try {
-      const res = await fetch("/api/setup/super-admin", {
+      const res = await fetch("/api/v1/setup/super-admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

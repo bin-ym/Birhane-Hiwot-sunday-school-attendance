@@ -39,7 +39,7 @@ export default function StudentRequestDetailPage() {
   useEffect(() => {
     const fetchRequest = async () => {
       try {
-        const res = await fetch(`/api/student-requests/${id}`);
+        const res = await fetch(`/api/v1/student-requests/${id}`);
         if (!res.ok) throw new Error("Failed to fetch student request");
         const data = await res.json();
         setRequest(data);
@@ -56,7 +56,7 @@ export default function StudentRequestDetailPage() {
     if (!request) return;
     setProcessing(true);
     try {
-      const res = await fetch("/api/student-requests", {
+      const res = await fetch("/api/v1/student-requests", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -83,7 +83,7 @@ export default function StudentRequestDetailPage() {
     }
     setProcessing(true);
     try {
-      const res = await fetch("/api/student-requests", {
+      const res = await fetch("/api/v1/student-requests", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -51,7 +51,7 @@ export default function SuperAdminDepartmentAdminsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin-users");
+      const res = await fetch("/api/v1/admin-users");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load admins");
       setAdmins(Array.isArray(data) ? data : []);
@@ -89,7 +89,7 @@ export default function SuperAdminDepartmentAdminsPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin-users", {
+      const res = await fetch("/api/v1/admin-users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -111,7 +111,7 @@ export default function SuperAdminDepartmentAdminsPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin-users", {
+      const res = await fetch("/api/v1/admin-users", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -137,7 +137,7 @@ export default function SuperAdminDepartmentAdminsPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin-users", {
+      const res = await fetch("/api/v1/admin-users", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
