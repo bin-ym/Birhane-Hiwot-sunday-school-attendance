@@ -102,7 +102,13 @@ export async function POST(req: NextRequest) {
         const existingStudent = await db.collection("students").findOne({
           Unique_ID: body.Unique_ID,
         });
-        const isNewStudent = !existingStudent;
+        if (existingStudent) {
+          return NextResponse.json(
+            { error: "A student with this Unique ID already exists." },
+            { status: 409 },
+          );
+        }
+        const isNewStudent = true;
 
         const authorization = await ensureStudentCreationAllowed({
           db,
@@ -131,6 +137,90 @@ export async function POST(req: NextRequest) {
           userRole,
           summary: `Created student ${body.Unique_ID} (${body.First_Name} ${body.Father_Name})`,
         });
+
+        // Ensure student has an initial active enrollment linked to class session
+        try {
+          const { createEnrollment } = await import("@/lib/enrollmentService");
+          await createEnrollment(
+            {
+              studentId: result.insertedId,
+              academicYear: String(body.Academic_Year),
+              classification: body.Classification || "Regular",
+              grade: body.Grade,
+              classSessionId: body.classSessionId,
+              classSessionName: body.classSessionName,
+              status: "active",
+              isCurrent: true,
+            },
+            db,
+          );
+        } catch (enrErr) {
+          // Compensating cleanup (NOT a distributed multi-doc transaction):
+          // Rollback ONLY the newly inserted student record to prevent un-enrolled orphan.
+          const newlyInsertedId = result.insertedId;
+          const enrErrorMessage = (enrErr as Error)?.message || "Unknown enrollment error";
+          let cleanupSucceeded = false;
+          let cleanupError: Error | null = null;
+          let deleteResult: { deletedCount?: number } | null = null;
+
+          try {
+            if (typeof db.collection("students").deleteOne === "function") {
+              deleteResult = await db.collection("students").deleteOne({ _id: newlyInsertedId });
+              cleanupSucceeded = deleteResult?.deletedCount === 1;
+            }
+          } catch (delErr) {
+            cleanupError = delErr instanceof Error ? delErr : new Error(String(delErr));
+            cleanupSucceeded = false;
+          }
+
+          if (cleanupSucceeded) {
+            logAudit({
+              action: "delete",
+              collection: "students",
+              documentId: newlyInsertedId.toString(),
+              userId: userEmail || "unknown",
+              userEmail: userEmail || "unknown",
+              userRole,
+              summary: `Compensating cleanup: successfully rolled back student ${body.Unique_ID} (${newlyInsertedId.toString()}) after initial enrollment failure: ${enrErrorMessage}`,
+            });
+            console.error("Initial enrollment failed during student registration; rolled back student:", enrErr);
+            return NextResponse.json(
+              {
+                error: "Failed to create initial enrollment. Student registration was rolled back.",
+                cleanupConfirmed: true,
+              },
+              { status: 500 },
+            );
+          } else {
+            const failureDetail = cleanupError
+              ? cleanupError.message
+              : `deletedCount was ${deleteResult?.deletedCount ?? 0} (expected 1)`;
+            logAudit({
+              action: "delete",
+              collection: "students",
+              documentId: newlyInsertedId.toString(),
+              userId: userEmail || "unknown",
+              userEmail: userEmail || "unknown",
+              userRole,
+              summary: `CLEANUP_FAILED: Initial enrollment failed for student ${body.Unique_ID} (${newlyInsertedId.toString()}) and compensating rollback could not be confirmed: ${failureDetail}. Enrollment error: ${enrErrorMessage}`,
+            });
+            console.error(
+              `CRITICAL: Initial enrollment failed and compensating rollback failed for student ${body.Unique_ID}:`,
+              {
+                enrollmentError: enrErr,
+                cleanupError,
+                deleteResult,
+              },
+            );
+            return NextResponse.json(
+              {
+                error: "Failed to create initial enrollment and compensating student cleanup could not be confirmed. Please contact a system administrator.",
+                cleanupConfirmed: false,
+              },
+              { status: 500 },
+            );
+          }
+        }
 
         createNotification({
           type: "student_created",
@@ -174,25 +264,48 @@ export async function DELETE(req: NextRequest) {
       _id: new ObjectId(id),
     });
 
-    const result = await db
-      .collection<Student>("students")
-      .deleteOne({ _id: new ObjectId(id) });
-
-    if (result.deletedCount === 0) {
+    if (!student) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
+    // ARCHITECTURAL RULE: Do not delete students. Treat records as permanent institutional history.
+    const { getTodayEthiopianDateISO } = await import("@/lib/utils");
+    const todayEth = getTodayEthiopianDateISO();
+
+    await db.collection<Student>("students").updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          status: "archived",
+          statusReason: "Archived via student management (permanent institutional record preserved)",
+          statusEffectiveDate: todayEth,
+          statusChangedBy: String(token.email || token.id || "admin"),
+          statusChangedByRole: String(token.role || "Admin"),
+          statusUpdatedAt: new Date(),
+        },
+      },
+    );
+
+    // Also close any active enrollment
+    await db.collection("enrollments").updateMany(
+      { studentId: new ObjectId(id), status: "active" },
+      { $set: { status: "withdrawn", endDate: new Date(), updatedAt: new Date() } },
+    );
+
     logAudit({
-      action: "delete",
+      action: "update",
       collection: "students",
       documentId: id,
       userId: String(token.id || ""),
       userEmail: String(token.email || ""),
       userRole: String(token.role || ""),
-      summary: `Deleted student ${student?.Unique_ID || id} (${student?.First_Name || "?"} ${student?.Father_Name || "?"})`,
+      summary: `Archived student ${student?.Unique_ID || id} (${student?.First_Name || "?"} ${student?.Father_Name || "?"}) — institutional history preserved`,
     });
 
-    return NextResponse.json({ message: "Student deleted" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Student archived. Institutional history preserved.", archived: true },
+      { status: 200 },
+    );
   } catch (err) {
     return NextResponse.json(
       { error: sanitizeError(err) },

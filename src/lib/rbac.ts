@@ -79,10 +79,15 @@ export function canManageSchedules(role: unknown): boolean {
   return hasAnyRole(role, ["Super Admin", "Schedule Manager"]);
 }
 
+export function canWriteStudents(role: unknown): boolean {
+  return hasAnyRole(role, ["Super Admin", "HR Admin"]);
+}
+
 export type Permission =
   // Students
   | "student:view"
   | "student:create"
+  | "student:write"
   | "student:edit"
   | "student:delete"
   // Enrollments
@@ -278,6 +283,7 @@ export const BUILT_IN_ROLES: readonly UserRole[] = [
 export const ROLE_PERMISSIONS: Record<Permission, readonly UserRole[]> = {
   // Existing baseline mappings (must preserve exact behavior for existing tests)
   "student:create": ["Super Admin", "HR Admin", "Attendance Facilitator"],
+  "student:write": ["Super Admin", "HR Admin"],
   "payment:write": ["Super Admin", "HR Admin", "Attendance Facilitator"],
   "enrollment:write": ["Super Admin", "Education Admin"],
   "results:write": ["Super Admin", "Education Admin", "Education Facilitator"],
@@ -382,23 +388,40 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> =
   ],
 };
 
+/**
+ * Synchronous client-and-server permission check.
+ * Checks optional customRolePermissions or overrides map first, then falls back to base ROLE_PERMISSIONS.
+ * Super Admin is permanently protected and cannot be denied.
+ */
 export function canAccess(
   role: unknown,
   permission: Permission,
-  customRolePermissions?: string[],
+  customOrOverrides?: string[] | Record<string, boolean>,
 ): boolean {
-  const normalized = normalizeRole(role);
-  if (normalized === "Super Admin") {
+  const normalizedRole = normalizeRole(role);
+  if (!normalizedRole) {
+    return false;
+  }
+
+  // Super Admin protection rule: Super Admin always retains all permissions
+  if (normalizedRole === "Super Admin") {
     return true;
   }
 
-  // If dynamic role permissions are supplied, evaluate them directly
-  if (customRolePermissions && Array.isArray(customRolePermissions)) {
-    return customRolePermissions.includes(permission);
+  // If custom permissions array is passed
+  if (Array.isArray(customOrOverrides)) {
+    return customOrOverrides.includes(permission);
   }
 
-  const allowed = ROLE_PERMISSIONS[permission];
-  return Boolean(allowed && hasAnyRole(role, allowed));
+  // If overrides record is passed
+  if (customOrOverrides && typeof customOrOverrides === "object") {
+    const overrideKey = `${normalizedRole}:${permission}`;
+    if (typeof (customOrOverrides as Record<string, boolean>)[overrideKey] === "boolean") {
+      return (customOrOverrides as Record<string, boolean>)[overrideKey];
+    }
+  }
+
+  return hasAnyRole(normalizedRole, ROLE_PERMISSIONS[permission]);
 }
 
 

@@ -64,6 +64,7 @@ export function useRBAC() {
     canManageEnrollment: checkManageEnrollment(role),
     canManageResults: checkManageResults(role),
     canManageSchedules: checkManageSchedules(role),
+    canWriteStudents: (role ? canAccess(role, "student:write") : false) || checkSuperAdmin(role) || role === "HR Admin",
     assignedGrades,
     canAddStudent,
   };

@@ -1,6 +1,6 @@
-// src/app/api/attendance/route.ts
 import { getDb } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import { formatEthiopianDate } from "@/lib/utils";
 import { withLock } from "@/lib/distributedLock";
 import { requireAuth, requireRole, sanitizeError } from "@/lib/apiAuth";
@@ -122,6 +122,50 @@ export async function POST(req: NextRequest) {
     const { date, attendance } = payload;
     const db = await getDb();
     const timestamp = formatEthiopianDate(new Date()); // Use Ethiopian date for timestamp
+
+    // Enforce student lifecycle rules: withdrawn/dropped students cannot have attendance marked after their effective date
+    const studentIds = attendance.map((a: any) => String(a.studentId));
+    const objectIds = studentIds
+      .filter((id: string) => ObjectId.isValid(id))
+      .map((id: string) => new ObjectId(id));
+
+    if (studentIds.length > 0) {
+      const studentDocs = await db
+        .collection("students")
+        .find({
+          $or: [
+            ...(objectIds.length > 0 ? [{ _id: { $in: objectIds } }] : []),
+            { Unique_ID: { $in: studentIds } },
+          ],
+        })
+        .toArray();
+
+      const { isAttendanceAllowedForStudent } = await import(
+        "@/lib/studentLifecycleService"
+      );
+
+      for (const record of attendance) {
+        const recordDate = record.date || date;
+        const matchedStudent = studentDocs.find(
+          (s) =>
+            s._id.toString() === record.studentId ||
+            s.Unique_ID === record.studentId,
+        );
+
+        if (matchedStudent) {
+          const allowed = isAttendanceAllowedForStudent(matchedStudent, recordDate);
+          if (!allowed) {
+            return NextResponse.json(
+              {
+                error: `Attendance cannot be marked for withdrawn student ${matchedStudent.First_Name} ${matchedStudent.Father_Name} (${matchedStudent.Unique_ID}) after effective date ${matchedStudent.statusEffectiveDate}.`,
+                code: "STUDENT_WITHDRAWN",
+              },
+              { status: 400, headers: cors },
+            );
+          }
+        }
+      }
+    }
 
     // Serialize bulk marking per date so concurrent double-submits can't insert
     // duplicate attendance rows. Gracefully no-ops without Redis.

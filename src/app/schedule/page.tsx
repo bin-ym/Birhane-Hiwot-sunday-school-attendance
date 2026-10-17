@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
+import { useRBAC } from "@/lib/hooks/useRBAC";
 import { toast, Toaster } from "react-hot-toast";
 import {
   Calendar,
@@ -23,9 +24,11 @@ import {
   GRADES,
   STUDENT_CLASSIFICATIONS,
   StudentClassification,
+  CLASSIFICATION_SCHEDULE,
 } from "@/lib/constants";
 import { getCurrentEthiopianYear } from "@/lib/utils";
 import { ScheduleSession, ScheduleStatus } from "@/lib/models";
+import { EthiopianDatePicker } from "@/components/calendar/EthiopianDatePicker";
 
 interface EnrichedSchedule extends Omit<ScheduleSession, "_id"> {
   _id: string;
@@ -54,9 +57,24 @@ const SEMESTERS = [
 
 export default function SchedulerManagerPage() {
   const { user } = useAuth();
+  const { canManageSchedules } = useRBAC();
   const currentYear = getCurrentEthiopianYear();
 
   const [activeTab, setActiveTab] = useState<"schedules" | "periods">("schedules");
+
+  const handleChange = (
+    classification: string,
+    field: keyof PeriodState,
+    value: string | boolean,
+  ) => {
+    setPeriods((prev) => ({
+      ...prev,
+      [classification]: {
+        ...(prev[classification] || createDefaultPeriod()),
+        [field]: value,
+      },
+    }));
+  };
 
   // Determine authorized department for current user
   const userDepartment = useMemo(() => {
@@ -501,35 +519,34 @@ export default function SchedulerManagerPage() {
                     </label>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <label className="block text-gray-500 mb-1">Start Date</label>
-                      <input
-                        type="date"
-                        value={p.startDate}
-                        onChange={(e) =>
-                          setPeriods((prev) => ({
-                            ...prev,
-                            [c.value]: { ...p, startDate: e.target.value },
-                          }))
-                        }
-                        className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-500 mb-1">End Date</label>
-                      <input
-                        type="date"
-                        value={p.endDate}
-                        onChange={(e) =>
-                          setPeriods((prev) => ({
-                            ...prev,
-                            [c.value]: { ...p, endDate: e.target.value },
-                          }))
-                        }
-                        className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white"
-                      />
-                    </div>
+                  <p className="text-xs text-gray-500 mt-2 mb-4">
+                    📅 Schedule: <span className="font-semibold text-gray-700">{CLASSIFICATION_SCHEDULE[c.value] || "Standard Weekend Schedule"}</span>
+                  </p>
+
+                  <div className="space-y-3">
+                    <EthiopianDatePicker
+                      label="Registration Open Date (ምዝገባ መክፈቻ)"
+                      value={p.startDate}
+                      onChange={(val) => handleChange(c.value, "startDate", val)}
+                      disabled={!canManageSchedules}
+                      defaultEthiopianYear={currentYear}
+                    />
+
+                    <EthiopianDatePicker
+                      label="Registration Close Date (የመጨረሻ ማጠቃለያ)"
+                      value={p.registrationClosedDate}
+                      onChange={(val) => handleChange(c.value, "registrationClosedDate", val)}
+                      disabled={!canManageSchedules}
+                      defaultEthiopianYear={currentYear}
+                    />
+
+                    <EthiopianDatePicker
+                      label="Period End Date (መደበኛ ማብቂያ)"
+                      value={p.endDate}
+                      onChange={(val) => handleChange(c.value, "endDate", val)}
+                      disabled={!canManageSchedules}
+                      defaultEthiopianYear={currentYear}
+                    />
                   </div>
                 </div>
               );

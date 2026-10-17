@@ -251,7 +251,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(response);
   } catch (err: any) {
-    console.error("❌ Error in /api/sheet:", err);
+    console.error("❌ Error in /api/v1/sheet:", err);
 
     return NextResponse.json(
       {

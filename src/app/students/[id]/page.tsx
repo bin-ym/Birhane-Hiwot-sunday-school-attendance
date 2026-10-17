@@ -120,7 +120,7 @@ export default function StudentDetails() {
       {activeTab === 'details' && <DetailsTab student={student} />}
       {activeTab === 'enrollment' && (
         <EnrollmentTab
-          studentId={student.Unique_ID || id}
+          studentId={student._id ? String(student._id) : id}
           currentAcademicYear={student.Academic_Year}
         />
       )}
@@ -131,8 +131,15 @@ export default function StudentDetails() {
           currentDate={currentDate}
         />
       )}
-      {activeTab === 'payment' && <PaymentStatusTab studentId={student.Unique_ID || id} academicYear={student.Academic_Year} />}
-      {activeTab === 'results' && <ResultsTab studentId={student.Unique_ID || id} />}
+      {activeTab === 'payment' && (
+        <PaymentStatusTab
+          studentId={student._id ? String(student._id) : id}
+          academicYear={student.Academic_Year}
+        />
+      )}
+      {activeTab === 'results' && (
+        <ResultsTab studentId={student._id ? String(student._id) : id} />
+      )}
 
       <Link
         href={isAdmin ? "/admin/students" : "/register/old"}

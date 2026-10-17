@@ -125,7 +125,7 @@ export default function SuperAdminSchedulePage() {
 
   const openEditModal = (sch: EnrichedSchedule) => {
     setEditingSchedule(sch);
-    setFormYear(sch.academicYear);
+    setFormYear(String(sch.academicYear));
     setFormSemester(sch.semester);
     setFormDepartment(sch.department);
     setFormGrade(sch.grade);

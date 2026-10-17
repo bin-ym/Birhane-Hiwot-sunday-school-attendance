@@ -1,0 +1,110 @@
+{
+  "generatedAt": "2026-10-10T15:59:32.021Z",
+  "sourceWorkbook": "docs\\የ 2019 ዓ_ም የከሰዓት መርሐ ግብር.xlsx",
+  "summaryTotals": {
+    "totalSourceRecords": 59,
+    "eligible": 45,
+    "eligibleWithMissingGender": 13,
+    "heldForVerification": 1,
+    "rejectedInvalidSchema": 0,
+    "blockedIdentifierConflict": 0,
+    "schemaReviewRequired": 0,
+    "unverifiedIdentifiers": 59
+  },
+  "processedSheets": [
+    {
+      "sheetName": "8(ስምንተኛ)",
+      "canonicalGrade": "ስምንተኛ ክፍል",
+      "totalRows": 78,
+      "actualStudentCount": 36,
+      "proposedIdRange": {
+        "start": "ብሕ/19/08/001",
+        "end": "ብሕ/19/08/036"
+      },
+      "identifierValidation": {
+        "formatValid": true,
+        "conflictCheckStatus": "NOT_VERIFIED",
+        "conflictCheckReason": "No isolated test database provided; production connections prohibited",
+        "conflictsCount": 0,
+        "unverifiedCount": 36
+      },
+      "dataQualityCounts": {
+        "missingRequiredNames": 1,
+        "missingGender": 13,
+        "missingPhoneNumber": 33,
+        "duplicateNameReviewFlags": 2,
+        "invalidSourceIdentifiers": 36,
+        "existingIdConflicts": 0
+      },
+      "eligibilityClassificationCounts": {
+        "ELIGIBLE": 22,
+        "ELIGIBLE_WITH_MISSING_GENDER": 13,
+        "HELD_FOR_VERIFICATION": 1,
+        "REJECTED_INVALID_SCHEMA": 0,
+        "BLOCKED_IDENTIFIER_CONFLICT": 0,
+        "SCHEMA_REVIEW_REQUIRED": 0
+      },
+      "unresolvedIssues": [
+        {
+          "type": "HELD_RECORD",
+          "rowNumber": 13,
+          "serial": 11,
+          "reason": "Father_Name is missing (single-word source name); held for verification"
+        }
+      ],
+      "nameDuplicates": [
+        {
+          "rawName": "መሰረት ያለው",
+          "occurrences": 2,
+          "rows": [
+            {
+              "rowNumber": 29,
+              "serial": 27
+            },
+            {
+              "rowNumber": 31,
+              "serial": 29
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sheetName": "12(አሥራ ሁለት)",
+      "canonicalGrade": "አስራ ሁለተኛ ክፍል",
+      "totalRows": 1000,
+      "actualStudentCount": 23,
+      "proposedIdRange": {
+        "start": "ብሕ/19/12/001",
+        "end": "ብሕ/19/12/023"
+      },
+      "identifierValidation": {
+        "formatValid": true,
+        "conflictCheckStatus": "NOT_VERIFIED",
+        "conflictCheckReason": "No isolated test database provided; production connections prohibited",
+        "conflictsCount": 0,
+        "unverifiedCount": 23
+      },
+      "dataQualityCounts": {
+        "missingRequiredNames": 0,
+        "missingGender": 0,
+        "missingPhoneNumber": 1,
+        "duplicateNameReviewFlags": 0,
+        "invalidSourceIdentifiers": 23,
+        "existingIdConflicts": 0
+      },
+      "eligibilityClassificationCounts": {
+        "ELIGIBLE": 23,
+        "ELIGIBLE_WITH_MISSING_GENDER": 0,
+        "HELD_FOR_VERIFICATION": 0,
+        "REJECTED_INVALID_SCHEMA": 0,
+        "BLOCKED_IDENTIFIER_CONFLICT": 0,
+        "SCHEMA_REVIEW_REQUIRED": 0
+      },
+      "unresolvedIssues": [],
+      "nameDuplicates": []
+    }
+  ],
+  "writesAttempted": 0,
+  "productionImportsPerformed": 0
+}

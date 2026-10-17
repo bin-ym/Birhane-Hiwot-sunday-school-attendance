@@ -11,6 +11,7 @@ import {
   GraduationCap,
   FileSpreadsheet,
 } from "lucide-react";
+import { EthiopianDatePicker } from "@/components/calendar/EthiopianDatePicker";
 
 // ─── Animated Counter ────────────────────────────────────────────────
 
@@ -493,26 +494,20 @@ export function ReportFilters({
 
         {showDateRange && (
           <>
-            <div className="min-w-[140px] flex-1">
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-gray-400 sm:text-xs">
-                From date
-              </label>
-              <input
-                type="date"
+            <div className="min-w-[170px] flex-1">
+              <EthiopianDatePicker
+                label="From Date (ከቀን)"
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition-colors focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                onChange={(val) => setDateFrom(val)}
+                placeholder="የመጀመሪያ ቀን"
               />
             </div>
-            <div className="min-w-[140px] flex-1">
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-gray-400 sm:text-xs">
-                To date
-              </label>
-              <input
-                type="date"
+            <div className="min-w-[170px] flex-1">
+              <EthiopianDatePicker
+                label="To Date (እስከ ቀን)"
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition-colors focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                onChange={(val) => setDateTo(val)}
+                placeholder="የመጨረሻ ቀን"
               />
             </div>
           </>

@@ -1,0 +1,22 @@
+{
+  "executedAt": "2026-10-10T16:32:05.263Z",
+  "database": "sunday_school",
+  "insertedCount": 58,
+  "grade8Count": 35,
+  "grade12Count": 23,
+  "totalStudentsAfterSeed": 94,
+  "totalEnrollmentsAfterSeed": 58,
+  "excludedStudentsCount": 1,
+  "excludedRecords": [
+    {
+      "sheet": "8(ስምንተኛ)",
+      "rowNumber": 13,
+      "serial": 11,
+      "seq": 11,
+      "rawName": "በላቸው",
+      "reason": "Single-part name without father name (user instruction: exclude)"
+    }
+  ],
+  "meseretYalewPreservedCount": 2,
+  "belaynewExcludedVerified": true
+}

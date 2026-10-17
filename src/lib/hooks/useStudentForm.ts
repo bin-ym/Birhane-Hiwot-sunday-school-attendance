@@ -41,11 +41,13 @@ export function useStudentForm(
     Address: "",
     Address_Other: "",
     Academic_Year: String(currentEthiopianYear),
-    Grade: "",
+    Grade: student?.Grade || "",
     Classification:
       (student?.Classification as StudentClassification) ||
       initialClassification ||
       "Regular",
+    classSessionId: student?.classSessionId ? String(student.classSessionId) : "",
+    classSessionName: student?.classSessionName || "",
   });
 
   const [error, setError] = useState<string | null>(null);
