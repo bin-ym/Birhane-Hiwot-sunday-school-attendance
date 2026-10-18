@@ -65,34 +65,93 @@ export default function SuperAdminStudentRegistry() {
 
       let successCount = 0;
       let failureCount = 0;
+      let index = 0;
 
       for (const row of jsonData) {
+        index++;
         try {
-          // Attempt to map typical Excel columns back to Student schema
+          // Flexible mapping supporting Amharic and English headers
+          const rawName = String(
+            row.First_Name ||
+              row.Name ||
+              row["First Name"] ||
+              row["Student Name"] ||
+              row["የተማሪ ስም"] ||
+              row["የተማሪ ስም ዝርዝር"] ||
+              row["ስም"] ||
+              "",
+          ).trim();
+
+          const nameParts = rawName.split(/\s+/).filter(Boolean);
+          const firstName = nameParts[0] || "Unknown";
+          const fatherName =
+            row.Father_Name ||
+            row["Father Name"] ||
+            row["የአባት ስም"] ||
+            nameParts[1] ||
+            "N/A";
+          const grandfatherName =
+            row.Grandfather_Name ||
+            row["Grandfather Name"] ||
+            row["የአያት ስም"] ||
+            nameParts.slice(2).join(" ") ||
+            "";
+
+          const academicYear = String(
+            row.Academic_Year ||
+              row["Academic Year"] ||
+              row["ዓመተ ምሕረት"] ||
+              row["ዓ.ም"] ||
+              "2016",
+          ).trim();
+
+          const rawId = String(
+            row.Unique_ID ||
+              row.ID ||
+              row["Unique ID"] ||
+              row["Student ID"] ||
+              row["የተማሪዎች መለያ ቁጥር"] ||
+              row["መለያ ቁጥር"] ||
+              row["ተ.ቁ"] ||
+              row["መለያ"] ||
+              "",
+          ).trim();
+
+          // Auto-generate Unique ID if not present in the imported spreadsheet
+          const uniqueId =
+            rawId || `BH/${academicYear}/${Date.now().toString().slice(-4)}${index}`;
+
+          const rawSex = String(
+            row.Sex || row.Gender || row["ጾታ"] || "Male",
+          ).trim();
+          const normalizedSex =
+            rawSex.toLowerCase().startsWith("f") || rawSex === "ሴት"
+              ? "Female"
+              : "Male";
+
           const mappedStudent = {
-            Unique_ID: row.Unique_ID || row.ID || "",
-            First_Name: row.First_Name || row.Name || row["First Name"] || "",
-            Father_Name: row.Father_Name || row["Father Name"] || "N/A",
-            Grandfather_Name:
-              row.Grandfather_Name || row["Grandfather Name"] || "",
-            Mothers_Name: row.Mothers_Name || row["Mother Name"] || "",
-            Christian_Name: row.Christian_Name || row["Christian Name"] || "",
+            Unique_ID: uniqueId,
+            First_Name: firstName,
+            Father_Name: fatherName,
+            Grandfather_Name: grandfatherName,
+            Mothers_Name: row.Mothers_Name || row["Mother Name"] || row["የእናት ስም"] || "",
+            Christian_Name: row.Christian_Name || row["Christian Name"] || row["የክርስትና ስም"] || "",
             DOB_Date: String(row.DOB_Date || "1"),
             DOB_Month: String(row.DOB_Month || "1"),
             DOB_Year: String(row.DOB_Year || "2000"),
-            Age: Number(row.Age) || 0,
-            Sex: row.Sex || row.Gender || "Male",
-            Phone_Number: String(row.Phone_Number || row.Phone || ""),
-            Class: row.Class || "",
-            Occupation: row.Occupation || "Student",
-            School: row.School || "",
+            Age: Number(row.Age || row["ዕድሜ"]) || 0,
+            Sex: normalizedSex,
+            Phone_Number: String(row.Phone_Number || row.Phone || row["ስልክ"] || row["ስልክ ቁጥር"] || ""),
+            Class: row.Class || "Regular",
+            Occupation: row.Occupation || row["የሥራ ሁኔታ"] || "Student",
+            School: row.School || row["ትምህርት ቤት"] || "",
             School_Other: row.School_Other || "",
-            Educational_Background: row.Educational_Background || "",
+            Educational_Background: row.Educational_Background || row["የትምህርት ደረጃ"] || "",
             Place_of_Work: row.Place_of_Work || "",
-            Address: row.Address || "Local",
+            Address: row.Address || row["አድራሻ"] || "Addis Ababa",
             Address_Other: row.Address_Other || "",
-            Academic_Year: String(row.Academic_Year || "2016"),
-            Grade: row.Grade || "First Level (አንደኛ ክፍል)",
+            Academic_Year: academicYear,
+            Grade: row.Grade || row["ክፍል"] || "First Level (አንደኛ ክፍል)",
             userRole: "Super Admin",
             isNewStudent: true,
           };

@@ -10,6 +10,7 @@ import { createNotification } from "@/lib/notifications";
 import { getCorsHeaders, handleCorsPreflight } from "@/lib/cors";
 import { requireAuth, requireWriteAccess, sanitizeError } from "@/lib/apiAuth";
 import { normalizeRole } from "@/lib/rbac";
+import { createSignedQrText } from "@/lib/qr";
 import {
   ensureStudentCreationAllowed,
   getStudentListQuery,
@@ -35,11 +36,17 @@ export async function GET(req: NextRequest) {
     const db = await getDb();
     const { searchParams } = new URL(req.url);
     const { query, uniqueId, limit } = getStudentListQuery(searchParams);
+    const includeQr = searchParams.get("includeQr") === "true" || searchParams.get("forCards") === "true";
+    const includePhotos = searchParams.get("includePhotos") === "true" || searchParams.get("forCards") === "true";
+
+    const projection: Record<string, number> = {};
+    if (!includePhotos) projection.photo_data_url = 0;
+    if (!includeQr) projection.qr_code = 0;
 
     if (uniqueId) {
       const student = await db.collection<Student>("students").findOne(
         { Unique_ID: uniqueId },
-        { projection: { qr_code: 0 } },
+        Object.keys(projection).length > 0 ? { projection } : {},
       );
 
       if (!student) {
@@ -47,6 +54,25 @@ export async function GET(req: NextRequest) {
           { error: "Student not found" },
           { status: 404, headers: cors },
         );
+      }
+
+      if (includeQr && !student.qr_code && student.Unique_ID) {
+        try {
+          const qrText = createSignedQrText(student.Unique_ID);
+          const QRCode = await import("qrcode");
+          student.qr_code = await QRCode.toDataURL(qrText, {
+            width: 400,
+            margin: 1,
+            errorCorrectionLevel: "M",
+            color: { dark: "#0f172a", light: "#ffffff" },
+          });
+          await db.collection("students").updateOne(
+            { _id: student._id },
+            { $set: { qr_code: student.qr_code, updatedAt: new Date() } },
+          );
+        } catch (e) {
+          console.error("Auto QR generation error for uniqueId:", e);
+        }
       }
 
       return NextResponse.json(
@@ -57,7 +83,7 @@ export async function GET(req: NextRequest) {
 
     let find = db
       .collection<Student>("students")
-      .find(query, { projection: { photo_data_url: 0, qr_code: 0 } })
+      .find(query, Object.keys(projection).length > 0 ? { projection } : {})
       .sort({ _id: -1 });
 
     if (limit > 0) {
@@ -65,6 +91,33 @@ export async function GET(req: NextRequest) {
     }
 
     const students = await find.toArray();
+
+    // If QR codes are requested, automatically generate any missing QR codes
+    if (includeQr) {
+      const QRCode = await import("qrcode");
+      for (const student of students) {
+        if (!student.qr_code && student.Unique_ID) {
+          try {
+            const qrText = createSignedQrText(student.Unique_ID);
+            student.qr_code = await QRCode.toDataURL(qrText, {
+              width: 400,
+              margin: 1,
+              errorCorrectionLevel: "M",
+              color: { dark: "#0f172a", light: "#ffffff" },
+            });
+            db.collection("students")
+              .updateOne(
+                { _id: student._id },
+                { $set: { qr_code: student.qr_code, updatedAt: new Date() } },
+              )
+              .catch((err) => console.error("Error saving auto-generated QR code:", err));
+          } catch (e) {
+            console.error("Auto QR generation error for student:", student.Unique_ID, e);
+          }
+        }
+      }
+    }
+
     return NextResponse.json(
       students.map((student) => serializeStudent(student)),
       { status: 200, headers: cors },

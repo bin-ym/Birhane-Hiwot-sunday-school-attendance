@@ -24,9 +24,10 @@ import {
   ListFilter,
   Info,
 } from "lucide-react";
-import { GRADES } from "@/lib/constants";
+import { GRADES, STUDENT_CLASSIFICATIONS, CLASSIFICATION_GRADE_OPTIONS, StudentClassification } from "@/lib/constants";
 import { getCurrentEthiopianYear } from "@/lib/utils";
 import { ScheduleSession, ScheduleStatus } from "@/lib/models";
+import { EthiopianDatePicker } from "@/components/calendar/EthiopianDatePicker";
 
 interface EnrichedSchedule extends Omit<ScheduleSession, "_id"> {
   _id: string;
@@ -52,6 +53,7 @@ export default function SuperAdminSchedulePage() {
   const [semesterFilter, setSemesterFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [gradeFilter, setGradeFilter] = useState("");
+  const [classificationFilter, setClassificationFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -66,6 +68,7 @@ export default function SuperAdminSchedulePage() {
   const [formYear, setFormYear] = useState(String(currentYear));
   const [formSemester, setFormSemester] = useState(SEMESTERS[0]);
   const [formDepartment, setFormDepartment] = useState("Sunday School");
+  const [formClassification, setFormClassification] = useState("All");
   const [formGrade, setFormGrade] = useState<string>(GRADES[0]);
   const [formSection, setFormSection] = useState("");
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
@@ -86,6 +89,7 @@ export default function SuperAdminSchedulePage() {
       if (semesterFilter) params.set("semester", semesterFilter);
       if (departmentFilter) params.set("department", departmentFilter);
       if (gradeFilter) params.set("grade", gradeFilter);
+      if (classificationFilter) params.set("classification", classificationFilter);
       if (statusFilter) params.set("status", statusFilter);
 
       const res = await fetch(`/api/v1/schedules?${params.toString()}`);
@@ -102,13 +106,39 @@ export default function SuperAdminSchedulePage() {
 
   useEffect(() => {
     fetchSchedules();
-  }, [yearFilter, semesterFilter, departmentFilter, gradeFilter, statusFilter]);
+  }, [yearFilter, semesterFilter, departmentFilter, gradeFilter, classificationFilter, statusFilter]);
+
+  const availableFormGrades = useMemo(() => {
+    if (formClassification === "All") {
+      return [
+        ...CLASSIFICATION_GRADE_OPTIONS.Regular,
+        ...CLASSIFICATION_GRADE_OPTIONS.Extension,
+        ...CLASSIFICATION_GRADE_OPTIONS.SignLanguage,
+        ...CLASSIFICATION_GRADE_OPTIONS.Summer,
+        ...CLASSIFICATION_GRADE_OPTIONS.begena,
+      ];
+    }
+    const key = formClassification as StudentClassification;
+    return CLASSIFICATION_GRADE_OPTIONS[key] || CLASSIFICATION_GRADE_OPTIONS.Regular;
+  }, [formClassification]);
+
+  const handleFormClassificationChange = (newClassification: string) => {
+    setFormClassification(newClassification);
+    const key = newClassification as StudentClassification;
+    const grades = (newClassification !== "All" && CLASSIFICATION_GRADE_OPTIONS[key])
+      ? CLASSIFICATION_GRADE_OPTIONS[key]
+      : CLASSIFICATION_GRADE_OPTIONS.Regular;
+    if (grades.length > 0) {
+      setFormGrade(grades[0].value);
+    }
+  };
 
   const openCreateModal = () => {
     setEditingSchedule(null);
     setFormYear(String(currentYear));
     setFormSemester(SEMESTERS[0]);
     setFormDepartment("Sunday School");
+    setFormClassification("All");
     setFormGrade(GRADES[0]);
     setFormSection("");
     setFormDate(new Date().toISOString().slice(0, 10));
@@ -128,6 +158,7 @@ export default function SuperAdminSchedulePage() {
     setFormYear(String(sch.academicYear));
     setFormSemester(sch.semester);
     setFormDepartment(sch.department);
+    setFormClassification(sch.classification || "All");
     setFormGrade(sch.grade);
     setFormSection(sch.section || "");
     setFormDate(sch.date);
@@ -154,6 +185,7 @@ export default function SuperAdminSchedulePage() {
         academicYear: formYear,
         semester: formSemester,
         department: formDepartment,
+        classification: formClassification,
         grade: formGrade,
         section: formSection.trim() || undefined,
         date: formDate,
@@ -381,6 +413,19 @@ export default function SuperAdminSchedulePage() {
           </select>
 
           <select
+            value={classificationFilter}
+            onChange={(e) => setClassificationFilter(e.target.value)}
+            className="px-3 py-2 text-xs border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+          >
+            <option value="">All Classifications</option>
+            {STUDENT_CLASSIFICATIONS.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 text-xs border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -440,14 +485,19 @@ export default function SuperAdminSchedulePage() {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <span className="inline-flex items-center gap-1 font-bold text-gray-800">
+                      <div className="flex items-center gap-1 font-bold text-gray-800">
                         {sch.grade}
-                      </span>
-                      {sch.section && (
-                        <span className="ml-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600">
-                          {sch.section}
+                        {sch.section && (
+                          <span className="ml-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600">
+                            {sch.section}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1">
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                          {sch.classification || "All Classifications"}
                         </span>
-                      )}
+                      </div>
                     </td>
 
                     <td className="py-3.5 px-4 font-semibold text-gray-700">
@@ -645,7 +695,7 @@ export default function SuperAdminSchedulePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                     Department *
@@ -665,6 +715,24 @@ export default function SuperAdminSchedulePage() {
 
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Classification
+                  </label>
+                  <select
+                    value={formClassification}
+                    onChange={(e) => handleFormClassificationChange(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="All">All Classifications (ለሁሉም)</option>
+                    {STUDENT_CLASSIFICATIONS.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                     Grade *
                   </label>
                   <select
@@ -672,9 +740,9 @@ export default function SuperAdminSchedulePage() {
                     onChange={(e) => setFormGrade(e.target.value)}
                     className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   >
-                    {GRADES.map((g) => (
-                      <option key={g} value={g}>
-                        {g}
+                    {availableFormGrades.map((g) => (
+                      <option key={g.value} value={g.value}>
+                        {g.label || g.value}
                       </option>
                     ))}
                   </select>
@@ -694,19 +762,19 @@ export default function SuperAdminSchedulePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                    Date *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Date (የኢትዮጵያ ቀን) *
+                </label>
+                <EthiopianDatePicker
+                  value={formDate}
+                  onChange={(val) => setFormDate(val)}
+                  defaultEthiopianYear={currentYear}
+                  placeholder="የኢትዮጵያ ቀን ይምረጡ"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase mb-1">

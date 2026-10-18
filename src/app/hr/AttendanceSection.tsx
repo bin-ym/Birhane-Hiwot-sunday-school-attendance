@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { gregorianToEthiopian, formatEthiopianDate } from "@/lib/utils";
 import { Student, ScheduleSession } from "@/lib/models";
+import { STUDENT_CLASSIFICATIONS } from "@/lib/constants";
 import toast, { Toaster } from "react-hot-toast";
 import dynamic from "next/dynamic";
 
@@ -29,6 +30,7 @@ export default function AttendanceSection() {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedClassification, setSelectedClassification] = useState("");
   const currentDate = useMemo(() => new Date(), []);
   // Ethiopian date for display only
   void gregorianToEthiopian(currentDate);
@@ -149,15 +151,27 @@ export default function AttendanceSection() {
 
   const activeSession = useMemo(() => {
     const list = schedules || [];
-    if (selectedGrade) {
-      return list.find((s) => s.grade === selectedGrade) || null;
+    const gradeMatches = list.filter((s) => {
+      if (selectedGrade) return s.grade === selectedGrade;
+      if (facilitatorGrade) {
+        const g = Array.isArray(facilitatorGrade) ? facilitatorGrade : [facilitatorGrade];
+        return g.includes(s.grade);
+      }
+      return true;
+    });
+
+    if (selectedClassification) {
+      const match = gradeMatches.find(
+        (s) =>
+          s.classification === selectedClassification ||
+          s.classification === "All" ||
+          !s.classification
+      );
+      if (match) return match;
     }
-    if (facilitatorGrade) {
-      const g = Array.isArray(facilitatorGrade) ? facilitatorGrade : [facilitatorGrade];
-      return list.find((s) => g.includes(s.grade)) || null;
-    }
-    return list[0] || null;
-  }, [schedules, selectedGrade, facilitatorGrade]);
+
+    return gradeMatches[0] || null;
+  }, [schedules, selectedGrade, facilitatorGrade, selectedClassification]);
 
   const isNoClass = useMemo(() => {
     if (scheduleLoading) return false;
@@ -361,6 +375,8 @@ export default function AttendanceSection() {
     (student: Student) =>
       student._id &&
       (selectedGrade === "" || student.Grade === selectedGrade) &&
+      (selectedClassification === "" ||
+        (student.Classification || "Regular") === selectedClassification) &&
       ((student.Unique_ID || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
@@ -507,32 +523,56 @@ export default function AttendanceSection() {
           onSubmit={handleSubmit}
           className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4"
         >
-          <div className="flex-1 sm:w-1/2">
-            <label
-              htmlFor="classFilter"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Filter by Grade (Optional)
-            </label>
-            <select
-              id="classFilter"
-              value={selectedGrade}
-              onChange={(e) => setSelectedGrade(e.target.value)}
-              className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Assigned Grades</option>
-              {[
-                ...new Set(currentYearStudents.map((s: Student) => s.Grade)),
-              ].map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="classFilter"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Filter by Grade (Optional)
+              </label>
+              <select
+                id="classFilter"
+                value={selectedGrade}
+                onChange={(e) => setSelectedGrade(e.target.value)}
+                className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Assigned Grades</option>
+                {[
+                  ...new Set(currentYearStudents.map((s: Student) => s.Grade)),
+                ].map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="hrClassificationFilter"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Student Classification (ምድብ)
+              </label>
+              <select
+                id="hrClassificationFilter"
+                value={selectedClassification}
+                onChange={(e) => setSelectedClassification(e.target.value)}
+                className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Classifications</option>
+                {STUDENT_CLASSIFICATIONS.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <button
             type="submit"
-            className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
+            className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 shrink-0"
             disabled={loading || isNoClass}
           >
             {loading ? "Submitting…" : isNoClass ? "No Class Scheduled" : "Submit Attendance"}

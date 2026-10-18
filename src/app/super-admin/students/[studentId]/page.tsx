@@ -133,27 +133,120 @@ export default function SuperAdminStudentDetailPage() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Student QR Card - ${student.First_Name} ${student.Father_Name}</title>
+          <title>Student ID Card - ${student.First_Name} ${student.Father_Name}</title>
           <style>
-            body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f9fafb; }
-            .card { border: 2px solid #312e81; border-radius: 16px; padding: 24px; text-align: center; max-width: 340px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-            .title { color: #312e81; font-size: 16px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; }
-            .subtitle { color: #6b7280; font-size: 12px; margin-bottom: 16px; }
-            .qr { width: 180px; height: 180px; margin: 0 auto 16px; display: block; }
-            .name { font-size: 18px; font-weight: bold; color: #111827; }
-            .details { font-size: 13px; color: #4b5563; margin-top: 6px; }
-            .badge { display: inline-block; background: #e0e7ff; color: #3730a3; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; margin-top: 10px; }
+            @page {
+              size: auto;
+              margin: 6mm;
+            }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              font-family: system-ui, -apple-system, sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+              background: #f1f5f9;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .cr80-card {
+              width: 85.60mm;
+              height: 53.98mm;
+              min-width: 85.60mm;
+              max-width: 85.60mm;
+              min-height: 53.98mm;
+              max-height: 53.98mm;
+              border-radius: 3.18mm;
+              background: #0f172a;
+              color: white;
+              padding: 3mm 4mm;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              overflow: hidden;
+              position: relative;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            .header {
+              border-bottom: 1px solid #334155;
+              padding-bottom: 1.5mm;
+              text-align: center;
+            }
+            .title { color: #fbbf24; font-size: 8pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+            .subtitle { color: #94a3b8; font-size: 6.5pt; margin-top: 0.5mm; }
+            .body {
+              display: flex;
+              align-items: center;
+              gap: 3mm;
+              margin: auto 0;
+            }
+            .qr-box {
+              width: 25mm;
+              height: 25mm;
+              background: white;
+              border-radius: 2mm;
+              padding: 1mm;
+              flex-shrink: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .qr-box img { width: 100%; height: 100%; object-fit: contain; }
+            .info { flex: 1; min-width: 0; text-align: left; }
+            .name { font-size: 10.5pt; font-weight: 900; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+            .subname { font-size: 8pt; color: #94a3b8; margin-top: 0.5mm; }
+            .badges { margin-top: 1.5mm; display: flex; gap: 1.5mm; }
+            .badge-grade { background: #fbbf24; color: #0f172a; padding: 0.5mm 1.5mm; border-radius: 1mm; font-size: 6.5pt; font-weight: 800; }
+            .badge-class { background: #312e81; color: #e0e7ff; padding: 0.5mm 1.5mm; border-radius: 1mm; font-size: 6.5pt; font-weight: 700; border: 0.5px solid #6366f1; }
+            .footer {
+              border-top: 1px solid #334155;
+              padding-top: 1.2mm;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 6.5pt;
+            }
+            .id-label { color: #94a3b8; }
+            .id-value { color: #fbbf24; font-family: monospace; font-weight: 800; font-size: 8pt; margin-left: 1mm; }
+            .year-value { color: white; font-weight: 700; }
+            @media print {
+              body { background: white !important; }
+              .cr80-card { box-shadow: none !important; margin: 0 auto !important; }
+            }
           </style>
         </head>
         <body>
-          <div class="card">
-            <div class="title">Birhane Hiwot Sunday School</div>
-            <div class="subtitle">Student Attendance Card</div>
-            ${student.qr_code ? `<img src="${student.qr_code}" class="qr" alt="QR Code" />` : "<p>No QR Code</p>"}
-            <div class="name">${student.First_Name} ${student.Father_Name} ${student.Grandfather_Name}</div>
-            <div class="details">ID: <strong>${student.Unique_ID}</strong></div>
-            <div class="details">Grade: ${student.Grade} | Year: ${student.Academic_Year} EC</div>
-            <div class="badge">${student.Classification || "Regular"}</div>
+          <div class="cr80-card">
+            <div class="header">
+              <div class="title">Birhane Hiwot Sunday School • ብርሃነ ሕይወት ሰንበት ት/ቤት</div>
+              <div class="subtitle">Official Student Identity Badge • CR80 (85.60 × 53.98 mm)</div>
+            </div>
+            <div class="body">
+              <div class="qr-box">
+                ${student.qr_code ? `<img src="${student.qr_code}" alt="QR" />` : '<span style="color:#64748b;font-size:6pt">No QR</span>'}
+              </div>
+              <div class="info">
+                <div class="name">${student.First_Name} ${student.Father_Name}</div>
+                <div class="subname">${student.Grandfather_Name || ""}</div>
+                <div class="badges">
+                  <span class="badge-grade">${student.Grade}</span>
+                  <span class="badge-class">${student.Classification || "Regular"}</span>
+                </div>
+              </div>
+            </div>
+            <div class="footer">
+              <div>
+                <span class="id-label">ID:</span>
+                <span class="id-value">${student.Unique_ID}</span>
+              </div>
+              <div>
+                <span class="id-label">Year:</span>
+                <span class="year-value">${student.Academic_Year} ዓ.ም.</span>
+              </div>
+            </div>
           </div>
           <script>
             window.onload = function() { window.print(); }

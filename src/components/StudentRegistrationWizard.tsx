@@ -19,6 +19,7 @@ import {
   Music,
   PlusCircle,
   Eye,
+  CreditCard,
 } from "lucide-react";
 import { StudentClassification, UserRole } from "@/lib/models";
 import {
@@ -1371,6 +1372,15 @@ export default function StudentRegistrationWizard({
                 <span>View Student</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => router.push("/super-admin/id-cards")}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold bg-indigo-50 text-indigo-800 border border-indigo-300 hover:bg-indigo-100 transition shadow-sm"
+            >
+              <CreditCard className="w-4 h-4 text-indigo-600" />
+              <span>Print Student ID Card</span>
+            </button>
 
             <button
               type="button"

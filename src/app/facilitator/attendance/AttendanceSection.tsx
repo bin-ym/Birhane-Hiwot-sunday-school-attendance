@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { gregorianToEthiopian, formatEthiopianDate } from "@/lib/utils";
 import { Student, ScheduleSession } from "@/lib/models";
+import { STUDENT_CLASSIFICATIONS } from "@/lib/constants";
 import toast, { Toaster } from "react-hot-toast";
 import dynamic from "next/dynamic";
 import { CalendarX, Clock, CheckCircle2, AlertCircle } from "lucide-react";
@@ -85,6 +86,7 @@ export default function AttendanceSection() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedClassification, setSelectedClassification] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
@@ -129,15 +131,27 @@ export default function AttendanceSection() {
 
   const activeSession = useMemo(() => {
     const list = scheduleData?.schedules || [];
-    if (selectedGrade) {
-      return list.find((s) => s.grade === selectedGrade) || null;
+    const gradeMatches = list.filter((s) => {
+      if (selectedGrade) return s.grade === selectedGrade;
+      if (facilitatorGrade) {
+        const g = Array.isArray(facilitatorGrade) ? facilitatorGrade : [facilitatorGrade];
+        return g.includes(s.grade);
+      }
+      return true;
+    });
+
+    if (selectedClassification) {
+      const match = gradeMatches.find(
+        (s) =>
+          s.classification === selectedClassification ||
+          s.classification === "All" ||
+          !s.classification
+      );
+      if (match) return match;
     }
-    if (facilitatorGrade) {
-      const g = Array.isArray(facilitatorGrade) ? facilitatorGrade : [facilitatorGrade];
-      return list.find((s) => g.includes(s.grade)) || null;
-    }
-    return list[0] || null;
-  }, [scheduleData, selectedGrade, facilitatorGrade]);
+
+    return gradeMatches[0] || null;
+  }, [scheduleData, selectedGrade, facilitatorGrade, selectedClassification]);
 
   const isNoClass = useMemo(() => {
     if (scheduleLoading) return false;
@@ -334,6 +348,8 @@ export default function AttendanceSection() {
     (student: Student) =>
       student._id &&
       (selectedGrade === "" || student.Grade === selectedGrade) &&
+      (selectedClassification === "" ||
+        (student.Classification || "Regular") === selectedClassification) &&
       ((student.Unique_ID || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
@@ -435,12 +451,13 @@ export default function AttendanceSection() {
           <CalendarX className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
           <div>
             <h4 className="text-sm font-bold text-amber-900">
-              No Class Scheduled
+              No Class Scheduled (ትምህርት የለም)
             </h4>
             <p className="text-xs text-amber-700 mt-0.5">
               {activeSession?.status === "cancelled"
-                ? `The session for ${selectedGrade || "this grade"} on ${formattedDate} has been cancelled.`
-                : `There is no class scheduled for ${selectedGrade || "this grade"} on ${formattedDate}.`}
+                ? `The session for ${selectedGrade || "assigned grades"} (${activeSession.classification || selectedClassification || "all classifications"}) on ${formattedDate} has been cancelled.`
+                : `There is no class scheduled for ${selectedGrade || "assigned grades"} (${selectedClassification || "all classifications"}) on ${formattedDate}.`}
+              {activeSession?.notes ? ` Reason: "${activeSession.notes}"` : ""}
               {" "}Students are <strong>not marked absent</strong>. Attendance roll-call is disabled for unscheduled dates.
             </p>
           </div>
@@ -451,7 +468,7 @@ export default function AttendanceSection() {
             <Clock className="h-5 w-5 text-blue-600 shrink-0" />
             <div>
               <span className="text-xs font-bold text-blue-900">
-                Scheduled Session: {activeSession.grade} ({activeSession.startTime} - {activeSession.endTime})
+                Scheduled Session: {activeSession.grade} [{activeSession.classification || "All"}] ({activeSession.startTime} - {activeSession.endTime})
               </span>
               <p className="text-xs text-blue-700">
                 {activeSession.topic || "Regular Curriculum Session"} {activeSession.assignedTeacherName ? `• Teacher: ${activeSession.assignedTeacherName}` : ""}
@@ -468,32 +485,57 @@ export default function AttendanceSection() {
         onSubmit={handleSubmit}
         className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4"
       >
-        <div className="flex-1 sm:w-1/2">
-          <label
-            htmlFor="classFilter"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Filter by Grade (Optional)
-          </label>
-          <select
-            id="classFilter"
-            value={selectedGrade}
-            onChange={(e) => setSelectedGrade(e.target.value)}
-            className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">All Assigned Grades</option>
-            {[...new Set(currentYearStudents.map((s: Student) => s.Grade))].map(
-              (option) => (
-                <option key={option} value={option}>
-                  {option}
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label
+              htmlFor="classFilter"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Filter by Grade (Optional)
+            </label>
+            <select
+              id="classFilter"
+              value={selectedGrade}
+              onChange={(e) => setSelectedGrade(e.target.value)}
+              className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Assigned Grades</option>
+              {[...new Set(currentYearStudents.map((s: Student) => s.Grade))].map(
+                (option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ),
+              )}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="categoryFilter"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Student Classification (ምድብ)
+            </label>
+            <select
+              id="categoryFilter"
+              value={selectedClassification}
+              onChange={(e) => setSelectedClassification(e.target.value)}
+              className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Classifications</option>
+              {STUDENT_CLASSIFICATIONS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
                 </option>
-              ),
-            )}
-          </select>
+              ))}
+            </select>
+          </div>
         </div>
+
         <button
           type="submit"
-          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
+          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 shrink-0"
           disabled={loading || isNoClass}
         >
           {loading ? "Submitting…" : isNoClass ? "No Class Scheduled" : "Submit Attendance"}

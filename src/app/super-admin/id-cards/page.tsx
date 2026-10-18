@@ -1,56 +1,66 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useState, useMemo, useRef } from "react";
-import Image from "next/image";
+import { useEffect, useState, useMemo } from "react";
 import { Student } from "@/lib/models";
 import { GRADES } from "@/lib/constants";
 import { getCurrentEthiopianYear } from "@/lib/utils";
 import { safeFetch } from "@/lib/safeFetch";
-import { useAuth } from "@/lib/auth";
 import {
   CreditCard,
   Printer,
   RefreshCw,
   Search,
-  Filter,
   CheckSquare,
   Square,
-  Eye,
-  ShieldCheck,
   QrCode as QrIcon,
+  Download,
+  FileCheck,
+  Maximize2,
   Sparkles,
-  UserCheck,
-  Layers,
-  ArrowRight,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import {
+  CR80_DIMENSIONS,
+  exportCR80CardPrinterPDF,
+  exportA4CardstockSheetPDF,
+  CardSide,
+} from "@/lib/idCardPdfExport";
+import { StudentIdCardFront } from "@/components/id-cards/StudentIdCardFront";
+import { StudentIdCardBack } from "@/components/id-cards/StudentIdCardBack";
 
 export default function StudentIdCardsPage() {
-  const { user } = useAuth();
   const currentEcYear = getCurrentEthiopianYear();
 
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isBatchGeneratingQr, setIsBatchGeneratingQr] = useState(false);
 
   // Filters
-  const [selectedYear, setSelectedYear] = useState<string>(String(currentEcYear));
+  const [selectedYear, setSelectedYear] = useState<string>(
+    String(currentEcYear),
+  );
   const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
 
   // Selection
-  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(
+    new Set(),
+  );
 
-  // View state
-  const [viewSide, setViewSide] = useState<"front" | "back" | "both">("both");
-  const [cardScale, setCardScale] = useState<number>(1);
+  // View state: 'front' | 'back' | 'both'
+  const [viewSide, setViewSide] = useState<CardSide>("both");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   const fetchStudents = async () => {
     try {
       setRefreshing(true);
-      const data = await safeFetch<Student[]>("/api/v1/students", []);
+      // forCards=true and includeQr=true ensures server loads and auto-heals any missing QR codes
+      const data = await safeFetch<Student[]>(
+        "/api/v1/students?forCards=true&includeQr=true&includePhotos=true",
+        [],
+      );
       setStudents(Array.isArray(data) ? data : []);
     } finally {
       setLoading(false);
@@ -75,12 +85,15 @@ export default function StudentIdCardsPage() {
   // Filtered students for current-year card issuance
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
-      const matchYear = !selectedYear || String(s.Academic_Year) === selectedYear;
+      const matchYear =
+        !selectedYear || String(s.Academic_Year) === selectedYear;
       const matchGrade = !selectedGrade || s.Grade === selectedGrade;
       const term = searchTerm.toLowerCase().trim();
       const matchSearch =
         !term ||
-        `${s.First_Name} ${s.Father_Name} ${s.Grandfather_Name || ""}`.toLowerCase().includes(term) ||
+        `${s.First_Name} ${s.Father_Name} ${s.Grandfather_Name || ""}`
+          .toLowerCase()
+          .includes(term) ||
         (s.Unique_ID || "").toLowerCase().includes(term);
 
       return matchYear && matchGrade && matchSearch;
@@ -98,7 +111,9 @@ export default function StudentIdCardsPage() {
   };
 
   const handleSelectAll = () => {
-    const allIds = new Set(filteredStudents.map((s) => s._id?.toString() || s.Unique_ID));
+    const allIds = new Set(
+      filteredStudents.map((s) => s._id?.toString() || s.Unique_ID),
+    );
     setSelectedStudentIds(allIds);
   };
 
@@ -114,6 +129,13 @@ export default function StudentIdCardsPage() {
     );
   }, [filteredStudents, selectedStudentIds]);
 
+  // Count of students with QR code
+  const qrStats = useMemo(() => {
+    const total = cardsToRender.length;
+    const withQr = cardsToRender.filter((s) => Boolean(s.qr_code)).length;
+    return { total, withQr, missing: total - withQr };
+  }, [cardsToRender]);
+
   // Regenerate signed QR Code for single student
   const handleRegenerateQR = async (student: Student) => {
     const sId = student._id?.toString();
@@ -125,13 +147,15 @@ export default function StudentIdCardsPage() {
         method: "POST",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to regenerate QR code");
+      if (!res.ok)
+        throw new Error(data.error || "Failed to regenerate QR code");
 
       toast.success(`QR code updated for ${student.First_Name}!`);
-      // Update local student record
       setStudents((prev) =>
         prev.map((item) =>
-          item._id?.toString() === sId ? { ...item, qr_code: data.qr_code } : item,
+          item._id?.toString() === sId
+            ? { ...item, qr_code: data.qr_code }
+            : item,
         ),
       );
     } catch (err) {
@@ -141,54 +165,214 @@ export default function StudentIdCardsPage() {
     }
   };
 
+  // Batch QR generation for any student missing a QR code
+  const handleBatchGenerateQr = async () => {
+    setIsBatchGeneratingQr(true);
+    const toastId = toast.loading(
+      "Auto-generating signed QR codes for all students...",
+    );
+    try {
+      const res = await fetch("/api/v1/students/qr/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: false }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Batch QR generation failed");
+
+      toast.success(
+        data.updated > 0
+          ? `Generated ${data.updated} missing student QR codes successfully!`
+          : "All students already have valid cryptographic QR codes!",
+        { id: toastId },
+      );
+      await fetchStudents();
+    } catch (err) {
+      toast.error((err as Error).message, { id: toastId });
+    } finally {
+      setIsBatchGeneratingQr(false);
+    }
+  };
+
+  // Browser Print
   const handlePrint = () => {
     window.print();
+  };
+
+  // Export CR80 PDF (Direct Card Printer)
+  const handleExportCr80Pdf = async () => {
+    if (cardsToRender.length === 0) return;
+    setIsExportingPdf(true);
+    const toastId = toast.loading(
+      `Generating CR80 ID Card PDF (${cardsToRender.length} cards)...`,
+    );
+    try {
+      await exportCR80CardPrinterPDF(cardsToRender, {
+        side: viewSide,
+        filename: `BHSS_CR80_Cards_${selectedYear || "All"}_${Date.now()}.pdf`,
+      });
+      toast.success(
+        "CR80 ID Card PDF downloaded! (85.60 × 53.98 mm @ 300 DPI)",
+        { id: toastId },
+      );
+    } catch (err) {
+      toast.error((err as Error).message || "PDF generation failed", {
+        id: toastId,
+      });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  // Export A4 Cardstock Sheet PDF (with Crop Marks)
+  const handleExportA4SheetPdf = async () => {
+    if (cardsToRender.length === 0) return;
+    setIsExportingPdf(true);
+    const toastId = toast.loading(
+      `Generating A4 Cardstock Print Sheet (${cardsToRender.length} cards)...`,
+    );
+    try {
+      await exportA4CardstockSheetPDF(cardsToRender, {
+        side: viewSide,
+        filename: `BHSS_A4_PrintSheet_${selectedYear || "All"}_${Date.now()}.pdf`,
+      });
+      toast.success("A4 Print Sheet PDF downloaded with precise crop marks!", {
+        id: toastId,
+      });
+    } catch (err) {
+      toast.error((err as Error).message || "A4 Sheet generation failed", {
+        id: toastId,
+      });
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <Toaster position="top-right" />
 
-      {/* Header bar */}
+      {/* Header Bar */}
       <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm print:hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-sm">
-                <CreditCard className="h-5 w-5" />
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 text-white shadow-sm">
+                <CreditCard className="h-6 w-6" />
               </span>
               <div>
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Student Identification Cards & QR Generator
-                </h1>
-                <p className="text-xs text-slate-500">
-                  Issue, preview, and batch-print official Birhane Hiwot Sunday School student badges with cryptographic QR authentication.
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-black text-slate-900 tracking-tight">
+                    Student Identification Cards & QR Generator
+                  </h1>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    <Maximize2 className="h-3 w-3" />
+                    CR80 Standard (85.60 × 53.98 mm)
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Official Birhane Hiwot Sunday School badges • 300 DPI high-resolution export • Cryptographically verified QR codes
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={fetchStudents}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition"
+              title="Refresh student records"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              Refresh
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
+              />
+              <span>Refresh</span>
             </button>
+
+            <button
+              onClick={handleBatchGenerateQr}
+              disabled={isBatchGeneratingQr || cardsToRender.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-sm"
+              title="Ensure all students have valid cryptographically signed QR codes"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Auto-Generate QRs</span>
+            </button>
+
+            <button
+              onClick={handleExportCr80Pdf}
+              disabled={isExportingPdf || cardsToRender.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition shadow-sm"
+              title="Download PDF formatted specifically for ID card PVC printers (85.60 × 53.98 mm)"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Export CR80 PDF</span>
+            </button>
+
+            <button
+              onClick={handleExportA4SheetPdf}
+              disabled={isExportingPdf || cardsToRender.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 transition shadow-sm"
+              title="Download A4 printable sheets with cut/trim guidelines (8 cards per page)"
+            >
+              <FileCheck className="h-3.5 w-3.5" />
+              <span>A4 Sheet PDF</span>
+            </button>
+
             <button
               onClick={handlePrint}
               disabled={cardsToRender.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow hover:bg-slate-800 disabled:opacity-50 transition"
+              title="Send directly to browser print dialog"
             >
-              <Printer className="h-4 w-4" />
-              Print Batch ({cardsToRender.length} Cards)
+              <Printer className="h-3.5 w-3.5 text-amber-300" />
+              <span>Print Batch ({cardsToRender.length})</span>
             </button>
           </div>
         </div>
 
-        {/* Filters and controls */}
+        {/* Physical Dimension Spec Box */}
+        <div className="mt-4 p-3 rounded-xl bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 border border-slate-200/80 text-[11px] text-slate-600 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="font-semibold text-slate-800">
+              📐 Physical Spec:
+            </span>
+            <span>
+              <strong>Width:</strong> {CR80_DIMENSIONS.widthMm} mm (8.56 cm)
+            </span>
+            <span>
+              <strong>Height:</strong> {CR80_DIMENSIONS.heightMm} mm (5.398 cm)
+            </span>
+            <span>
+              <strong>Aspect Ratio:</strong> ~1.586:1 (Horizontal / Landscape)
+            </span>
+            <span>
+              <strong>Print Resolution:</strong> 300 DPI (1011 × 638 px)
+            </span>
+            <span>
+              <strong>Corner Radius:</strong> 3.18 mm (1/8&quot;)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                qrStats.missing === 0
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-amber-100 text-amber-800"
+              }`}
+            >
+              <QrIcon className="h-3 w-3" />
+              {qrStats.missing === 0
+                ? "100% QR Codes Generated"
+                : `${qrStats.missing} Student(s) Missing QR`}
+            </span>
+          </div>
+        </div>
+
+        {/* Filters and Controls */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-4">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">
@@ -250,7 +434,9 @@ export default function StudentIdCardsPage() {
               <button
                 onClick={() => setViewSide("front")}
                 className={`flex-1 py-1.5 rounded-lg transition ${
-                  viewSide === "front" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600"
+                  viewSide === "front"
+                    ? "bg-white text-indigo-700 shadow-sm"
+                    : "text-slate-600"
                 }`}
               >
                 Front
@@ -258,7 +444,9 @@ export default function StudentIdCardsPage() {
               <button
                 onClick={() => setViewSide("back")}
                 className={`flex-1 py-1.5 rounded-lg transition ${
-                  viewSide === "back" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600"
+                  viewSide === "back"
+                    ? "bg-white text-indigo-700 shadow-sm"
+                    : "text-slate-600"
                 }`}
               >
                 Back
@@ -266,7 +454,9 @@ export default function StudentIdCardsPage() {
               <button
                 onClick={() => setViewSide("both")}
                 className={`flex-1 py-1.5 rounded-lg transition ${
-                  viewSide === "both" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600"
+                  viewSide === "both"
+                    ? "bg-white text-indigo-700 shadow-sm"
+                    : "text-slate-600"
                 }`}
               >
                 Both
@@ -275,17 +465,21 @@ export default function StudentIdCardsPage() {
           </div>
         </div>
 
-        {/* Selection summary row */}
+        {/* Selection Summary Row */}
         <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-3">
             <span className="text-slate-600 font-medium">
-              Showing <strong className="text-slate-900">{filteredStudents.length}</strong> eligible students
+              Showing{" "}
+              <strong className="text-slate-900">
+                {filteredStudents.length}
+              </strong>{" "}
+              eligible students
             </span>
             <span className="text-slate-300">•</span>
             <span className="text-indigo-600 font-semibold">
               {selectedStudentIds.size > 0
                 ? `${selectedStudentIds.size} selected for printing`
-                : "All filtered selected"}
+                : "All filtered students selected"}
             </span>
           </div>
 
@@ -309,16 +503,22 @@ export default function StudentIdCardsPage() {
 
       {/* Cards Grid (Interactive UI & Print Sheet) */}
       <div className="id-card-print-container">
-        {cardsToRender.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-500">
+        {loading ? (
+          <div className="flex justify-center items-center h-48">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+          </div>
+        ) : cardsToRender.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-500 print:hidden">
             <CreditCard className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-            <h3 className="text-sm font-bold text-slate-700">No Student Cards to Display</h3>
+            <h3 className="text-sm font-bold text-slate-700">
+              No Student Cards to Display
+            </h3>
             <p className="text-xs text-slate-500 mt-1">
               Adjust your search filters or academic year to load students.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 print:grid-cols-2 print:gap-4 print:p-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 print:block">
             {cardsToRender.map((student) => {
               const sId = student._id?.toString() || student.Unique_ID;
               const isSelected = selectedStudentIds.has(sId);
@@ -327,7 +527,7 @@ export default function StudentIdCardsPage() {
               return (
                 <div
                   key={sId}
-                  className="relative group rounded-3xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow print:shadow-none print:border-none print:p-2"
+                  className="id-card-item-wrapper relative group rounded-3xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow print:shadow-none print:border-none print:p-0 print:mb-4"
                 >
                   {/* Select checkbox & actions (Hidden on print) */}
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3 print:hidden">
@@ -350,150 +550,22 @@ export default function StudentIdCardsPage() {
                         title="Regenerate Signed QR Code"
                         className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                       >
-                        <RefreshCw className={`h-3 w-3 ${isRegenerating ? "animate-spin" : ""}`} />
+                        <RefreshCw
+                          className={`h-3 w-3 ${isRegenerating ? "animate-spin" : ""}`}
+                        />
                         <span>Update QR</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* ID Card Display (Front & Back) */}
-                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
-                    {/* Front Card */}
+                  {/* ID Card Display (Front & Back) - Sized to exact CR80 aspect ratio */}
+                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-center print:gap-3">
                     {(viewSide === "front" || viewSide === "both") && (
-                      <div className="id-card-front w-[320px] h-[200px] rounded-2xl bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 text-white p-3.5 flex flex-col justify-between shadow-md border border-indigo-700/40 relative overflow-hidden print:w-[85.6mm] print:h-[53.98mm] print:shadow-none">
-                        {/* Decorative background element */}
-                        <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-indigo-500/10 pointer-events-none" />
-                        <div className="absolute -left-8 -bottom-8 w-28 h-28 rounded-full bg-amber-500/10 pointer-events-none" />
-
-                        {/* Top banner: Logo and School Title */}
-                        <div className="flex items-center gap-2.5 pb-2 border-b border-indigo-800/60 z-10">
-                          <div className="h-10 w-10 relative flex-shrink-0 bg-white rounded-lg p-0.5 shadow-sm">
-                            <Image
-                              src="/logo.png"
-                              alt="Sunday School Logo"
-                              width={40}
-                              height={40}
-                              className="object-contain w-full h-full"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-bold text-amber-300 tracking-wider uppercase leading-none">
-                              ብርሃነ ሕይወት ሰንበት ት/ቤት
-                            </p>
-                            <p className="text-[11px] font-extrabold text-white tracking-tight leading-tight mt-0.5 truncate">
-                              Birhane Hiwot Sunday School
-                            </p>
-                            <span className="text-[8px] font-semibold text-indigo-200 uppercase tracking-widest block">
-                              Student Identity Card • የተማሪ መታወቂያ
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Body details */}
-                        <div className="flex items-center gap-3 my-auto z-10">
-                          <div className="h-16 w-16 rounded-xl bg-indigo-800/80 border-2 border-amber-400/80 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
-                            {student.photo_data_url ? (
-                              <img
-                                src={student.photo_data_url}
-                                alt={student.First_Name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="text-center">
-                                <span className="text-xl font-black text-amber-300">
-                                  {student.First_Name?.[0] || "BH"}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex-1 min-w-0 text-left">
-                            <p className="text-[13px] font-black text-white truncate leading-tight">
-                              {student.First_Name} {student.Father_Name}
-                            </p>
-                            <p className="text-[10px] text-indigo-200 truncate">
-                              {student.Grandfather_Name || ""}
-                            </p>
-
-                            <div className="mt-1.5 flex flex-wrap gap-1.5 text-[9px]">
-                              <span className="bg-amber-400 text-indigo-950 font-black px-1.5 py-0.5 rounded">
-                                {student.Grade}
-                              </span>
-                              <span className="bg-indigo-800/90 text-indigo-100 font-bold px-1.5 py-0.5 rounded border border-indigo-700">
-                                {student.Classification || "Regular"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Footer row: Unique ID and Academic Year */}
-                        <div className="flex items-center justify-between pt-2 border-t border-indigo-800/60 text-[9px] z-10">
-                          <div>
-                            <span className="text-indigo-300 text-[8px] block uppercase">መለያ ቁጥር (ID):</span>
-                            <span className="font-mono font-bold text-amber-300 text-[11px] tracking-wide">
-                              {student.Unique_ID}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-indigo-300 text-[8px] block uppercase">ዓ.ም (Year):</span>
-                            <span className="font-bold text-white text-[10px]">
-                              {student.Academic_Year} ዓ.ም
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                      <StudentIdCardFront student={student} />
                     )}
 
-                    {/* Back Card */}
                     {(viewSide === "back" || viewSide === "both") && (
-                      <div className="id-card-back w-[320px] h-[200px] rounded-2xl bg-slate-900 text-white p-3.5 flex flex-col justify-between shadow-md border border-slate-700/60 relative overflow-hidden print:w-[85.6mm] print:h-[53.98mm] print:shadow-none">
-                        {/* Top back banner */}
-                        <div className="text-center pb-1.5 border-b border-slate-800">
-                          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                            Official Verification • የደህንነት ማረጋገጫ
-                          </p>
-                          <p className="text-[8px] text-slate-400">
-                            Present this badge for all Sunday School scheduled sessions
-                          </p>
-                        </div>
-
-                        {/* QR Code and verification instructions */}
-                        <div className="flex items-center justify-center gap-3 my-auto">
-                          <div className="h-24 w-24 bg-white rounded-xl p-1 shadow-sm flex items-center justify-center flex-shrink-0">
-                            {student.qr_code ? (
-                              <img
-                                src={student.qr_code}
-                                alt={`QR for ${student.Unique_ID}`}
-                                className="w-full h-full object-contain"
-                              />
-                            ) : (
-                              <div className="text-center p-2 text-slate-400">
-                                <QrIcon className="h-6 w-6 mx-auto mb-1 text-slate-300" />
-                                <span className="text-[8px]">QR Pending</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex-1 text-left space-y-1 text-[8px] text-slate-300">
-                            <div className="flex items-center gap-1 text-emerald-400 font-bold">
-                              <ShieldCheck className="h-3 w-3" />
-                              <span>Cryptographically Verified</span>
-                            </div>
-                            <p className="text-[8px] text-slate-400 leading-tight">
-                              ይህ ካርድ በሰንበት ት/ቤቱ አቴንዳንስ መዝገብ ስርዓት በቀጥታ የተረጋገጠ ነው።
-                            </p>
-                            <p className="text-[8px] text-slate-400 leading-tight">
-                              ይህን QR ኮድ ለክፍል አስተባባሪው በማሳየት አቴንዳንስ ይመዝገቡ።
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Back footer: Contact & Notice */}
-                        <div className="pt-1.5 border-t border-slate-800 text-center text-[7.5px] text-slate-400 leading-tight">
-                          <p className="font-semibold text-slate-300">Birhane Hiwot Sunday School • Addis Ababa, Ethiopia</p>
-                          <p className="text-slate-500 mt-0.5">If found, please return to Sunday School Administration office.</p>
-                        </div>
-                      </div>
+                      <StudentIdCardBack student={student} />
                     )}
                   </div>
                 </div>
@@ -503,14 +575,37 @@ export default function StudentIdCardsPage() {
         )}
       </div>
 
-      {/* Print styling */}
+      {/* Exact CR80 Physical Dimension Print Styling (85.60 mm × 53.98 mm) */}
       <style jsx global>{`
+        /* Screen display dimension */
+        .cr80-card-box {
+          width: 325px;
+          height: 205px;
+          box-sizing: border-box;
+        }
+
+        @media (min-width: 640px) {
+          .cr80-card-box {
+            width: 342.4px;
+            height: 215.92px;
+          }
+        }
+
         @media print {
+          @page {
+            size: auto;
+            margin: 6mm;
+          }
+
+          html,
           body {
-            background: white !important;
+            background: #ffffff !important;
             padding: 0 !important;
             margin: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
+
           nav,
           header,
           footer,
@@ -518,17 +613,40 @@ export default function StudentIdCardsPage() {
           .print\\:hidden {
             display: none !important;
           }
+
           .id-card-print-container {
             display: block !important;
             width: 100% !important;
           }
-          .id-card-front,
-          .id-card-back {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+
+          .id-card-item-wrapper {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            margin: 0 auto 12px auto !important;
+            margin: 0 auto 6mm auto !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+          }
+
+          /* Exact CR80 Physical Dimensions in Millimeters */
+          .cr80-card-box,
+          .id-card-front,
+          .id-card-back {
+            width: 85.6mm !important;
+            height: 53.98mm !important;
+            min-width: 85.6mm !important;
+            max-width: 85.6mm !important;
+            min-height: 53.98mm !important;
+            max-height: 53.98mm !important;
+            box-sizing: border-box !important;
+            border-radius: 3.18mm !important;
+            overflow: hidden !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            margin: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            box-shadow: none !important;
           }
         }
       `}</style>

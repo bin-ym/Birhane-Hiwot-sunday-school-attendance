@@ -4,6 +4,7 @@ import { getDb } from "@/lib/mongodb";
 import { requireAuth, sanitizeError } from "@/lib/apiAuth";
 import { canAccess, normalizeRole } from "@/lib/rbac";
 import { ScheduleSession, ScheduleStatus } from "@/lib/models";
+import { GRADES, CLASSIFICATION_GRADE_OPTIONS, StudentClassification } from "@/lib/constants";
 import { logAudit } from "@/lib/auditLog";
 
 function timesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest) {
     const grade = url.searchParams.get("grade");
     const date = url.searchParams.get("date");
     const status = url.searchParams.get("status");
+    const classification = url.searchParams.get("classification");
 
     const query: Record<string, unknown> = {};
 
@@ -35,6 +37,14 @@ export async function GET(req: NextRequest) {
     if (semester) query.semester = semester;
     if (date) query.date = date;
     if (status) query.status = status;
+
+    if (classification && classification !== "All") {
+      query.$or = [
+        { classification },
+        { classification: "All" },
+        { classification: { $exists: false } },
+      ];
+    }
 
     // Role-based scoping
     if (role === "Attendance Facilitator" && token.grade) {
@@ -109,23 +119,25 @@ export async function POST(req: NextRequest) {
       academicYear,
       semester,
       department,
+      classification = "All",
       grade,
       section,
       date,
       sundayNumber,
       sundayName,
-      startTime,
-      endTime,
-      status,
+      startTime = "08:30",
+      endTime = "11:30",
+      status = "scheduled",
       topic,
       assignedTeacherId,
       assignedTeacherName,
       notes,
+      declareAllGrades,
     } = body;
 
-    if (!academicYear || !semester || !grade || !date || !startTime || !endTime) {
+    if (!academicYear || !semester || !grade || !date) {
       return NextResponse.json(
-        { error: "Missing required fields: academicYear, semester, grade, date, startTime, endTime" },
+        { error: "Missing required fields: academicYear, semester, grade, date" },
         { status: 400 }
       );
     }
@@ -154,7 +166,89 @@ export async function POST(req: NextRequest) {
 
     const db = await getDb();
 
-    // 1. Duplicate session check: exact same grade, section, date, non-cancelled
+    // Check if declaring for ALL grades under this classification
+    if (declareAllGrades || grade === "All") {
+      const gradesToApply =
+        classification &&
+        classification !== "All" &&
+        CLASSIFICATION_GRADE_OPTIONS[classification as StudentClassification]
+          ? CLASSIFICATION_GRADE_OPTIONS[classification as StudentClassification].map((g) => g.value)
+          : [...GRADES];
+      let affectedCount = 0;
+
+      for (const targetGrade of gradesToApply) {
+        const queryFilter: Record<string, unknown> = {
+          date: String(date).trim(),
+          grade: targetGrade,
+          academicYear: String(academicYear).trim(),
+        };
+
+        if (classification && classification !== "All") {
+          queryFilter.classification = classification;
+        }
+
+        const existing = await db.collection<ScheduleSession>("schedules").findOne(queryFilter);
+
+        if (existing) {
+          await db.collection("schedules").updateOne(
+            { _id: existing._id },
+            {
+              $set: {
+                status: (status as ScheduleStatus) || "scheduled",
+                notes: notes ? String(notes).trim() : existing.notes,
+                topic: topic ? String(topic).trim() : existing.topic,
+                classification,
+                updatedAt: new Date().toISOString(),
+              },
+            }
+          );
+        } else {
+          await db.collection("schedules").insertOne({
+            academicYear: String(academicYear).trim(),
+            semester: String(semester).trim(),
+            department: resolvedDepartment,
+            classification,
+            grade: targetGrade,
+            date: String(date).trim(),
+            sundayNumber: sundayNumber ? Number(sundayNumber) : undefined,
+            sundayName: sundayName ? String(sundayName).trim() : undefined,
+            startTime: String(startTime).trim(),
+            endTime: String(endTime).trim(),
+            status: (status as ScheduleStatus) || "scheduled",
+            topic: topic ? String(topic).trim() : undefined,
+            assignedTeacherId: assignedTeacherId ? String(assignedTeacherId) : undefined,
+            assignedTeacherName: assignedTeacherName ? String(assignedTeacherName).trim() : undefined,
+            assignedSchedulerId: String(token.id || ""),
+            assignedSchedulerName: String(token.name || token.email || ""),
+            notes: notes ? String(notes).trim() : undefined,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+        affectedCount++;
+      }
+
+      logAudit({
+        action: "create",
+        collection: "schedules",
+        documentId: `bulk-${date}-${classification}`,
+        userId: String(token.id || ""),
+        userEmail: String(token.email || ""),
+        userRole: String(token.role || ""),
+        summary: `Declared class status '${status}' for ${classification} across all grades on ${date} (${affectedCount} sessions)`,
+      });
+
+      return NextResponse.json(
+        {
+          message: `Class status '${status}' applied to all grades for ${classification} on ${date}`,
+          affectedCount,
+        },
+        { status: 201 }
+      );
+    }
+
+    // Single grade schedule session
+    // Duplicate/conflict check: same grade, section, date, compatible classification, non-cancelled
     const existingSessionsOnDate = await db
       .collection<ScheduleSession>("schedules")
       .find({
@@ -162,11 +256,15 @@ export async function POST(req: NextRequest) {
         grade,
         status: { $ne: "cancelled" },
         ...(section ? { section } : {}),
+        $or: [
+          { classification },
+          { classification: "All" },
+          { classification: { $exists: false } },
+        ],
       })
       .toArray();
 
-    if (existingSessionsOnDate.length > 0) {
-      // Check for overlapping time slot
+    if (existingSessionsOnDate.length > 0 && status !== "cancelled") {
       for (const existing of existingSessionsOnDate) {
         if (timesOverlap(startTime, endTime, existing.startTime, existing.endTime)) {
           return NextResponse.json(
@@ -183,6 +281,7 @@ export async function POST(req: NextRequest) {
       academicYear: String(academicYear).trim(),
       semester: String(semester).trim(),
       department: resolvedDepartment,
+      classification,
       grade: String(grade).trim(),
       section: section ? String(section).trim() : undefined,
       date: String(date).trim(),
@@ -210,7 +309,7 @@ export async function POST(req: NextRequest) {
       userId: String(token.id || ""),
       userEmail: String(token.email || ""),
       userRole: String(token.role || ""),
-      summary: `Created schedule session for ${grade} on ${date} (${startTime}-${endTime}) in ${resolvedDepartment}`,
+      summary: `Created schedule session (${status}) for ${grade} (${classification}) on ${date} in ${resolvedDepartment}`,
     });
 
     return NextResponse.json(
@@ -277,12 +376,14 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Check time overlap if date, grade, or time changed
+    // Check time overlap if date, grade, or time changed and status is active
     if (
-      (updates.date && updates.date !== existing.date) ||
-      (updates.grade && updates.grade !== existing.grade) ||
-      (updates.startTime && updates.startTime !== existing.startTime) ||
-      (updates.endTime && updates.endTime !== existing.endTime)
+      updates.status !== "cancelled" &&
+      existing.status !== "cancelled" &&
+      ((updates.date && updates.date !== existing.date) ||
+        (updates.grade && updates.grade !== existing.grade) ||
+        (updates.startTime && updates.startTime !== existing.startTime) ||
+        (updates.endTime && updates.endTime !== existing.endTime))
     ) {
       const otherSessions = await db
         .collection<ScheduleSession>("schedules")

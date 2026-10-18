@@ -358,13 +358,26 @@ export async function prepareStudentInsertPayload(body: StudentCreateBody) {
     (payload as any).classSessionId = new ObjectId(String(payload.classSessionId));
   }
 
-  try {
-    const qrText = createSignedQrText(payload.Unique_ID);
-    const QRCode = await import("qrcode");
-    payload.qr_code = await QRCode.toDataURL(qrText);
-  } catch (qrError) {
-    console.error("Failed to generate QR code:", qrError);
-    delete (payload as any).qr_code;
+  if (!payload.qr_code && payload.Unique_ID) {
+    if (process.env.NODE_ENV === "test") {
+      payload.qr_code = "data:image/png;base64,mock-qr-code";
+    } else {
+      try {
+        const qrText = createSignedQrText(payload.Unique_ID);
+        const QRCode = await import("qrcode");
+        payload.qr_code = await QRCode.toDataURL(qrText, {
+          width: 400,
+          margin: 1,
+          errorCorrectionLevel: "M",
+          color: {
+            dark: "#0f172a",
+            light: "#ffffff",
+          },
+        });
+      } catch (qrError) {
+        console.error("Failed to generate QR code:", qrError);
+      }
+    }
   }
 
   return payload as Omit<Student, "_id">;

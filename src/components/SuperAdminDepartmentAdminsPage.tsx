@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
-type DepartmentRole = "HR Admin" | "Education Admin";
+type DepartmentRole = "HR Admin" | "Education Admin" | "Schedule Manager";
 
 type DepartmentAdmin = {
   _id: string;
@@ -13,7 +13,11 @@ type DepartmentAdmin = {
   role: DepartmentRole;
 };
 
-const ROLE_OPTIONS: DepartmentRole[] = ["HR Admin", "Education Admin"];
+const ROLE_OPTIONS: DepartmentRole[] = [
+  "HR Admin",
+  "Education Admin",
+  "Schedule Manager",
+];
 
 export default function SuperAdminDepartmentAdminsPage() {
   const { user, status } = useAuth();
@@ -43,6 +47,7 @@ export default function SuperAdminDepartmentAdminsPage() {
     () => ({
       hr: admins.find((a) => a.role === "HR Admin"),
       education: admins.find((a) => a.role === "Education Admin"),
+      schedule: admins.find((a) => a.role === "Schedule Manager"),
     }),
     [admins],
   );
@@ -82,7 +87,11 @@ export default function SuperAdminDepartmentAdminsPage() {
   }, [status, user, router]);
 
   const canCreateSelectedRole =
-    form.role === "HR Admin" ? !byRole.hr : !byRole.education;
+    form.role === "HR Admin"
+      ? !byRole.hr
+      : form.role === "Education Admin"
+        ? !byRole.education
+        : !byRole.schedule;
 
   async function createAdmin(e: React.FormEvent) {
     e.preventDefault();
@@ -181,16 +190,36 @@ export default function SuperAdminDepartmentAdminsPage() {
       )}
 
       {/* Role Cards */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {ROLE_OPTIONS.map((role) => {
-          const admin = role === "HR Admin" ? byRole.hr : byRole.education;
+          const admin =
+            role === "HR Admin"
+              ? byRole.hr
+              : role === "Education Admin"
+                ? byRole.education
+                : byRole.schedule;
+
+          const glowColor =
+            role === "HR Admin"
+              ? "bg-indigo-400"
+              : role === "Education Admin"
+                ? "bg-emerald-400"
+                : "bg-amber-400";
+
+          const iconContainerClass =
+            role === "HR Admin"
+              ? "bg-indigo-50 text-indigo-600"
+              : role === "Education Admin"
+                ? "bg-emerald-50 text-emerald-600"
+                : "bg-amber-50 text-amber-600";
+
           return (
             <div
               key={role}
               className="relative overflow-hidden group bg-white border border-gray-100 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all duration-300"
             >
               <div
-                className={`absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20 transition-all duration-500 group-hover:scale-150 ${role === "HR Admin" ? "bg-indigo-400" : "bg-emerald-400"}`}
+                className={`absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20 transition-all duration-500 group-hover:scale-150 ${glowColor}`}
               ></div>
 
               <div className="relative z-10">
@@ -199,21 +228,37 @@ export default function SuperAdminDepartmentAdminsPage() {
                     {role}
                   </h3>
                   <div
-                    className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-inner ${role === "HR Admin" ? "bg-indigo-50 text-indigo-600" : "bg-emerald-50 text-emerald-600"}`}
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-inner ${iconContainerClass}`}
                   >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                      ></path>
-                    </svg>
+                    {role === "Schedule Manager" ? (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        ></path>
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                        ></path>
+                      </svg>
+                    )}
                   </div>
                 </div>
 

@@ -299,6 +299,7 @@ export interface ScheduleSession {
   academicYear: string | number;
   semester: string;
   department: string;
+  classification?: StudentClassification | "All";
   grade: string;
   section?: string | null;
   date: string;
