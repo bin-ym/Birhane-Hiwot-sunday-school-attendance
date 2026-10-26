@@ -27,6 +27,12 @@ import {
 } from "@/lib/idCardPdfExport";
 import { StudentIdCardFront } from "@/components/id-cards/StudentIdCardFront";
 import { StudentIdCardBack } from "@/components/id-cards/StudentIdCardBack";
+import { IdCardPrintPreview } from "@/components/id-cards/IdCardPrintPreview";
+import {
+  getStudentPrintKey,
+  IdCardPrintOverridesMap,
+} from "@/lib/idCardPrintTypes";
+import type { IdCardPrintPageSize } from "@/lib/idCardPrintTypes";
 
 export default function StudentIdCardsPage() {
   const currentEcYear = getCurrentEthiopianYear();
@@ -44,14 +50,20 @@ export default function StudentIdCardsPage() {
   const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
 
-  // Selection
+  // Selection: empty set + hasExplicitSelection=false => all filtered students print
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(
     new Set(),
   );
+  const [hasExplicitSelection, setHasExplicitSelection] = useState(false);
 
   // View state: 'front' | 'back' | 'both'
   const [viewSide, setViewSide] = useState<CardSide>("both");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  /** Ephemeral inline overrides for card print jobs */
+  const [overrides, setOverrides] = useState<IdCardPrintOverridesMap>({});
+  /** Snapshot of students when preview opens (immune to filter/selection changes). */
+  const [printBatchSnapshot, setPrintBatchSnapshot] = useState<Student[]>([]);
 
   const fetchStudents = async () => {
     try {
@@ -100,34 +112,61 @@ export default function StudentIdCardsPage() {
     });
   }, [students, selectedYear, selectedGrade, searchTerm]);
 
-  // Selection helpers
+  const filteredStudentKeys = useMemo(
+    () => filteredStudents.map(getStudentPrintKey),
+    [filteredStudents],
+  );
+
   const handleToggleStudent = (id: string) => {
-    setSelectedStudentIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    if (!hasExplicitSelection) {
+      setHasExplicitSelection(true);
+      setSelectedStudentIds(new Set([id]));
+      return;
+    }
+
+    const next = new Set(selectedStudentIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+
+    if (
+      filteredStudentKeys.length > 0 &&
+      filteredStudentKeys.every((key) => next.has(key))
+    ) {
+      setHasExplicitSelection(false);
+      setSelectedStudentIds(new Set());
+      return;
+    }
+
+    setSelectedStudentIds(next);
   };
 
   const handleSelectAll = () => {
-    const allIds = new Set(
-      filteredStudents.map((s) => s._id?.toString() || s.Unique_ID),
-    );
-    setSelectedStudentIds(allIds);
-  };
-
-  const handleDeselectAll = () => {
+    setHasExplicitSelection(false);
     setSelectedStudentIds(new Set());
   };
 
-  // Cards to render in print/preview
+  const handleDeselectAll = () => {
+    setHasExplicitSelection(true);
+    setSelectedStudentIds(new Set());
+  };
+
+  /** Checkboxes only reflect explicit picks — implicit "all filtered" stays visually unchecked. */
+  const isStudentChecked = (id: string) =>
+    hasExplicitSelection && selectedStudentIds.has(id);
+
+  const isImplicitAllSelection = !hasExplicitSelection;
+
+  const printSelectionCount = hasExplicitSelection
+    ? selectedStudentIds.size
+    : filteredStudents.length;
+
+  // Students included in print / preview / export
   const cardsToRender = useMemo(() => {
-    if (selectedStudentIds.size === 0) return filteredStudents;
+    if (!hasExplicitSelection) return filteredStudents;
     return filteredStudents.filter((s) =>
-      selectedStudentIds.has(s._id?.toString() || s.Unique_ID),
+      selectedStudentIds.has(getStudentPrintKey(s)),
     );
-  }, [filteredStudents, selectedStudentIds]);
+  }, [filteredStudents, selectedStudentIds, hasExplicitSelection]);
 
   // Count of students with QR code
   const qrStats = useMemo(() => {
@@ -194,21 +233,33 @@ export default function StudentIdCardsPage() {
     }
   };
 
-  // Browser Print
-  const handlePrint = () => {
-    window.print();
+  const openPrintPreview = () => {
+    if (cardsToRender.length === 0) return;
+    setPrintBatchSnapshot([...cardsToRender]);
+    setPrintPreviewOpen(true);
   };
 
-  // Export CR80 PDF (Direct Card Printer)
-  const handleExportCr80Pdf = async () => {
-    if (cardsToRender.length === 0) return;
+  const closePrintPreview = () => {
+    setPrintPreviewOpen(false);
+    setPrintBatchSnapshot([]);
+  };
+
+  const studentsForPrintJob = (): Student[] =>
+    printPreviewOpen && printBatchSnapshot.length > 0
+      ? printBatchSnapshot
+      : cardsToRender;
+
+  const runExportCr80Pdf = async () => {
+    const batch = studentsForPrintJob();
+    if (batch.length === 0) return;
     setIsExportingPdf(true);
     const toastId = toast.loading(
-      `Generating CR80 ID Card PDF (${cardsToRender.length} cards)...`,
+      `Generating CR80 ID Card PDF (${batch.length} cards)...`,
     );
     try {
-      await exportCR80CardPrinterPDF(cardsToRender, {
+      await exportCR80CardPrinterPDF(batch, {
         side: viewSide,
+        overrides,
         filename: `BHSS_CR80_Cards_${selectedYear || "All"}_${Date.now()}.pdf`,
       });
       toast.success(
@@ -224,23 +275,25 @@ export default function StudentIdCardsPage() {
     }
   };
 
-  // Export A4 Cardstock Sheet PDF (with Crop Marks)
-  const handleExportA4SheetPdf = async () => {
-    if (cardsToRender.length === 0) return;
+  const runExportA4SheetPdf = async (pageFormat: IdCardPrintPageSize = "a4") => {
+    const batch = studentsForPrintJob();
+    if (batch.length === 0) return;
     setIsExportingPdf(true);
     const toastId = toast.loading(
-      `Generating A4 Cardstock Print Sheet (${cardsToRender.length} cards)...`,
+      `Generating print sheet PDF (${batch.length} students)...`,
     );
     try {
-      await exportA4CardstockSheetPDF(cardsToRender, {
+      await exportA4CardstockSheetPDF(batch, {
         side: viewSide,
-        filename: `BHSS_A4_PrintSheet_${selectedYear || "All"}_${Date.now()}.pdf`,
+        overrides,
+        pageFormat,
+        filename: `BHSS_${pageFormat.toUpperCase()}_PrintSheet_${selectedYear || "All"}_${Date.now()}.pdf`,
       });
-      toast.success("A4 Print Sheet PDF downloaded with precise crop marks!", {
+      toast.success(`${pageFormat.toUpperCase()} Print Sheet PDF downloaded with precise crop marks!`, {
         id: toastId,
       });
     } catch (err) {
-      toast.error((err as Error).message || "A4 Sheet generation failed", {
+      toast.error((err as Error).message || "Print sheet generation failed", {
         id: toastId,
       });
     } finally {
@@ -249,11 +302,11 @@ export default function StudentIdCardsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="id-card-page-root space-y-6">
       <Toaster position="top-right" />
 
       {/* Header Bar */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm print:hidden">
+      <div className="id-card-admin-chrome rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm print:hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2.5">
@@ -302,7 +355,7 @@ export default function StudentIdCardsPage() {
             </button>
 
             <button
-              onClick={handleExportCr80Pdf}
+              onClick={runExportCr80Pdf}
               disabled={isExportingPdf || cardsToRender.length === 0}
               className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition shadow-sm"
               title="Download PDF formatted specifically for ID card PVC printers (85.60 × 53.98 mm)"
@@ -312,7 +365,7 @@ export default function StudentIdCardsPage() {
             </button>
 
             <button
-              onClick={handleExportA4SheetPdf}
+              onClick={() => runExportA4SheetPdf("a4")}
               disabled={isExportingPdf || cardsToRender.length === 0}
               className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 transition shadow-sm"
               title="Download A4 printable sheets with cut/trim guidelines (8 cards per page)"
@@ -322,13 +375,13 @@ export default function StudentIdCardsPage() {
             </button>
 
             <button
-              onClick={handlePrint}
+              onClick={openPrintPreview}
               disabled={cardsToRender.length === 0}
               className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow hover:bg-slate-800 disabled:opacity-50 transition"
-              title="Send directly to browser print dialog"
+              title="Open A4 batch layout, edit cards for this print job, then print"
             >
               <Printer className="h-3.5 w-3.5 text-amber-300" />
-              <span>Print Batch ({cardsToRender.length})</span>
+              <span>Print Preview ({cardsToRender.length})</span>
             </button>
           </div>
         </div>
@@ -476,24 +529,38 @@ export default function StudentIdCardsPage() {
               eligible students
             </span>
             <span className="text-slate-300">•</span>
-            <span className="text-indigo-600 font-semibold">
-              {selectedStudentIds.size > 0
-                ? `${selectedStudentIds.size} selected for printing`
-                : "All filtered students selected"}
-            </span>
+            {hasExplicitSelection ? (
+              <span className="inline-flex items-center gap-1.5 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+                {printSelectionCount} of {filteredStudents.length} selected for printing
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                All {filteredStudents.length} filtered students selected (Print all)
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handleSelectAll}
-              className="text-xs text-indigo-600 hover:text-indigo-800 font-bold"
+              className={`text-xs px-2.5 py-1 rounded-lg transition font-bold ${
+                !hasExplicitSelection
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
+              }`}
             >
               Select All
             </button>
             <span className="text-slate-300">|</span>
             <button
               onClick={handleDeselectAll}
-              className="text-xs text-slate-500 hover:text-slate-700 font-medium"
+              className={`text-xs px-2.5 py-1 rounded-lg transition font-medium ${
+                hasExplicitSelection && selectedStudentIds.size === 0
+                  ? "bg-slate-200 text-slate-800"
+                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+              }`}
             >
               Clear Selection
             </button>
@@ -501,8 +568,8 @@ export default function StudentIdCardsPage() {
         </div>
       </div>
 
-      {/* Cards Grid (Interactive UI & Print Sheet) */}
-      <div className="id-card-print-container">
+      {/* Cards Grid (screen browse only — batch print uses preview overlay) */}
+      <div className="id-card-browse-grid print:hidden">
         {loading ? (
           <div className="flex justify-center items-center h-48">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
@@ -518,22 +585,29 @@ export default function StudentIdCardsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 print:block">
-            {cardsToRender.map((student) => {
-              const sId = student._id?.toString() || student.Unique_ID;
-              const isSelected = selectedStudentIds.has(sId);
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {filteredStudents.map((student) => {
+              const sId = getStudentPrintKey(student);
+              const isSelected = isStudentChecked(sId);
               const isRegenerating = regeneratingId === sId;
 
               return (
                 <div
                   key={sId}
-                  className="id-card-item-wrapper relative group rounded-3xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow print:shadow-none print:border-none print:p-0 print:mb-4"
+                  className="id-card-item-wrapper relative group rounded-3xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
                 >
                   {/* Select checkbox & actions (Hidden on print) */}
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3 print:hidden">
                     <button
                       onClick={() => handleToggleStudent(sId)}
                       className="flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 transition"
+                      title={
+                        !hasExplicitSelection
+                          ? "Currently in 'Select All' mode. Click to isolate this student."
+                          : isSelected
+                          ? "Deselect student"
+                          : "Select student"
+                      }
                     >
                       {isSelected ? (
                         <CheckSquare className="h-4 w-4 text-indigo-600" />
@@ -559,7 +633,7 @@ export default function StudentIdCardsPage() {
                   </div>
 
                   {/* ID Card Display (Front & Back) - Sized to exact CR80 aspect ratio */}
-                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-center print:gap-3">
+                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
                     {(viewSide === "front" || viewSide === "both") && (
                       <StudentIdCardFront student={student} />
                     )}
@@ -575,9 +649,23 @@ export default function StudentIdCardsPage() {
         )}
       </div>
 
-      {/* Exact CR80 Physical Dimension Print Styling (85.60 mm × 53.98 mm) */}
+      {printPreviewOpen && printBatchSnapshot.length > 0 && (
+        <IdCardPrintPreview
+          students={printBatchSnapshot}
+          viewSide={viewSide}
+          overrides={overrides}
+          onOverridesChange={setOverrides}
+          onClose={closePrintPreview}
+          onAfterPrint={() => {
+            /* Optional: keep preview open so admin can re-print; close manually. */
+          }}
+          isExportingPdf={isExportingPdf}
+          onExportCr80={runExportCr80Pdf}
+          onExportA4={runExportA4SheetPdf}
+        />
+      )}
+
       <style jsx global>{`
-        /* Screen display dimension */
         .cr80-card-box {
           width: 325px;
           height: 205px;
@@ -588,65 +676,6 @@ export default function StudentIdCardsPage() {
           .cr80-card-box {
             width: 342.4px;
             height: 215.92px;
-          }
-        }
-
-        @media print {
-          @page {
-            size: auto;
-            margin: 6mm;
-          }
-
-          html,
-          body {
-            background: #ffffff !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          nav,
-          header,
-          footer,
-          aside,
-          .print\\:hidden {
-            display: none !important;
-          }
-
-          .id-card-print-container {
-            display: block !important;
-            width: 100% !important;
-          }
-
-          .id-card-item-wrapper {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-            margin: 0 auto 6mm auto !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-          }
-
-          /* Exact CR80 Physical Dimensions in Millimeters */
-          .cr80-card-box,
-          .id-card-front,
-          .id-card-back {
-            width: 85.6mm !important;
-            height: 53.98mm !important;
-            min-width: 85.6mm !important;
-            max-width: 85.6mm !important;
-            min-height: 53.98mm !important;
-            max-height: 53.98mm !important;
-            box-sizing: border-box !important;
-            border-radius: 3.18mm !important;
-            overflow: hidden !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-            margin: 0 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            box-shadow: none !important;
           }
         }
       `}</style>

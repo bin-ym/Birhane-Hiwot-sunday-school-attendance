@@ -1,6 +1,19 @@
 // src/lib/idCardPdfExport.ts
 import { jsPDF } from "jspdf";
 import { Student } from "@/lib/models";
+import type {
+  IdCardFieldVisibility,
+  IdCardPrintOverridesMap,
+} from "@/lib/idCardPrintTypes";
+import {
+  A4_PRINT_LAYOUT,
+  LETTER_PRINT_LAYOUT,
+} from "@/lib/idCardPrintTypes";
+import {
+  buildPrintUnits,
+  chunkPrintUnits,
+  resolvePrintJobMeta,
+} from "@/lib/idCardPrintUtils";
 
 /**
  * Standard ISO/IEC 7810 ID-1 (CR80) Physical Dimensions
@@ -16,6 +29,17 @@ export const CR80_DIMENSIONS = {
 } as const;
 
 export type CardSide = "front" | "back" | "both";
+
+export type CardCanvasOptions = {
+  fieldVisibility?: Partial<IdCardFieldVisibility>;
+};
+
+export type IdCardPdfExportOptions = {
+  side?: CardSide;
+  filename?: string;
+  overrides?: IdCardPrintOverridesMap;
+  pageFormat?: "a4" | "letter";
+};
 
 /**
  * Helper to load an image from a URL or base64 data URL into an HTMLImageElement
@@ -60,7 +84,13 @@ function roundRect(
 export async function renderFrontCardToCanvas(
   student: Student,
   logoSrc: string = "/logo.png",
+  options: CardCanvasOptions = {},
 ): Promise<HTMLCanvasElement> {
+  const showPhoto = options.fieldVisibility?.photo !== false;
+  const showGrade = options.fieldVisibility?.grade !== false;
+  const showClassification = options.fieldVisibility?.classification !== false;
+  const showUniqueId = options.fieldVisibility?.uniqueId !== false;
+  const showAcademicYear = options.fieldVisibility?.academicYear !== false;
   const width = CR80_DIMENSIONS.widthPx300Dpi; // 1011
   const height = CR80_DIMENSIONS.heightPx300Dpi; // 638
 
@@ -160,33 +190,39 @@ export async function renderFrontCardToCanvas(
   const photoH = 240;
   const photoX = 48;
 
-  // Photo Frame
-  ctx.fillStyle = "#1e1b4b";
-  roundRect(ctx, photoX, midY, photoW, photoH, 22);
-  ctx.fill();
-  ctx.strokeStyle = "#fbbf24";
-  ctx.lineWidth = 4;
-  roundRect(ctx, photoX, midY, photoW, photoH, 22);
-  ctx.stroke();
-
-  // Photo Image or Initial Monogram
-  if (student.photo_data_url) {
-    try {
-      const photoImg = await loadImage(student.photo_data_url);
-      ctx.save();
-      roundRect(ctx, photoX, midY, photoW, photoH, 20);
-      ctx.clip();
-      ctx.drawImage(photoImg, photoX, midY, photoW, photoH);
-      ctx.restore();
-    } catch {
+  if (showPhoto) {
+    ctx.fillStyle = "#1e1b4b";
+    roundRect(ctx, photoX, midY, photoW, photoH, 22);
+    ctx.fill();
+    ctx.strokeStyle = "#fbbf24";
+    ctx.lineWidth = 4;
+    roundRect(ctx, photoX, midY, photoW, photoH, 22);
+    ctx.stroke();
+    if (student.photo_data_url) {
+      try {
+        const photoImg = await loadImage(student.photo_data_url);
+        ctx.save();
+        roundRect(ctx, photoX, midY, photoW, photoH, 20);
+        ctx.clip();
+        ctx.drawImage(photoImg, photoX, midY, photoW, photoH);
+        ctx.restore();
+      } catch {
+        drawFallbackAvatar(
+          ctx,
+          photoX,
+          midY,
+          photoW,
+          photoH,
+          student.First_Name,
+        );
+      }
+    } else {
       drawFallbackAvatar(ctx, photoX, midY, photoW, photoH, student.First_Name);
     }
-  } else {
-    drawFallbackAvatar(ctx, photoX, midY, photoW, photoH, student.First_Name);
   }
 
-  // Student Info (Right of Photo)
-  const infoX = photoX + photoW + 36;
+  // Student Info (Right of Photo, or flush left when photo hidden)
+  const infoX = showPhoto ? photoX + photoW + 36 : photoX;
   let infoY = midY + 45;
 
   // Full Name
@@ -202,60 +238,93 @@ export async function renderFrontCardToCanvas(
     ctx.fillText(student.Grandfather_Name, infoX, infoY);
   }
 
-  // Badges (Grade & Classification)
-  infoY += 50;
-  const gradeText = student.Grade || "Class Level";
-  ctx.font = "bold 22px system-ui, -apple-system, sans-serif";
-  const gradeMetrics = ctx.measureText(gradeText);
-  const badgePadX = 18;
-  const badgeH = 38;
+  if (showGrade || showClassification) {
+    infoY += 50;
+    const badgePadX = 18;
+    const badgeH = 38;
+    let badgeX = infoX;
 
-  // Grade badge (Gold/Amber)
-  ctx.fillStyle = "#fbbf24";
-  roundRect(ctx, infoX, infoY, gradeMetrics.width + badgePadX * 2, badgeH, 10);
-  ctx.fill();
-  ctx.fillStyle = "#0f172a";
-  ctx.fillText(gradeText, infoX + badgePadX, infoY + 27);
+    if (showGrade) {
+      const gradeText = student.Grade || "Class Level";
+      ctx.font = "bold 22px system-ui, -apple-system, sans-serif";
+      const gradeMetrics = ctx.measureText(gradeText);
+      ctx.fillStyle = "#fbbf24";
+      roundRect(
+        ctx,
+        badgeX,
+        infoY,
+        gradeMetrics.width + badgePadX * 2,
+        badgeH,
+        10,
+      );
+      ctx.fill();
+      ctx.fillStyle = "#0f172a";
+      ctx.fillText(gradeText, badgeX + badgePadX, infoY + 27);
+      badgeX += gradeMetrics.width + badgePadX * 2 + 16;
+    }
 
-  // Classification Badge (Indigo)
-  const classText = student.Classification || "Regular";
-  const classX = infoX + gradeMetrics.width + badgePadX * 2 + 16;
-  const classMetrics = ctx.measureText(classText);
-  ctx.fillStyle = "#312e81";
-  roundRect(ctx, classX, infoY, classMetrics.width + badgePadX * 2, badgeH, 10);
-  ctx.fill();
-  ctx.strokeStyle = "#6366f1";
-  ctx.lineWidth = 1.5;
-  roundRect(ctx, classX, infoY, classMetrics.width + badgePadX * 2, badgeH, 10);
-  ctx.stroke();
-  ctx.fillStyle = "#e0e7ff";
-  ctx.fillText(classText, classX + badgePadX, infoY + 27);
+    if (showClassification) {
+      const classText = student.Classification || "Regular";
+      const classMetrics = ctx.measureText(classText);
+      ctx.fillStyle = "#312e81";
+      roundRect(
+        ctx,
+        badgeX,
+        infoY,
+        classMetrics.width + badgePadX * 2,
+        badgeH,
+        10,
+      );
+      ctx.fill();
+      ctx.strokeStyle = "#6366f1";
+      ctx.lineWidth = 1.5;
+      roundRect(
+        ctx,
+        badgeX,
+        infoY,
+        classMetrics.width + badgePadX * 2,
+        badgeH,
+        10,
+      );
+      ctx.stroke();
+      ctx.fillStyle = "#e0e7ff";
+      ctx.fillText(classText, badgeX + badgePadX, infoY + 27);
+    }
+  }
 
-  // 4. Footer Section: ID & Academic Year
-  const footerY = height - 76;
-  ctx.strokeStyle = "rgba(129, 140, 248, 0.35)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(40, footerY);
-  ctx.lineTo(width - 40, footerY);
-  ctx.stroke();
+  if (showUniqueId || showAcademicYear) {
+    const footerY = height - 76;
+    ctx.strokeStyle = "rgba(129, 140, 248, 0.35)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(40, footerY);
+    ctx.lineTo(width - 40, footerY);
+    ctx.stroke();
 
-  // Unique ID on Left
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "bold 18px system-ui, -apple-system, sans-serif";
-  ctx.fillText("መለያ ቁጥር (ID):", 48, footerY + 28);
-  ctx.fillStyle = "#fbbf24";
-  ctx.font = "900 32px 'Courier New', monospace, sans-serif";
-  ctx.fillText(student.Unique_ID || "BH/00/000", 48, footerY + 62);
+    if (showUniqueId) {
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "bold 18px system-ui, -apple-system, sans-serif";
+      ctx.fillText("መለያ ቁጥር (ID):", 48, footerY + 28);
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "900 32px 'Courier New', monospace, sans-serif";
+      ctx.fillText(student.Unique_ID || "BH/00/000", 48, footerY + 62);
+    }
 
-  // Academic Year on Right
-  ctx.textAlign = "right";
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "bold 18px system-ui, -apple-system, sans-serif";
-  ctx.fillText("ዓመተ ምሕረት (YEAR):", width - 48, footerY + 28);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "800 28px system-ui, -apple-system, sans-serif";
-  ctx.fillText(`${student.Academic_Year || "2016"} ዓ.ም.`, width - 48, footerY + 62);
+    if (showAcademicYear) {
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "bold 18px system-ui, -apple-system, sans-serif";
+      ctx.fillText("ዓመተ ምሕረት (YEAR):", width - 48, footerY + 28);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "800 28px system-ui, -apple-system, sans-serif";
+      ctx.fillText(
+        `${student.Academic_Year || "2016"} ዓ.ም.`,
+        width - 48,
+        footerY + 62,
+      );
+    }
+  }
 
   return canvas;
 }
@@ -282,7 +351,11 @@ function drawFallbackAvatar(
 /**
  * High-resolution 300 DPI Canvas renderer for Back Side of Student Card (1011 × 638 pixels)
  */
-export async function renderBackCardToCanvas(student: Student): Promise<HTMLCanvasElement> {
+export async function renderBackCardToCanvas(
+  student: Student,
+  options: CardCanvasOptions = {},
+): Promise<HTMLCanvasElement> {
+  const showQr = options.fieldVisibility?.qr !== false;
   const width = CR80_DIMENSIONS.widthPx300Dpi; // 1011
   const height = CR80_DIMENSIONS.heightPx300Dpi; // 638
 
@@ -340,13 +413,19 @@ export async function renderBackCardToCanvas(student: Student): Promise<HTMLCanv
   roundRect(ctx, qrX, qrY, qrSize, qrSize, 20);
   ctx.fill();
 
-  if (student.qr_code) {
+  if (showQr && student.qr_code) {
     try {
       const qrImg = await loadImage(student.qr_code);
       ctx.drawImage(qrImg, qrX + 10, qrY + 10, qrSize - 20, qrSize - 20);
     } catch {
       drawQrPlaceholder(ctx, qrX, qrY, qrSize);
     }
+  } else if (!showQr) {
+    drawQrPlaceholder(ctx, qrX, qrY, qrSize);
+    ctx.fillStyle = "#64748b";
+    ctx.font = "bold 22px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("QR HIDDEN", qrX + qrSize / 2, qrY + qrSize / 2 + 8);
   } else {
     drawQrPlaceholder(ctx, qrX, qrY, qrSize);
   }
@@ -427,34 +506,37 @@ function drawQrPlaceholder(
  */
 export async function exportCR80CardPrinterPDF(
   students: Student[],
-  options: {
-    side?: CardSide;
-    filename?: string;
-  } = {},
+  options: IdCardPdfExportOptions = {},
 ): Promise<void> {
   if (students.length === 0) return;
 
   const side = options.side || "both";
   const filename = options.filename || `BHSS_CR80_ID_Cards_${Date.now()}.pdf`;
+  const jobMeta = resolvePrintJobMeta(students, options.overrides);
 
-  // Initialize jsPDF with exact CR80 physical dimensions in millimeters
   const doc = new jsPDF({
     orientation: "landscape",
     unit: "mm",
-    format: [CR80_DIMENSIONS.heightMm, CR80_DIMENSIONS.widthMm], // [53.98, 85.60]
+    format: [CR80_DIMENSIONS.heightMm, CR80_DIMENSIONS.widthMm],
     compress: true,
   });
 
   let pageIndex = 0;
 
-  for (const student of students) {
+  for (const { student, visibility } of jobMeta) {
     if (side === "front" || side === "both") {
-      if (pageIndex > 0) doc.addPage([CR80_DIMENSIONS.heightMm, CR80_DIMENSIONS.widthMm], "landscape");
+      if (pageIndex > 0) {
+        doc.addPage(
+          [CR80_DIMENSIONS.heightMm, CR80_DIMENSIONS.widthMm],
+          "landscape",
+        );
+      }
       pageIndex++;
-      const frontCanvas = await renderFrontCardToCanvas(student);
-      const imgData = frontCanvas.toDataURL("image/png", 1.0);
+      const frontCanvas = await renderFrontCardToCanvas(student, "/logo.png", {
+        fieldVisibility: visibility,
+      });
       doc.addImage(
-        imgData,
+        frontCanvas.toDataURL("image/png", 1.0),
         "PNG",
         0,
         0,
@@ -466,12 +548,18 @@ export async function exportCR80CardPrinterPDF(
     }
 
     if (side === "back" || side === "both") {
-      if (pageIndex > 0) doc.addPage([CR80_DIMENSIONS.heightMm, CR80_DIMENSIONS.widthMm], "landscape");
+      if (pageIndex > 0) {
+        doc.addPage(
+          [CR80_DIMENSIONS.heightMm, CR80_DIMENSIONS.widthMm],
+          "landscape",
+        );
+      }
       pageIndex++;
-      const backCanvas = await renderBackCardToCanvas(student);
-      const imgData = backCanvas.toDataURL("image/png", 1.0);
+      const backCanvas = await renderBackCardToCanvas(student, {
+        fieldVisibility: visibility,
+      });
       doc.addImage(
-        imgData,
+        backCanvas.toDataURL("image/png", 1.0),
         "PNG",
         0,
         0,
@@ -490,88 +578,132 @@ export async function exportCR80CardPrinterPDF(
  * Generate standard A4 Sheet PDF (210 × 297 mm) with exact CR80 (85.60 × 53.98 mm) cards
  * arranged in pairs with cutting marks and alignment guides for cardstock printing.
  */
+async function renderCardFaceToCanvas(
+  student: Student,
+  face: "front" | "back",
+  visibility: Partial<IdCardFieldVisibility>,
+): Promise<HTMLCanvasElement> {
+  return face === "front"
+    ? renderFrontCardToCanvas(student, "/logo.png", { fieldVisibility: visibility })
+    : renderBackCardToCanvas(student, { fieldVisibility: visibility });
+}
+
 export async function exportA4CardstockSheetPDF(
   students: Student[],
-  options: {
-    side?: CardSide;
-    filename?: string;
-  } = {},
+  options: IdCardPdfExportOptions = {},
 ): Promise<void> {
   if (students.length === 0) return;
 
   const side = options.side || "both";
-  const filename = options.filename || `BHSS_A4_PrintSheet_CR80_${Date.now()}.pdf`;
+  const pageFormat = options.pageFormat || "a4";
+  const filename =
+    options.filename || `BHSS_A4_PrintSheet_CR80_${Date.now()}.pdf`;
+  const layout =
+    pageFormat === "letter" ? LETTER_PRINT_LAYOUT : A4_PRINT_LAYOUT;
+
+  const jobMeta = resolvePrintJobMeta(students, options.overrides);
+  const visibilityByKey = Object.fromEntries(
+    jobMeta.map((m) => [m.studentKey, m.visibility]),
+  );
+  const mergedStudents = jobMeta.map((m) => m.student);
+  const units = buildPrintUnits(mergedStudents, side);
+  const pages = chunkPrintUnits(units, side, layout);
 
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
-    format: "a4",
+    format: pageFormat === "letter" ? "letter" : "a4",
     compress: true,
   });
 
-  const a4Width = 210;
-  const a4Height = 297;
-  const cardW = CR80_DIMENSIONS.widthMm; // 85.60
-  const cardH = CR80_DIMENSIONS.heightMm; // 53.98
+  const a4Width = layout.pageWidthMm;
+  const a4Height = layout.pageHeightMm;
+  const cardW = layout.cardWidthMm;
+  const cardH = layout.cardHeightMm;
+  const colGap = layout.colGapMm;
+  const startX = layout.marginHorizontalMm;
+  const startY = layout.marginTopMm;
+  const rowGap = layout.rowGapMm;
 
-  // Layout: 2 cards horizontally (Front & Back pair or 2 students side-by-side)
-  // Horizontal gap and margin
-  const colGap = 8;
-  const startX = (a4Width - (cardW * 2 + colGap)) / 2; // (210 - (171.2 + 8)) / 2 = 15.4 mm
-  const startY = 16;
-  const rowGap = 12;
-  const maxRowsPerPage = 4; // 4 rows * 2 cards = 8 cards per A4 page
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+    if (pageIndex > 0) {
+      doc.addPage(pageFormat === "letter" ? "letter" : "a4", "portrait");
+    }
 
-  let pageNumber = 1;
+    const pageUnits = pages[pageIndex];
 
-  // Build items array: for each student, front and/or back
-  type CardItem = { student: Student; side: "front" | "back" };
-  const items: CardItem[] = [];
+    if (side === "both") {
+      for (let row = 0; row < pageUnits.length; row++) {
+        const unit = pageUnits[row];
+        const visibility = visibilityByKey[unit.studentKey] ?? {};
+        const posY = startY + row * (cardH + rowGap);
+        const frontX = startX;
+        const backX = startX + cardW + colGap;
 
-  for (const s of students) {
-    if (side === "front") {
-      items.push({ student: s, side: "front" });
-    } else if (side === "back") {
-      items.push({ student: s, side: "back" });
+        const frontCanvas = await renderCardFaceToCanvas(
+          unit.student,
+          "front",
+          visibility,
+        );
+        doc.addImage(
+          frontCanvas.toDataURL("image/png", 1.0),
+          "PNG",
+          frontX,
+          posY,
+          cardW,
+          cardH,
+          undefined,
+          "FAST",
+        );
+        drawCropMarks(doc, frontX, posY, cardW, cardH);
+
+        const backCanvas = await renderCardFaceToCanvas(
+          unit.student,
+          "back",
+          visibility,
+        );
+        doc.addImage(
+          backCanvas.toDataURL("image/png", 1.0),
+          "PNG",
+          backX,
+          posY,
+          cardW,
+          cardH,
+          undefined,
+          "FAST",
+        );
+        drawCropMarks(doc, backX, posY, cardW, cardH);
+      }
     } else {
-      // Both: front and back paired
-      items.push({ student: s, side: "front" });
-      items.push({ student: s, side: "back" });
+      for (let i = 0; i < pageUnits.length; i++) {
+        const unit = pageUnits[i];
+        const face = unit.showFront ? "front" : "back";
+        const visibility = visibilityByKey[unit.studentKey] ?? {};
+        const row = Math.floor(i / 2);
+        const col = i % 2;
+        const posX = startX + col * (cardW + colGap);
+        const posY = startY + row * (cardH + rowGap);
+
+        const canvas = await renderCardFaceToCanvas(
+          unit.student,
+          face,
+          visibility,
+        );
+        doc.addImage(
+          canvas.toDataURL("image/png", 1.0),
+          "PNG",
+          posX,
+          posY,
+          cardW,
+          cardH,
+          undefined,
+          "FAST",
+        );
+        drawCropMarks(doc, posX, posY, cardW, cardH);
+      }
     }
   }
 
-  for (let i = 0; i < items.length; i++) {
-    const itemOnPage = i % (maxRowsPerPage * 2);
-    if (i > 0 && itemOnPage === 0) {
-      doc.addPage("a4", "portrait");
-      pageNumber++;
-    }
-
-    const row = Math.floor(itemOnPage / 2);
-    const col = itemOnPage % 2;
-    const posX = startX + col * (cardW + colGap);
-    const posY = startY + row * (cardH + rowGap);
-
-    const item = items[i];
-    const canvas =
-      item.side === "front"
-        ? await renderFrontCardToCanvas(item.student)
-        : await renderBackCardToCanvas(item.student);
-
-    const imgData = canvas.toDataURL("image/png", 1.0);
-    doc.addImage(imgData, "PNG", posX, posY, cardW, cardH, undefined, "FAST");
-
-    // Draw Corner Crop / Cut Marks for precise trimming
-    drawCropMarks(doc, posX, posY, cardW, cardH);
-
-    // Label under card
-    doc.setFontSize(7);
-    doc.setTextColor(140, 140, 140);
-    const label = `${item.student.Unique_ID || ""} • ${item.student.First_Name || ""} (${item.side.toUpperCase()}) — CR80 85.60×53.98mm`;
-    doc.text(label, posX, posY + cardH + 3);
-  }
-
-  // Header & Footer on each A4 page
   const totalPages = doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
@@ -579,7 +711,7 @@ export async function exportA4CardstockSheetPDF(
     doc.setTextColor(100, 116, 139);
     doc.text(
       "Birhane Hiwot Sunday School • Official Student ID Cards (CR80 Standard: 85.60 × 53.98 mm @ 300 DPI)",
-      15.4,
+      startX,
       10,
     );
     doc.text(`Page ${p} of ${totalPages}`, a4Width - 30, a4Height - 8);
