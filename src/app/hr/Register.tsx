@@ -54,7 +54,7 @@ export default function RegisterStudentPage() {
         onCancel={() => router.push("/hr")}
         onSave={async (studentData: Omit<Student, "_id">) => {
           try {
-            const res = await fetch("/api/students", {
+            const res = await fetch("/api/v1/students", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(studentData),

@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/students/route";
+import { POST } from "@/app/api/v1/students/route";
 import { getToken } from "next-auth/jwt";
 import { getDb } from "@/lib/mongodb";
 import { ensureStudentCreationAllowed } from "@/lib/studentService";
@@ -34,6 +34,10 @@ jest.mock("@/lib/auditLog", () => ({
   logAudit: jest.fn(),
 }));
 
+jest.mock("@/lib/enrollmentService", () => ({
+  createEnrollment: jest.fn().mockResolvedValue({}),
+}));
+
 jest.mock("@/lib/notifications", () => ({
   createNotification: jest.fn(),
 }));
@@ -63,7 +67,7 @@ describe("Phase 1 RBAC - role spoofing protection", () => {
       return { ok: true, userEmail };
     });
 
-    const req = new NextRequest("http://localhost:3000/api/students", {
+    const req = new NextRequest("http://localhost:3000/api/v1/students", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

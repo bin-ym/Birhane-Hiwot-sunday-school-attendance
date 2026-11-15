@@ -60,7 +60,7 @@ export default function SheetImportPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/sheet/?sheet");
+        const res = await fetch("/api/v1/sheet/?sheet");
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.error || `HTTP ${res.status}`);

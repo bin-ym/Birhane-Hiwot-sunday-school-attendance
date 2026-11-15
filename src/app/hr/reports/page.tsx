@@ -65,21 +65,21 @@ export default function HRReportsDashboard() {
     const params = new URLSearchParams();
     if (filters.academicYear) params.append("academicYear", filters.academicYear);
     const qs = params.toString();
-    return `/api/students${qs ? `?${qs}` : ""}`;
+    return `/api/v1/students${qs ? `?${qs}` : ""}`;
   }, [filters]);
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
       safeFetch<any[]>(studentsUrl, []),
-      safeFetch<any[]>('/api/facilitators', []),
+      safeFetch<any[]>('/api/v1/facilitators', []),
     ]).then(([s, f]) => {
       setStudents(Array.isArray(s) ? s : []);
       setFacilitators(Array.isArray(f) ? f : []);
     }).finally(() => setLoading(false));
   }, [studentsUrl]);
 
-  const monthlyReportUrl = `/api/hr/reports/monthly-attendance?academicYear=${reportYear}&month=${reportMonth}`;
+  const monthlyReportUrl = `/api/v1/hr/reports/monthly-attendance?academicYear=${reportYear}&month=${reportMonth}`;
 
   useEffect(() => {
     let active = true;

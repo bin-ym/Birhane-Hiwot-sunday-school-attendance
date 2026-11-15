@@ -49,7 +49,7 @@ export default function AddFacilitatorPage() {
     }
 
     try {
-      const res = await fetch("/api/facilitators", {
+      const res = await fetch("/api/v1/facilitators", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(facForm),

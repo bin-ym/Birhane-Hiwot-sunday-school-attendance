@@ -35,7 +35,7 @@ export default function StudentList() {
     } else {
       params.append("grade", facilitatorGrade);
     }
-    return `/api/students?${params.toString()}`;
+    return `/api/v1/students?${params.toString()}`;
   }, [facilitatorGrade]);
 
   const { data, error, isLoading } = useSWR<Student[]>(url, fetcher, {

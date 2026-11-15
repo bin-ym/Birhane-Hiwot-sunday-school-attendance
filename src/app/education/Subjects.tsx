@@ -194,7 +194,7 @@ export default function Subjects() {
   const loadSubjects = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/subjects");
+      const response = await fetch("/api/v1/subjects");
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to load subjects");
 
@@ -261,7 +261,7 @@ export default function Subjects() {
     setError(null);
 
     try {
-      const response = await fetch("/api/subjects/batch", {
+      const response = await fetch("/api/v1/subjects/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -315,7 +315,7 @@ export default function Subjects() {
     setError(null);
 
     try {
-      const response = await fetch("/api/subjects", {
+      const response = await fetch("/api/v1/subjects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -366,7 +366,7 @@ export default function Subjects() {
     setBusyAction("delete");
 
     try {
-      const response = await fetch(`/api/subjects/${groupId}`, {
+      const response = await fetch(`/api/v1/subjects/${groupId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: subjectName }),

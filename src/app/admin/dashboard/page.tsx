@@ -30,9 +30,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      safeFetch<{ total?: number }>('/api/students/total', {}),
-      safeFetch<{ total?: number }>('/api/facilitators/total', {}),
-      safeFetch<{ total?: number; present?: number }>('/api/attendance?summary=true', {}),
+      safeFetch<{ total?: number }>('/api/v1/students/total', {}),
+      safeFetch<{ total?: number }>('/api/v1/facilitators/total', {}),
+      safeFetch<{ total?: number; present?: number }>('/api/v1/attendance?summary=true', {}),
     ]).then(([s, f, a]) => {
       setStudentsCount(s?.total ?? 0);
       setFacilitatorsCount(f?.total ?? 0);

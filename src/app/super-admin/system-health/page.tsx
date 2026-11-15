@@ -21,7 +21,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function SystemHealthPage() {
-  const { data, error, isLoading } = useSWR("/api/health", fetcher, {
+  const { data, error, isLoading } = useSWR("/api/v1/health", fetcher, {
     refreshInterval: 15_000,
   });
 

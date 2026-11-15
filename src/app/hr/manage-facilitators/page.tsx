@@ -16,7 +16,7 @@ export default function HRFacilitators() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/facilitators");
+      const res = await fetch("/api/v1/facilitators");
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       const data = await res.json();
       setFacilitators(Array.isArray(data) ? data : []);
@@ -39,7 +39,7 @@ export default function HRFacilitators() {
   const handleToggleAddStudent = useCallback(
     async (id: string, currentValue: boolean) => {
       try {
-        const res = await fetch(`/api/facilitators/${id}`, {
+        const res = await fetch(`/api/v1/facilitators/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ canAddStudent: !currentValue }),
@@ -57,7 +57,7 @@ export default function HRFacilitators() {
     async (id: string) => {
       if (!confirm("Are you sure you want to delete this facilitator?")) return;
       try {
-        const res = await fetch("/api/facilitators", {
+        const res = await fetch("/api/v1/facilitators", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id }),

@@ -75,7 +75,7 @@ export default function QRScannerModal({
       await safeStop();
 
       try {
-        const verifyRes = await fetch("/api/qr/verify", {
+        const verifyRes = await fetch("/api/v1/qr/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: decodedText }),
@@ -91,7 +91,7 @@ export default function QRScannerModal({
         setLastScan(uniqueId);
 
         const studentRes = await fetch(
-          `/api/students?uniqueId=${encodeURIComponent(uniqueId)}`,
+          `/api/v1/students?uniqueId=${encodeURIComponent(uniqueId)}`,
         );
         if (!studentRes.ok) {
           setError("Student not found for this QR code.");

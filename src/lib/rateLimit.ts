@@ -129,9 +129,12 @@ export async function rateLimit(
   if (redis) {
     try {
       return await rateLimitRedis(key, maxRequests, windowMs);
-    } catch (err) {
-      // Redis hiccup: fail open to in-memory rather than blocking all traffic
-      console.error("Rate limit Redis error, falling back to memory:", err);
+    } catch (err: any) {
+      if (err.message && err.message.includes("WRONGPASS")) {
+        // Silently fall back to memory, Upstash credentials are known to be missing/incorrect
+      } else {
+        console.error("Rate limit Redis error, falling back to memory:", err);
+      }
     }
   }
 

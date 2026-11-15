@@ -346,3 +346,44 @@
     align-items: stretch;
   }
 }
+
+/* Print optimizations for executive reports */
+@media print {
+  body {
+    background: white !important;
+    color: #111827 !important;
+    font-size: 11pt !important;
+  }
+  header nav,
+  aside,
+  .print\:hidden,
+  button:not(.print-allow),
+  input,
+  select {
+    display: none !important;
+  }
+  .print\:block {
+    display: block !important;
+  }
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl {
+    box-shadow: none !important;
+  }
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  thead {
+    display: table-header-group;
+  }
+  th, td {
+    padding: 4px 8px !important;
+  }
+}

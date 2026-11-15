@@ -25,8 +25,8 @@ export default function StudentDetailsPage() {
       setLoading(true);
       try {
         const [studentRes, attendanceRes] = await Promise.all([
-          fetch(`/api/students/${id}`),
-          fetch(`/api/attendance?studentId=${id}`),
+          fetch(`/api/v1/students/${id}`),
+          fetch(`/api/v1/attendance?studentId=${id}`),
         ]);
 
         if (!studentRes.ok) throw new Error(`Student fetch error: ${studentRes.status}`);

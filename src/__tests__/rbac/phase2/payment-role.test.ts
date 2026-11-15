@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/payment/route";
+import { POST } from "@/app/api/v1/payment/route";
 import { getToken } from "next-auth/jwt";
 import { getDb } from "@/lib/mongodb";
 
@@ -26,7 +26,7 @@ describe("Phase 2 RBAC - payment domain enforcement", () => {
   it("blocks Education Admin from updating payment status", async () => {
     (getToken as jest.Mock).mockResolvedValue({ role: "Education Admin" });
 
-    const req = new NextRequest("http://localhost:3000/api/payment", {
+    const req = new NextRequest("http://localhost:3000/api/v1/payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -49,7 +49,7 @@ describe("Phase 2 RBAC - payment domain enforcement", () => {
       }),
     });
 
-    const req = new NextRequest("http://localhost:3000/api/payment", {
+    const req = new NextRequest("http://localhost:3000/api/v1/payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

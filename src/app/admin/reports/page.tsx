@@ -35,15 +35,15 @@ export default function AdminReportsPage() {
     if (filters.grade) params.append("grade", filters.grade);
     if (filters.academicYear) params.append("academicYear", filters.academicYear);
     const qs = params.toString();
-    return `/api/students${qs ? `?${qs}` : ""}`;
+    return `/api/v1/students${qs ? `?${qs}` : ""}`;
   }, [filters]);
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
       safeFetch<any[]>(studentsUrl, []),
-      safeFetch<any[]>('/api/facilitators', []),
-      safeFetch<any[]>('/api/attendance', []),
+      safeFetch<any[]>('/api/v1/facilitators', []),
+      safeFetch<any[]>('/api/v1/attendance', []),
     ]).then(([s, f, a]) => {
       setStudents(Array.isArray(s) ? s : []);
       setFacilitators(Array.isArray(f) ? f : []);

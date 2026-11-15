@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { Student } from "@/lib/models";
 import { getCurrentEthiopianYear } from "@/lib/utils";
@@ -78,12 +78,23 @@ export type StudentRegistryViewProps = {
   description: string;
   /** Hide academic year filter (e.g. list is already current-year only). */
   hideYearFilter?: boolean;
+  /** Default active academic year to select initially (determined dynamically) */
+  defaultAcademicYear?: string;
   actionLabel?: string;
   showAddButton?: boolean;
   canAddStudent?: boolean;
   /** Optional delete handler. When provided, a delete button appears next to the action. */
   onDelete?: (studentId: string) => void;
 };
+
+const CHILDREN_GRADES = [
+  "ቅድመ መደበኛ", "አንደኛ ክፍል", "ሁለተኛ ክፍል", "ሦስተኛ ክፍል", 
+  "አራተኛ ክፍል", "አምስተኛ ክፍል", "ስድስተኛ ክፍል", "ሰባተኛ ክፍል ጥዋት"
+];
+const ADULT_GRADES = [
+  "ሰባተኛ ክፍል ከሰዓት", "ስምንተኛ ክፍል", "ዘጠነኛ ክፍል", 
+  "አስረኛ ክፍል", "አስራ አንደኛ ክፍል", "አስራ ሁለተኛ ክፍል"
+];
 
 export function StudentRegistryView({
   students,
@@ -95,6 +106,7 @@ export function StudentRegistryView({
   title,
   description,
   hideYearFilter = false,
+  defaultAcademicYear,
   actionLabel = "View",
   showAddButton = false,
   canAddStudent = true,
@@ -102,12 +114,15 @@ export function StudentRegistryView({
 }: StudentRegistryViewProps) {
   const t = THEME[theme];
   const currentYear = getCurrentEthiopianYear();
+  const effectiveYear = defaultAcademicYear || String(currentYear);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [gradeFilter, setGradeFilter] = useState("");
   const [sexFilter, setSexFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState<string>(defaultAcademicYear || "");
+  const [hasManuallySelectedYear, setHasManuallySelectedYear] = useState(false);
   const [classificationFilter, setClassificationFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "children" | "adults">("all");
 
   const yearOptions = useMemo(() => {
     const ys = [...new Set(students.map((s) => String(s.Academic_Year)))].sort(
@@ -115,6 +130,17 @@ export function StudentRegistryView({
     );
     return ys;
   }, [students]);
+
+  useEffect(() => {
+    if (!hasManuallySelectedYear) {
+      if (defaultAcademicYear) {
+        setYearFilter(defaultAcademicYear);
+      } else if (yearOptions.length > 0 && !yearFilter) {
+        const match = yearOptions.find((y) => y === String(currentYear));
+        setYearFilter(match || yearOptions[0]);
+      }
+    }
+  }, [defaultAcademicYear, hasManuallySelectedYear, yearOptions, currentYear, yearFilter]);
 
   const gradeOptions = useMemo(() => {
     return [...new Set(students.map((s) => s.Grade))].sort();
@@ -140,6 +166,8 @@ export function StudentRegistryView({
         (s.Classification || "Regular") !== classificationFilter
       )
         return false;
+      if (categoryFilter === "children" && !CHILDREN_GRADES.includes(s.Grade)) return false;
+      if (categoryFilter === "adults" && !ADULT_GRADES.includes(s.Grade)) return false;
       if (!q) return true;
       return (
         (s.Unique_ID || "").toLowerCase().includes(q) ||
@@ -155,11 +183,12 @@ export function StudentRegistryView({
     sexFilter,
     yearFilter,
     classificationFilter,
+    categoryFilter,
     hideYearFilter,
   ]);
 
   const thisYearCount = students.filter(
-    (s) => String(s.Academic_Year) === String(currentYear),
+    (s) => String(s.Academic_Year) === String(effectiveYear),
   ).length;
 
   return (
@@ -246,7 +275,7 @@ export function StudentRegistryView({
                 <div
                   className={`text-[9px] font-semibold uppercase tracking-wide sm:text-[10px] ${t.statLabel}`}
                 >
-                  {currentYear} EC
+                  {effectiveYear} EC
                 </div>
               </div>
             )}
@@ -324,6 +353,35 @@ export function StudentRegistryView({
           </div>
         </div>
 
+        <div className="mb-5 border-b border-gray-100 pb-5">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
+            እድሜ / ክፍሎች (Age / Grades Category)
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: "all", label: "ሁሉም (All Students)" },
+              { value: "children", label: "ህጻናት (ከቅድመ መደበኛ - ሰባተኛ ጠዋት)" },
+              { value: "adults", label: "አዋቂ (ከ7ኛ ከሰዓት - 12ኛ)" },
+            ].map((tab) => {
+              const active = categoryFilter === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => setCategoryFilter(tab.value as any)}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-extrabold transition-all shadow-sm ${
+                    active
+                      ? "bg-blue-600 text-white ring-2 ring-blue-600 shadow-md scale-[1.02]"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
           Filters
         </h2>
@@ -338,7 +396,10 @@ export function StudentRegistryView({
           {!hideYearFilter && (
             <select
               value={yearFilter}
-              onChange={(e) => setYearFilter(e.target.value)}
+              onChange={(e) => {
+                setHasManuallySelectedYear(true);
+                setYearFilter(e.target.value);
+              }}
               className={`w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none sm:px-4 sm:py-3 ${t.filterFocus}`}
             >
               <option value="">All academic years</option>

@@ -49,7 +49,7 @@ export default function EducationReportsDashboard() {
     if (filters.grade) params.append("grade", filters.grade);
     if (filters.academicYear) params.append("academicYear", filters.academicYear);
     const qs = params.toString();
-    return `/api/students${qs ? `?${qs}` : ""}`;
+    return `/api/v1/students${qs ? `?${qs}` : ""}`;
   }, [filters]);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export default function EducationReportsDashboard() {
   useEffect(() => {
     setLoadingTeachers(true);
     setTeachersError(null);
-    safeFetch<any[]>('/api/facilitators', [])
+    safeFetch<any[]>('/api/v1/facilitators', [])
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
         if (list.length === 0 && !Array.isArray(data)) {

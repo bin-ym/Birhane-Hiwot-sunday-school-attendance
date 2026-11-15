@@ -43,8 +43,8 @@ export default function FacilitatorDashboard() {
       studentsParams.append("grade", grade);
     }
 
-    const studentsFetch = safeFetch<any[]>(`/api/students?${studentsParams.toString()}`, []);
-    const subjectsFetch = safeFetch<any[]>(`/api/subjects?${subjectsParams.toString()}`, []);
+    const studentsFetch = safeFetch<any[]>(`/api/v1/students?${studentsParams.toString()}`, []);
+    const subjectsFetch = safeFetch<any[]>(`/api/v1/subjects?${subjectsParams.toString()}`, []);
 
     let attendanceFetch: Promise<{ total?: number; present?: number }> = Promise.resolve({});
     if (isAttendanceFacilitator && grade) {
@@ -54,7 +54,7 @@ export default function FacilitatorDashboard() {
       } else {
         attendanceParams.append("grade", grade);
       }
-      attendanceFetch = safeFetch(`/api/attendance?${attendanceParams.toString()}`, {});
+      attendanceFetch = safeFetch(`/api/v1/attendance?${attendanceParams.toString()}`, {});
     }
 
     Promise.all([studentsFetch, subjectsFetch, attendanceFetch])

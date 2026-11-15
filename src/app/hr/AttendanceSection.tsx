@@ -5,7 +5,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { gregorianToEthiopian, formatEthiopianDate } from "@/lib/utils";
-import { Student } from "@/lib/models";
+import { Student, ScheduleSession } from "@/lib/models";
+import { STUDENT_CLASSIFICATIONS } from "@/lib/constants";
 import toast, { Toaster } from "react-hot-toast";
 import dynamic from "next/dynamic";
 
@@ -21,6 +22,7 @@ interface AttendanceRecord {
   reason?: string;
   markedBy?: string;
   timestamp?: string;
+  sessionId?: string;
 }
 
 export default function AttendanceSection() {
@@ -28,10 +30,13 @@ export default function AttendanceSection() {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedClassification, setSelectedClassification] = useState("");
   const currentDate = useMemo(() => new Date(), []);
   // Ethiopian date for display only
   void gregorianToEthiopian(currentDate);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleSession[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
@@ -61,9 +66,10 @@ export default function AttendanceSection() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
+      setScheduleLoading(true);
       try {
         // Fetch students
-        let url = "/api/students";
+        let url = "/api/v1/students";
         if (!isHRAdmin && facilitatorGrade) {
           const params = new URLSearchParams();
           if (Array.isArray(facilitatorGrade)) {
@@ -82,7 +88,7 @@ export default function AttendanceSection() {
 
         // Fetch final attendance for today
         const finalRes = await fetch(
-          `/api/attendance?date=${encodeURIComponent(formattedDate)}`,
+          `/api/v1/attendance?date=${encodeURIComponent(formattedDate)}`,
         );
         if (!finalRes.ok) throw new Error("Failed to load attendance");
         const finalData = await finalRes.json();
@@ -95,6 +101,19 @@ export default function AttendanceSection() {
           ),
         );
 
+        // Fetch schedules for today
+        try {
+          const schedRes = await fetch(
+            `/api/v1/schedules?date=${encodeURIComponent(formattedDate)}`,
+          );
+          if (schedRes.ok) {
+            const schedData = await schedRes.json();
+            setSchedules(schedData.schedules || []);
+          }
+        } catch {
+          // Schedules are non-blocking
+        }
+
         setError(null);
       } catch (err) {
         const errorMessage = (err as Error).message;
@@ -104,6 +123,7 @@ export default function AttendanceSection() {
         setAttendance([]);
       } finally {
         setLoading(false);
+        setScheduleLoading(false);
       }
     }
 
@@ -129,7 +149,41 @@ export default function AttendanceSection() {
     (s: Student) => s.Academic_Year === String(currentYear),
   );
 
+  const activeSession = useMemo(() => {
+    const list = schedules || [];
+    const gradeMatches = list.filter((s) => {
+      if (selectedGrade) return s.grade === selectedGrade;
+      if (facilitatorGrade) {
+        const g = Array.isArray(facilitatorGrade) ? facilitatorGrade : [facilitatorGrade];
+        return g.includes(s.grade);
+      }
+      return true;
+    });
+
+    if (selectedClassification) {
+      const match = gradeMatches.find(
+        (s) =>
+          s.classification === selectedClassification ||
+          s.classification === "All" ||
+          !s.classification
+      );
+      if (match) return match;
+    }
+
+    return gradeMatches[0] || null;
+  }, [schedules, selectedGrade, facilitatorGrade, selectedClassification]);
+
+  const isNoClass = useMemo(() => {
+    if (scheduleLoading) return false;
+    if (schedules.length === 0) return false;
+    return !activeSession || activeSession.status === "cancelled";
+  }, [schedules, activeSession, scheduleLoading]);
+
   const toggleAttendance = (studentId: string) => {
+    if (isNoClass) {
+      toast.error("Cannot mark attendance: No class is scheduled for this session.");
+      return;
+    }
     const record = attendance.find(
       (r: AttendanceRecord) =>
         r.studentId === studentId && r.date === formattedDate,
@@ -156,6 +210,10 @@ export default function AttendanceSection() {
   };
 
   const togglePermission = (studentId: string) => {
+    if (isNoClass) {
+      toast.error("Cannot mark permission: No class is scheduled for this session.");
+      return;
+    }
     const record = attendance.find(
       (r: AttendanceRecord) =>
         r.studentId === studentId && r.date === formattedDate,
@@ -193,6 +251,10 @@ export default function AttendanceSection() {
 
   // Handle QR scan — marks the scanned student as Present
   const handleQRScan = (uniqueId: string) => {
+    if (isNoClass) {
+      toast.error("Scanning disabled: No class is scheduled for this date.");
+      return;
+    }
     const student = currentYearStudents.find(
       (s: Student) =>
         s.Unique_ID === uniqueId || s._id?.toString() === uniqueId,
@@ -239,6 +301,11 @@ export default function AttendanceSection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isNoClass) {
+      toast.error("Attendance cannot be submitted: No class is scheduled.");
+      return;
+    }
+
     let allRecords = attendance;
     if (
       !attendance.some(
@@ -278,10 +345,11 @@ export default function AttendanceSection() {
             ...r,
             markedBy: facilitatorEmail,
             timestamp,
+            sessionId: activeSession?._id,
           })),
       };
 
-      const res = await fetch("/api/attendance", {
+      const res = await fetch("/api/v1/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -307,6 +375,8 @@ export default function AttendanceSection() {
     (student: Student) =>
       student._id &&
       (selectedGrade === "" || student.Grade === selectedGrade) &&
+      (selectedClassification === "" ||
+        (student.Classification || "Regular") === selectedClassification) &&
       ((student.Unique_ID || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
@@ -346,7 +416,7 @@ export default function AttendanceSection() {
           <button
             type="button"
             onClick={() => setShowScanner(true)}
-            disabled={loading}
+            disabled={loading || isNoClass}
             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition disabled:bg-gray-400"
           >
             <svg
@@ -369,6 +439,53 @@ export default function AttendanceSection() {
         {error && (
           <div className="text-red-500 mb-4 text-responsive">{error}</div>
         )}
+
+        {/* Active Schedule Session Info Banner */}
+        {activeSession && (
+          <div className="mb-6 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50/80 to-blue-50/80 p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-bold text-white uppercase tracking-wider">
+                  Scheduled Session
+                </span>
+                <span className="font-semibold text-indigo-950">
+                  Grade {activeSession.grade}
+                  {activeSession.section ? ` - ${activeSession.section}` : ""}
+                </span>
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-600 font-medium">
+                  {activeSession.startTime} – {activeSession.endTime}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold ${
+                  activeSession.status === "scheduled" ? "bg-emerald-100 text-emerald-800" :
+                  activeSession.status === "completed" ? "bg-blue-100 text-blue-800" : "bg-rose-100 text-rose-800"
+                }`}>
+                  {activeSession.status.toUpperCase()}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* No Class Notification Banner */}
+        {isNoClass && (
+          <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-200 text-amber-900 font-bold">
+                ℹ️
+              </span>
+              <div>
+                <h3 className="font-bold">No Class Scheduled (ክፍለ ጊዜ የለም)</h3>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  There is no scheduled session for this grade on {formattedDate}. Per Sunday School attendance policy, students are not marked absent and attendance entry is closed.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {facilitatorGrade && (
           <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-800 text-responsive">
             Assigned to:{" "}
@@ -406,35 +523,59 @@ export default function AttendanceSection() {
           onSubmit={handleSubmit}
           className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4"
         >
-          <div className="flex-1 sm:w-1/2">
-            <label
-              htmlFor="classFilter"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Filter by Grade (Optional)
-            </label>
-            <select
-              id="classFilter"
-              value={selectedGrade}
-              onChange={(e) => setSelectedGrade(e.target.value)}
-              className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Assigned Grades</option>
-              {[
-                ...new Set(currentYearStudents.map((s: Student) => s.Grade)),
-              ].map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="classFilter"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Filter by Grade (Optional)
+              </label>
+              <select
+                id="classFilter"
+                value={selectedGrade}
+                onChange={(e) => setSelectedGrade(e.target.value)}
+                className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Assigned Grades</option>
+                {[
+                  ...new Set(currentYearStudents.map((s: Student) => s.Grade)),
+                ].map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="hrClassificationFilter"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Student Classification (ምድብ)
+              </label>
+              <select
+                id="hrClassificationFilter"
+                value={selectedClassification}
+                onChange={(e) => setSelectedClassification(e.target.value)}
+                className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Classifications</option>
+                {STUDENT_CLASSIFICATIONS.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <button
             type="submit"
-            className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
-            disabled={loading}
+            className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 shrink-0"
+            disabled={loading || isNoClass}
           >
-            {loading ? "Submitting…" : "Submit Attendance"}
+            {loading ? "Submitting…" : isNoClass ? "No Class Scheduled" : "Submit Attendance"}
           </button>
         </form>
 
@@ -452,10 +593,13 @@ export default function AttendanceSection() {
                 <th className="border p-3 text-left text-responsive font-medium">
                   Grade
                 </th>
-                <th className="border p-3 text-left text-responsive font-medium">
+                <th className="border p-3 text-center text-responsive font-medium">
+                  Status
+                </th>
+                <th className="border p-3 text-center text-responsive font-medium">
                   Present
                 </th>
-                <th className="border p-3 text-left text-responsive font-medium">
+                <th className="border p-3 text-center text-responsive font-medium">
                   Permission
                 </th>
               </tr>
@@ -480,6 +624,25 @@ export default function AttendanceSection() {
                       {student.Grade}
                     </td>
                     <td className="border p-3 text-center">
+                      {record?.present ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                          Present (አለ/ች)
+                        </span>
+                      ) : record?.hasPermission ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                          Permission (ፍቃድ)
+                        </span>
+                      ) : isNoClass ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                          No Class (ክፍለ ጊዜ የለም)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">
+                          Pending
+                        </span>
+                      )}
+                    </td>
+                    <td className="border p-3 text-center">
                       <input
                         type="checkbox"
                         checked={!!record?.present}
@@ -487,8 +650,8 @@ export default function AttendanceSection() {
                           student._id &&
                           toggleAttendance(student._id.toString())
                         }
-                        disabled={loading}
-                        className="w-4 h-4"
+                        disabled={loading || isNoClass}
+                        className="w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
                       />
                     </td>
                     <td className="border p-3 text-center">
@@ -499,8 +662,8 @@ export default function AttendanceSection() {
                           student._id &&
                           togglePermission(student._id.toString())
                         }
-                        disabled={loading}
-                        className="w-4 h-4"
+                        disabled={loading || isNoClass}
+                        className="w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
                       />
                     </td>
                   </tr>
@@ -531,6 +694,25 @@ export default function AttendanceSection() {
                         Grade: {student.Grade}
                       </div>
                     </div>
+                    <div>
+                      {record?.present ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                          Present
+                        </span>
+                      ) : record?.hasPermission ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                          Permission
+                        </span>
+                      ) : isNoClass ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                          No Class
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">
+                          Pending
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <label className="flex items-center gap-2 text-responsive">
@@ -541,7 +723,7 @@ export default function AttendanceSection() {
                           student._id &&
                           toggleAttendance(student._id.toString())
                         }
-                        disabled={loading}
+                        disabled={loading || isNoClass}
                         className="w-4 h-4"
                       />
                       Present
@@ -554,7 +736,7 @@ export default function AttendanceSection() {
                           student._id &&
                           togglePermission(student._id.toString())
                         }
-                        disabled={loading}
+                        disabled={loading || isNoClass}
                         className="w-4 h-4"
                       />
                       Permission
@@ -569,3 +751,4 @@ export default function AttendanceSection() {
     </div>
   );
 }
+

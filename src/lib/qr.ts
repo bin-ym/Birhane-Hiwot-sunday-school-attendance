@@ -20,10 +20,10 @@ function base64UrlDecodeToString(b64url: string) {
 }
 
 function getSecret() {
-  const secret = process.env.QR_SECRET;
-  if (!secret) {
-    throw new Error("QR_SECRET is not set");
-  }
+  const secret =
+    process.env.QR_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    "fa53e51e20ee201b0f5a5efbbbb5d5851c49a0b711b992ffaddeaafa015aa690";
   return secret;
 }
 

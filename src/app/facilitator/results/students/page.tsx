@@ -11,7 +11,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function FacilitatorResultsStudentsPage() {
-  const { data, error, isLoading } = useSWR<Student[]>("/api/students", fetcher, {
+  const { data, error, isLoading } = useSWR<Student[]>("/api/v1/students", fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 600000,
   });

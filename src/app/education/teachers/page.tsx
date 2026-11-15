@@ -44,8 +44,8 @@ export default function TeachersPage() {
     setLoading(true);
     try {
       const [resTeachers, resSubjects] = await Promise.all([
-        fetch("/api/teachers"),
-        fetch("/api/subjects"),
+        fetch("/api/v1/teachers"),
+        fetch("/api/v1/subjects"),
       ]);
 
       if (!resTeachers.ok) throw new Error("Failed to load teachers");
@@ -108,7 +108,7 @@ export default function TeachersPage() {
   const handleCreateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("/api/teachers", {
+      const res = await fetch("/api/v1/teachers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -159,7 +159,7 @@ export default function TeachersPage() {
     setSavingAssignment(true);
     setSaveSuccessMsg(null);
     try {
-      const res = await fetch("/api/teachers", {
+      const res = await fetch("/api/v1/teachers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -199,7 +199,7 @@ export default function TeachersPage() {
     if (!confirm("Are you sure you want to delete this teacher account?"))
       return;
     try {
-      const res = await fetch("/api/teachers", {
+      const res = await fetch("/api/v1/teachers", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),

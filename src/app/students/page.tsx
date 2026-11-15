@@ -34,7 +34,7 @@ export default function Students() {
     if (status === "unauthenticated") {
       window.location.href = "/login";
     } else if (status === "authenticated") {
-      fetch("/api/students")
+      fetch("/api/v1/students")
         .then((res) => res.json())
         .then((data) => setStudents(data))
         .catch(() => setStudents([]));
@@ -63,7 +63,7 @@ export default function Students() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this student?")) return;
     try {
-      const response = await fetch("/api/students", {
+      const response = await fetch("/api/v1/students", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),

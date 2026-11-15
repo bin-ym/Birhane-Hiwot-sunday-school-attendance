@@ -21,7 +21,7 @@ export default function AuditLogsPage() {
   params.set("limit", "100");
 
   const { data, error, isLoading } = useSWR(
-    `/api/audit-logs?${params.toString()}`,
+    `/api/v1/audit-logs?${params.toString()}`,
     fetcher,
     { refreshInterval: 30_000 },
   );

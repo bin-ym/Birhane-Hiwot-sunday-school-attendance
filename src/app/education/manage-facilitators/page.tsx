@@ -16,7 +16,7 @@ export default function EducationFacilitators() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/facilitators");
+      const res = await fetch("/api/v1/facilitators");
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       const data = await res.json();
       setFacilitators(Array.isArray(data) ? data : []);
@@ -40,7 +40,7 @@ export default function EducationFacilitators() {
     async (id: string) => {
       if (!confirm("Are you sure you want to delete this facilitator?")) return;
       try {
-        const res = await fetch("/api/facilitators", {
+        const res = await fetch("/api/v1/facilitators", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id }),

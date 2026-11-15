@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/students/route";
+import { POST } from "@/app/api/v1/students/route";
 import { getToken } from "next-auth/jwt";
 import { getDb } from "@/lib/mongodb";
 import { ensureStudentCreationAllowed } from "@/lib/studentService";
@@ -30,6 +30,10 @@ jest.mock("@/lib/rateLimit", () => ({
   enforceRateLimit: jest.fn().mockResolvedValue(null),
 }));
 
+jest.mock("@/lib/enrollmentService", () => ({
+  createEnrollment: jest.fn().mockResolvedValue({}),
+}));
+
 describe("Phase 1 RBAC - valid facilitator within scope", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -50,7 +54,7 @@ describe("Phase 1 RBAC - valid facilitator within scope", () => {
   it("allows a scoped facilitator to create a student in an assigned grade", async () => {
     (ensureStudentCreationAllowed as jest.Mock).mockResolvedValue({ ok: true });
 
-    const req = new NextRequest("http://localhost:3000/api/students", {
+    const req = new NextRequest("http://localhost:3000/api/v1/students", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

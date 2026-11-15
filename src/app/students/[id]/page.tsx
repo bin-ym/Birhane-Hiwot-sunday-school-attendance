@@ -26,7 +26,7 @@ export default function StudentDetails() {
       window.location.href = "/login";
     } else if (status === "authenticated") {
       // Fetch student data
-      fetch(`/api/students/${id}`)
+      fetch(`/api/v1/students/${id}`)
         .then((res) => {
           if (!res.ok) throw new Error(`Failed to fetch student: ${res.status}`);
           return res.json();
@@ -39,7 +39,7 @@ export default function StudentDetails() {
         });
 
       // Fetch attendance data
-      fetch(`/api/attendance/${id}`)
+      fetch(`/api/v1/attendance/${id}`)
         .then((res) => {
           if (!res.ok) throw new Error(`Failed to fetch attendance: ${res.status}`);
           return res.json();
@@ -120,7 +120,7 @@ export default function StudentDetails() {
       {activeTab === 'details' && <DetailsTab student={student} />}
       {activeTab === 'enrollment' && (
         <EnrollmentTab
-          studentId={student.Unique_ID || id}
+          studentId={student._id ? String(student._id) : id}
           currentAcademicYear={student.Academic_Year}
         />
       )}
@@ -131,8 +131,15 @@ export default function StudentDetails() {
           currentDate={currentDate}
         />
       )}
-      {activeTab === 'payment' && <PaymentStatusTab studentId={student.Unique_ID || id} academicYear={student.Academic_Year} />}
-      {activeTab === 'results' && <ResultsTab studentId={student.Unique_ID || id} />}
+      {activeTab === 'payment' && (
+        <PaymentStatusTab
+          studentId={student._id ? String(student._id) : id}
+          academicYear={student.Academic_Year}
+        />
+      )}
+      {activeTab === 'results' && (
+        <ResultsTab studentId={student._id ? String(student._id) : id} />
+      )}
 
       <Link
         href={isAdmin ? "/admin/students" : "/register/old"}

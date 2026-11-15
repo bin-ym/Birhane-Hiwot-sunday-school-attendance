@@ -5,9 +5,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { gregorianToEthiopian, formatEthiopianDate } from "@/lib/utils";
-import { Student } from "@/lib/models";
+import { Student, ScheduleSession } from "@/lib/models";
+import { STUDENT_CLASSIFICATIONS } from "@/lib/constants";
 import toast, { Toaster } from "react-hot-toast";
 import dynamic from "next/dynamic";
+import { CalendarX, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 
 const QRScannerModal = dynamic(() => import("@/components/QRScannerModal"), {
   ssr: false,
@@ -48,7 +50,7 @@ export default function AttendanceSection() {
 
   const studentsUrl = useMemo(() => {
     if (!facilitatorGrade || facilitatorGrade.length === 0) return null;
-    const url = "/api/students";
+    const url = "/api/v1/students";
     const params = new URLSearchParams();
     if (Array.isArray(facilitatorGrade)) {
       facilitatorGrade.forEach((grade) => params.append("grade", grade));
@@ -74,7 +76,7 @@ export default function AttendanceSection() {
     isLoading: attendanceLoading,
   } = useSWR<AttendanceRecord[]>(
     studentsUrl
-      ? `/api/attendance?date=${encodeURIComponent(formattedDate)}`
+      ? `/api/v1/attendance?date=${encodeURIComponent(formattedDate)}`
       : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 600000 },
@@ -84,6 +86,7 @@ export default function AttendanceSection() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedClassification, setSelectedClassification] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
@@ -112,9 +115,50 @@ export default function AttendanceSection() {
     else setError(null);
   }, [studentsError, attendanceError, facilitatorGrade]);
 
-  const currentYear = Math.max(
-    ...students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean),
+  const currentYear = useMemo(() => {
+    if (students.length === 0) return 2018;
+    const years = students.map((s: Student) => parseInt(s.Academic_Year)).filter(Boolean);
+    return years.length > 0 ? Math.max(...years) : 2018;
+  }, [students]);
+
+  const { data: scheduleData, isLoading: scheduleLoading } = useSWR<{
+    schedules: ScheduleSession[];
+  }>(
+    `/api/v1/schedules?date=${encodeURIComponent(formattedDate)}&academicYear=${currentYear}`,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 600000 }
   );
+
+  const activeSession = useMemo(() => {
+    const list = scheduleData?.schedules || [];
+    const gradeMatches = list.filter((s) => {
+      if (selectedGrade) return s.grade === selectedGrade;
+      if (facilitatorGrade) {
+        const g = Array.isArray(facilitatorGrade) ? facilitatorGrade : [facilitatorGrade];
+        return g.includes(s.grade);
+      }
+      return true;
+    });
+
+    if (selectedClassification) {
+      const match = gradeMatches.find(
+        (s) =>
+          s.classification === selectedClassification ||
+          s.classification === "All" ||
+          !s.classification
+      );
+      if (match) return match;
+    }
+
+    return gradeMatches[0] || null;
+  }, [scheduleData, selectedGrade, facilitatorGrade, selectedClassification]);
+
+  const isNoClass = useMemo(() => {
+    if (scheduleLoading) return false;
+    if (!scheduleData?.schedules) return false;
+    return !activeSession || activeSession.status === "cancelled";
+  }, [activeSession, scheduleData, scheduleLoading]);
+
   const currentYearStudents = students.filter(
     (s: Student) => s.Academic_Year === String(currentYear),
   );
@@ -229,6 +273,11 @@ export default function AttendanceSection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isNoClass) {
+      toast.error("Cannot record attendance: No class session is scheduled for this grade on this date.");
+      return;
+    }
+
     let allRecords = attendance;
     if (
       !attendance.some(
@@ -250,6 +299,7 @@ export default function AttendanceSection() {
             hasPermission: false,
             reason: "",
             markedBy: facilitatorEmail,
+            sessionId: activeSession?._id,
           }
         );
       });
@@ -262,6 +312,7 @@ export default function AttendanceSection() {
       const timestamp = formatEthiopianDate(new Date());
       const payload = {
         date: formattedDate,
+        sessionId: activeSession?._id,
         attendance: allRecords
           .filter((r) => r.date === formattedDate)
           .map((r) => ({
@@ -271,7 +322,7 @@ export default function AttendanceSection() {
           })),
       };
 
-      const res = await fetch("/api/attendance", {
+      const res = await fetch("/api/v1/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -297,6 +348,8 @@ export default function AttendanceSection() {
     (student: Student) =>
       student._id &&
       (selectedGrade === "" || student.Grade === selectedGrade) &&
+      (selectedClassification === "" ||
+        (student.Classification || "Regular") === selectedClassification) &&
       ((student.Unique_ID || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
@@ -392,39 +445,100 @@ export default function AttendanceSection() {
         </div>
       </div>
 
+      {/* Schedule Banner: No Class vs Scheduled Session */}
+      {isNoClass ? (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 shadow-sm flex items-start gap-3">
+          <CalendarX className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <div>
+            <h4 className="text-sm font-bold text-amber-900">
+              No Class Scheduled (ትምህርት የለም)
+            </h4>
+            <p className="text-xs text-amber-700 mt-0.5">
+              {activeSession?.status === "cancelled"
+                ? `The session for ${selectedGrade || "assigned grades"} (${activeSession.classification || selectedClassification || "all classifications"}) on ${formattedDate} has been cancelled.`
+                : `There is no class scheduled for ${selectedGrade || "assigned grades"} (${selectedClassification || "all classifications"}) on ${formattedDate}.`}
+              {activeSession?.notes ? ` Reason: "${activeSession.notes}"` : ""}
+              {" "}Students are <strong>not marked absent</strong>. Attendance roll-call is disabled for unscheduled dates.
+            </p>
+          </div>
+        </div>
+      ) : activeSession ? (
+        <div className="mb-6 p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 shadow-sm flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2.5">
+            <Clock className="h-5 w-5 text-blue-600 shrink-0" />
+            <div>
+              <span className="text-xs font-bold text-blue-900">
+                Scheduled Session: {activeSession.grade} [{activeSession.classification || "All"}] ({activeSession.startTime} - {activeSession.endTime})
+              </span>
+              <p className="text-xs text-blue-700">
+                {activeSession.topic || "Regular Curriculum Session"} {activeSession.assignedTeacherName ? `• Teacher: ${activeSession.assignedTeacherName}` : ""}
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+            Session Active
+          </span>
+        </div>
+      ) : null}
+
       <form
         onSubmit={handleSubmit}
         className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4"
       >
-        <div className="flex-1 sm:w-1/2">
-          <label
-            htmlFor="classFilter"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Filter by Grade (Optional)
-          </label>
-          <select
-            id="classFilter"
-            value={selectedGrade}
-            onChange={(e) => setSelectedGrade(e.target.value)}
-            className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">All Assigned Grades</option>
-            {[...new Set(currentYearStudents.map((s: Student) => s.Grade))].map(
-              (option) => (
-                <option key={option} value={option}>
-                  {option}
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label
+              htmlFor="classFilter"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Filter by Grade (Optional)
+            </label>
+            <select
+              id="classFilter"
+              value={selectedGrade}
+              onChange={(e) => setSelectedGrade(e.target.value)}
+              className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Assigned Grades</option>
+              {[...new Set(currentYearStudents.map((s: Student) => s.Grade))].map(
+                (option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ),
+              )}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="categoryFilter"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Student Classification (ምድብ)
+            </label>
+            <select
+              id="categoryFilter"
+              value={selectedClassification}
+              onChange={(e) => setSelectedClassification(e.target.value)}
+              className="w-full p-3 border rounded-lg text-responsive focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Classifications</option>
+              {STUDENT_CLASSIFICATIONS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
                 </option>
-              ),
-            )}
-          </select>
+              ))}
+            </select>
+          </div>
         </div>
+
         <button
           type="submit"
-          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
-          disabled={loading}
+          className="btn-responsive bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 shrink-0"
+          disabled={loading || isNoClass}
         >
-          {loading ? "Submitting…" : "Submit Attendance"}
+          {loading ? "Submitting…" : isNoClass ? "No Class Scheduled" : "Submit Attendance"}
         </button>
       </form>
 
@@ -441,6 +555,9 @@ export default function AttendanceSection() {
               </th>
               <th className="border p-3 text-left text-responsive font-medium">
                 Grade
+              </th>
+              <th className="border p-3 text-left text-responsive font-medium">
+                Status
               </th>
               <th className="border p-3 text-left text-responsive font-medium">
                 Present
@@ -466,6 +583,29 @@ export default function AttendanceSection() {
                   <td className="border p-3 text-responsive">
                     {student.Grade}
                   </td>
+                  <td className="border p-3 text-responsive">
+                    {isNoClass ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-500">
+                        No Class
+                      </span>
+                    ) : record?.present ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">
+                        Present
+                      </span>
+                    ) : record?.hasPermission ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-800">
+                        Permission
+                      </span>
+                    ) : record ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">
+                        Absent
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">
+                        Pending
+                      </span>
+                    )}
+                  </td>
                   <td className="border p-3 text-center">
                     <input
                       type="checkbox"
@@ -473,7 +613,7 @@ export default function AttendanceSection() {
                       onChange={() =>
                         student._id && toggleAttendance(student._id.toString())
                       }
-                      disabled={loading}
+                      disabled={loading || isNoClass}
                       className="w-4 h-4"
                     />
                   </td>
@@ -484,7 +624,7 @@ export default function AttendanceSection() {
                       onChange={() =>
                         student._id && togglePermission(student._id.toString())
                       }
-                      disabled={loading}
+                      disabled={loading || isNoClass}
                       className="w-4 h-4"
                     />
                   </td>
